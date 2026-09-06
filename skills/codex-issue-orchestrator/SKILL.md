@@ -1,200 +1,325 @@
 ---
 name: codex-issue-orchestrator
-description: Orchestrate multiple controlling GitHub issues through fresh Codex workers in parallel or sequential order while preserving each issue's normal spec-driven execution workflow.
+description: Orchestrate explicit issue batches and executable epic DAGs through fresh role-specific Codex workers while preserving each child issue's own contract, review boundary, and workflow state.
 ---
 
 # Codex Issue Orchestrator
 
 ## Responsibility
 
-Use this skill when one parent Codex session must execute a known set of controlling GitHub issues through separate worker agents.
+Use this skill when one parent Codex session must coordinate multiple controlling GitHub issues. It supports two modes:
 
-This skill owns only:
+- **batch mode** for the original explicit parallel/sequential issue lists;
+- **epic-dag mode** for one executable epic whose children form a directed acyclic dependency graph.
 
-- issue ordering and dispatch;
-- parallel versus sequential scheduling;
-- independent versus dependent issue semantics;
-- the base ref passed to each worker;
-- failure propagation between issues;
-- batch-worker progress observability;
-- the final orchestration summary.
+The orchestrator owns discovery from the declared contract, dependency scheduling, conflict-group serialization, worker dispatch, base-ref construction, progress observability, resume semantics, integration-branch composition in epic mode, and the final orchestration handoff.
 
-It does **not** own issue implementation, validation, publication, review, redesign, or merge decisions. Every worker executes exactly one controlling issue using `spec-driven-codex-loop` and the normal repository workflow.
+It does **not** silently redesign child scope, decide product behavior for a child, weaken validation, self-review implementation, or merge the epic result into the default branch. Each child remains its own controlling contract and must use a fresh role-appropriate worker.
 
-The orchestrator must not implement an issue itself merely because a worker fails, and it must not redesign an issue from batch-level context.
+## Common invariants
 
-## Required orchestration inputs
+- Load `AGENTS.md`, this skill, and the parent/batch contract first.
+- Treat issue labels as authoritative current workflow state.
+- Do not infer undeclared children from neighboring issues, milestones, labels, or repository history.
+- Do not launch two implementation workers that own the same child issue.
+- Do not silently promote observations from one child into another child's requirements. Cross-child contract changes must be written into the affected issue by the appropriate design authority.
+- Preserve exact reviewed targets. Never rewrite a reviewed child head merely to make orchestration easier.
+- Child technical review is not authorization to merge to the default branch.
+- The parent orchestrator must remain coordination logic; it must not become a fallback implementation worker.
 
-Resolve these before dispatch:
+## Mode selection
 
-- an explicit ordered list of controlling issues;
+### Batch mode
+
+Use batch mode when the caller supplies an explicit ordered issue list plus:
+
 - `schedule`: `parallel` or `sequential`;
 - `dependency`: `independent` or `dependent`;
-- the initial base branch or exact base ref.
+- initial base branch or exact base ref.
 
-Valid combinations are:
+Preserve the historical semantics described later in this skill.
 
-| Schedule | Dependency | Meaning |
-| --- | --- | --- |
-| `parallel` | `independent` | launch independent workers concurrently |
-| `sequential` | `independent` | run independent workers one at a time |
-| `sequential` | `dependent` | run a stacked dependency chain one issue at a time |
+### Epic DAG mode
 
-`parallel + dependent` is invalid. Stop and request a coherent orchestration mode instead of inventing dependency behavior.
+Use epic mode only when the parent issue contains an explicit **Epic execution contract** with `execution_mode: epic-dag` and a closed child set.
 
-Do not infer extra work from neighboring issues, labels, milestones, or an epic body once the issue list has been resolved.
+The contract must define at least:
 
-Do not silently promote provisional conclusions from one worker into another worker's contract. New cross-issue requirements must be recorded through the normal design/issue workflow.
+- `initial_base`;
+- `max_parallel_workers`;
+- one entry for every child issue;
+- each child's `kind`;
+- each child's `depends_on` list, including an explicit empty list for roots;
+- optional `mutex` / conflict groups;
+- whether the child is mandatory for epic closure.
+
+The machine-readable epic contract is authoritative for orchestration topology. The child issue remains authoritative for its technical scope and acceptance criteria. If those two sources materially disagree about a dependency, kind, or closure condition, stop that node and return the mismatch to design rather than guessing.
+
+Before starting, validate that:
+
+1. every referenced child exists and references the epic or is otherwise explicitly adopted by it;
+2. every dependency references another declared child;
+3. the graph is acyclic;
+4. no child has more than one workflow-state label;
+5. `max_parallel_workers >= 1`;
+6. no active child has ambiguous branch/PR ownership;
+7. the initial base exists and is fetchable;
+8. the parent is `execution-ready` or `in-progress`.
+
+Move the parent from `execution-ready` to `in-progress` immediately before orchestration work begins. Do not use the parent label as a substitute for child labels.
+
+## Epic child kinds
+
+The epic contract may use these kinds.
+
+### `implementation`
+
+A child that ultimately delivers code/docs/configuration/tests through `spec-driven-codex-loop`.
+
+- `execution-ready` -> dispatch a fresh implementation worker using `spec-driven-codex-loop`.
+- `in-progress` -> resume the existing owner rather than creating a competing worker.
+- `design-required` -> dispatch design authority first; if the resulting contract becomes `execution-ready`, the same epic may later schedule an implementation worker.
+- `investigation-required` -> dispatch an investigation worker first; schedule implementation only if investigation produces an execution-ready contract.
+- `review-ready` or `completed` -> reuse the observed successful result when its reviewed target is still valid for this epic.
+
+### `investigation`
+
+A child whose declared deliverable is evidence, diagnosis, benchmark, reproduction, or a falsifiable conclusion rather than necessarily a code feature.
+
+Use a fresh investigation worker with only `AGENTS.md`, the child issue, relevant evidence/source, and the minimum required utility skills. The worker must preserve reproducible evidence, may add tests/instruments/reports when the issue explicitly requires them, and must not smuggle an unapproved fix into the investigation.
+
+A completed investigation must end in one of these explicit outcomes:
+
+- `completed` when the investigation itself is the accepted deliverable and no implementation follows;
+- `execution-ready` when it has produced a fully resolved implementation contract;
+- `design-required` when a material choice remains;
+- `blocked` when a required external capability is genuinely unavailable.
+
+If an investigation discovers a separate defect or feature outside its contract, create/update a bounded child issue rather than implementing it incidentally. Adding a new child to an already executing epic requires an explicit parent-contract amendment and DAG revalidation.
+
+### `design`
+
+A child whose current deliverable is a resolved technical decision. Use `design-github-issue` in a fresh context.
+
+A successful design pass must either:
+
+- leave the issue `execution-ready` with a complete implementation contract; or
+- mark/close it according to an explicit design-only terminal decision when no implementation is required.
+
+Do not treat prose discussion as a completed design while the authoritative label remains `design-required`.
+
+### `optional-design`
+
+Like `design`, but epic closure may accept an explicit, reviewed defer/reject decision. Optional does not mean silently skipped: the issue must record the decision and the parent summary must identify it as delivered, deferred, or rejected.
+
+## Dependency satisfaction
+
+A child is **schedulable** only when every declared predecessor has produced an outcome that satisfies the edge.
+
+By default an implementation dependency is satisfied only by a technically accepted exact target (`review-ready` or already `completed`) that can be composed into the child's base. A design/investigation dependency is satisfied by the terminal outcome required by its child contract; if it produced a successor implementation contract, that successor state must also match the parent DAG before downstream work starts.
+
+`blocked`, `failed`, unresolved `design-required`, or unresolved `investigation-required` do not satisfy downstream dependencies.
+
+When a mandatory node cannot progress, mark only its descendants as `not-run-dependency-failure`; independent parts of the DAG may continue. The whole epic becomes blocked only when no schedulable mandatory work remains and at least one mandatory closure path is unsatisfied.
+
+## Conflict groups and parallelism
+
+The epic may declare zero or more `mutex` values per child. Two active workers whose mutex sets intersect must not execute concurrently, even if there is no graph edge between them.
+
+This is a scheduling constraint, not a dependency: after one worker terminates, the other may use the newest valid composed base according to the DAG contract.
+
+Never exceed `max_parallel_workers`. Prefer useful parallelism between genuinely independent subsystems; do not maximize concurrency merely because slots are available.
+
+## Base refs and epic integration branches
+
+### Why epic mode needs composition
+
+A DAG can have joins: a child may depend on several reviewed but not-yet-default-merged predecessors. Therefore a single predecessor branch is not always a sufficient base.
+
+Epic mode may maintain **ephemeral non-default integration branches** under:
+
+`codex/epic-<parent>/integration/**`
+
+These branches are coordination artifacts, not acceptance into the default branch.
+
+### Single predecessor
+
+When a child has one implementation predecessor, use that predecessor's exact reviewed head as the base if it already contains all transitive required ancestors.
+
+### Multiple predecessors
+
+When a child has several implementation predecessors, build a temporary integration base from the declared initial base and combine the exact reviewed predecessor heads without modifying them.
+
+Composition rules:
+
+- never force-push a shared reviewed head;
+- never resolve a semantic merge conflict by guesswork;
+- if exact heads combine cleanly, publish the resulting non-default integration ref and use it as the child's base;
+- if composition conflicts, stop the affected node and route the conflict to the parent/design authority with the exact heads and paths involved;
+- run cheap integration validation after a non-trivial join when the child contract or risk justifies it;
+- integration commits must contain only the mechanical combination of already reviewed heads, not new implementation fixes.
+
+Creating or fast-forwarding these non-default integration refs is authorized by `execution_mode: epic-dag`. **This authority never includes moving the default branch or merging the final epic PR.**
+
+### Child PRs
+
+Every implementation child still gets its own branch and PR according to `spec-driven-codex-loop`. Its PR base should be the exact epic base supplied to that worker, so the child diff represents only its bounded delta.
+
+The orchestrator may compose a child's exact reviewed head into later ephemeral integration bases after the child reaches `review-ready`; this is not default-branch acceptance and does not waive the later user-facing merge decision.
 
 ## Worker contract
 
-For every dispatched issue:
+For every dispatched child:
 
-1. start a fresh worker agent;
-2. give it exactly one controlling issue and the base ref selected by this skill;
-3. require it to load `AGENTS.md`, that controlling issue, and `spec-driven-codex-loop` normally;
-4. enable the orchestration progress-observability policy defined below when useful;
-5. let the worker own its branch, implementation, validation, evidence, commits, independent review, PR publication, and `review-ready` handoff;
-6. wait for the worker outcome according to the selected schedule;
-7. record only the outcome needed by the orchestration loop.
+1. start a fresh role-specific worker unless resuming an unambiguously existing owner;
+2. give it exactly one controlling child issue plus the exact base ref selected by the orchestrator;
+3. require it to load `AGENTS.md`, the child issue, and only the skill(s) required by its role;
+4. let the worker own its technical work, validation/evidence, publication and role-specific handoff;
+5. wait for a terminal or handoff state before treating its result as dependency evidence;
+6. record the exact reviewed/published target when downstream composition needs it.
 
-Do not carry implementation conclusions, temporary diagnostics, prompt changes, benchmark observations, or uncommitted state from one worker into another unless `dependency=dependent` and the state is intentionally preserved in the predecessor's published branch or controlling contract.
+Do not carry hidden implementation reasoning between workers. Only authoritative issue amendments, published commits, PRs, tests, reports, and other preserved evidence may constrain a later child.
 
-Each controlling issue still gets its own PR under the normal spec-driven workflow unless an issue explicitly defines another delivery boundary. This skill never merges or enables auto-merge.
+## Parent and child state handling
 
-## Batch worker observability
+The parent and children have independent state machines.
 
-Orchestrated execution may be more observable than an ordinary single-issue Codex run. The worker may leave concise progress comments on its **controlling issue** in addition to the normal material checkpoint and final-handoff comments.
+Parent:
 
-This is a progress-reporting request from the calling workflow; it does not change the issue contract, acceptance criteria, review gates, or source-of-truth hierarchy.
+- `execution-ready` -> ready to start epic orchestration;
+- `in-progress` -> epic is actively being orchestrated or can be resumed;
+- `blocked` -> no remaining schedulable mandatory work and at least one mandatory path is blocked;
+- `review-ready` -> all mandatory epic outcomes have been integrated into one final non-default epic target, required final integration validation/review has passed, and the final epic PR is ready for user-facing review;
+- `completed` -> only after an explicit user-facing merge/acceptance is observed.
 
-Post a progress update when it gives a remote observer useful new state, normally at boundaries such as:
+Children keep the normal repository workflow. Never mark all children `execution-ready` merely because the parent started. Promote each child only when its own design/investigation gate and DAG dependencies are actually satisfied.
 
-- worker started and execution/base context is established;
-- a material preflight, compatibility, setup, or environment phase finishes;
-- a long-running build, migration, generation, evaluation, training, benchmark, or similar phase starts;
-- a long-running phase reaches a useful coarse progress boundary when that progress is cheaply available;
-- that long-running phase finishes and the worker moves into validation/evidence/review;
-- an unexpected failure, retry, fallback decision, or blocker materially changes what the worker is doing.
+State-only transitions should remain comments-free. Use comments for material dependency amendments, conflict/blocker evidence, investigation/design outcomes, exact integration targets, or final handoff.
 
-For a long-running loop, prefer a few coarse updates over time-based chatter. Do not comment per test case, task, candidate, retry, build target, or log line.
+## Epic execution loop
 
-Progress comments are observability, not checkpoints:
+### 1. Reconcile current state
 
-- they do not require publication of a review target;
-- they do not trigger independent review;
-- they do not authorize contract changes;
-- they do not replace normal checkpoint, blocker, design/investigation-return, or final-handoff comments required by `spec-driven-codex-loop`.
+Read the parent contract and every declared child metadata/state. Reuse `completed` and valid `review-ready` work. Resume unambiguous `in-progress` work. Detect stale parent assumptions, superseded child contracts, closed/renumbered children, changed dependencies, and active competing ownership.
 
-## Independent issues
+### 2. Build and validate the DAG
 
-Independent issues must not inherit unmerged sibling work.
+Construct the exact graph from the parent contract, calculate transitive prerequisites, verify acyclicity, and identify roots, ready nodes, blocked descendants and mutex conflicts.
 
-For each worker:
+Do not derive dependencies merely from issue-number order or priority.
 
-- branch from the designated common base branch/ref, not from another issue's PR branch;
-- keep its implementation and PR independent of sibling outcomes;
-- do not change its issue contract because another worker's implementation, benchmark, or experiment performed well or poorly.
+### 3. Select the next wave
 
-### Sequential independent
+Choose up to `max_parallel_workers` schedulable nodes whose mutex sets do not intersect. Favor mandatory nodes and shorter prerequisite paths before optional work unless the parent explicitly defines another priority.
 
-Run one worker, wait for it to terminate, record its outcome, then continue to the next issue unless the calling workflow explicitly says otherwise.
+### 4. Prepare exact bases
 
-A worker ending in any of these states does **not** block later independent issues:
+For each chosen implementation node, construct or reuse the exact base containing all satisfied implementation predecessors. Verify ancestry and remote publication before worker launch.
 
-- `review-ready`;
-- `blocked`;
-- `design-required`;
-- `investigation-required`;
-- implementation or validation failure;
-- worker/process/transport failure.
+Design/investigation nodes normally use the current declared initial/integration context needed to inspect evidence, but must not accidentally inherit unrelated sibling implementation as technical truth.
 
-The orchestrator records the failure and continues. It does not repair the failed issue itself.
+### 5. Dispatch fresh workers
 
-### Parallel independent
+Dispatch by child kind and current label. Preserve each child's own acceptance criteria and tests. Do not convert an investigation into implementation or design into code merely to keep the epic moving.
 
-Launch one fresh worker per issue concurrently.
+### 6. Reconcile outcomes
 
-Each worker uses the same designated independent base policy and remains isolated from sibling branches. One worker failing or blocking must not cancel unrelated workers.
+After each wave, refresh child labels, PRs, exact heads, comments/contract amendments and any newly discovered blockers. Rebuild the schedulable set. Do not rely on the worker's prose summary when GitHub/repository state says otherwise.
 
-Wait for all workers to reach a terminal handoff/failure state, then summarize the batch.
+### 7. Repeat until closure boundary
 
-## Sequential dependent issues
+Continue while schedulable work exists. Independent branches of the graph continue even when another branch blocks.
 
-Use this mode only when each issue intentionally builds on the previous issue's unmerged implementation.
+When no work is schedulable:
 
-The chain is stacked:
+- if all mandatory closure conditions are satisfied, build the final integration target;
+- if mandatory paths are unresolved, set/report the parent `blocked` with the minimal blocker set;
+- if only optional work was explicitly deferred/rejected according to contract, continue to final integration.
 
-```text
-initial base
-   |
-issue A branch -> PR A
-   |
-issue B branch -> PR B (base: issue A branch)
-   |
-issue C branch -> PR C (base: issue B branch)
-```
+## Final epic integration and review
 
-Rules:
+When every mandatory child is satisfied:
 
-- the first worker starts from the declared initial base;
-- each later worker starts from the exact published head of the immediately preceding successful issue;
-- each later PR targets the predecessor branch so its diff represents only that issue's additional work;
-- a fresh worker is still used for every issue;
-- do not merge predecessor PRs automatically to advance the chain.
+1. construct one final `codex/epic-<parent>/integration` target from the declared initial base and all mandatory accepted implementation heads, plus accepted optional implementation heads that the parent contract includes;
+2. verify the complete changed-path set and ancestry;
+3. run the parent-declared final integration tests/checks;
+4. invoke a fresh final-capable independent review of the complete integrated target against the epic closure contract;
+5. create or update one final epic PR from the integration branch to the default branch;
+6. only after final review passes, mark that PR ready for review and move the parent from `in-progress` to `review-ready`;
+7. stop.
 
-A downstream issue may start only after its predecessor reaches a valid `review-ready` handoff with a published branch/head suitable as the next base.
+The orchestrator must **not merge** the final epic PR, enable auto-merge, move the default branch, close the parent, or mark it `completed`. Those actions require a later explicit user-facing review/merge instruction.
 
-Any predecessor outcome that does not provide that successful dependency state stops the chain. This includes `blocked`, `design-required`, `investigation-required`, failed implementation/validation/review, worker failure, or an unavailable/ambiguous predecessor branch.
+Child PRs remain traceability artifacts for their bounded deltas. The final epic PR is the user-facing integration boundary for the complete DAG.
 
-When the chain stops:
+## Resume and idempotency
 
-- preserve the predecessor's real outcome;
-- do not launch downstream workers;
-- report the first blocking issue and mark later issues as not executed due to dependency failure.
+Epic orchestration is expected to span multiple sessions.
 
-If an external action changes or merges a branch while the dependent chain is running and the intended next base becomes ambiguous, stop instead of guessing a new stack topology.
+On resume:
 
-## Existing work and resume behavior
+- trust observed issue labels, PR state, exact published heads and integration refs over old session memory;
+- reuse valid integration refs only after verifying their ancestry matches the currently declared dependency heads;
+- reuse `completed` children;
+- reuse `review-ready` children only if their exact reviewed target is still the one required by the parent DAG;
+- resume an `in-progress` child only with unambiguous ownership;
+- never create a second worker merely because the original session is no longer visible;
+- recompute schedulability from current state every time.
 
-Before dispatching an issue, avoid duplicating work that is already terminal for the requested purpose.
+If the parent contract changes while execution is active, stop new dispatch, validate the amendment, recompute the DAG and record the material change before continuing. Never silently drop already delivered work.
 
-- `completed` issues are recorded as already completed unless the caller explicitly requests re-execution;
-- `review-ready` issues may be reused as the successful issue outcome when no additional execution was requested;
-- an `in-progress` issue with an existing branch/PR should be resumed by its worker through the normal spec-driven workflow rather than creating competing ownership.
+## Progress observability
 
-If ownership is ambiguous, do not launch a second executor for the same controlling issue.
+For long epics, post concise parent progress only at useful wave/phase boundaries, for example:
 
-## Orchestrator failure policy
+- orchestration started and graph validated;
+- a wave completed with newly unblocked nodes;
+- a mandatory path became blocked;
+- an epic contract amendment changed topology;
+- final integration/review started;
+- final ready-for-review handoff.
 
-The parent orchestrator should remain small and durable:
+Do not mirror every child comment on the parent. Child technical detail belongs to the child issue/PR.
 
-- worker-local technical failures belong to the worker and controlling issue;
-- an independent worker failure is recorded, not escalated into a batch abort;
-- a dependent worker failure stops only the dependency chain as defined above;
-- failure to launch the orchestration mechanism itself is an orchestrator failure and should be reported precisely.
+Useful parent progress includes counts such as `completed/review-ready`, `active`, `blocked descendants`, and the next schedulable wave, plus exact refs only when needed for recovery.
 
-Do not convert a batch orchestration problem into a technical, product, or research decision inside a child issue.
+## Epic failure policy
 
-Do not create new project-wide orchestration machinery, roadmaps, schemas, or state stores merely because a batch is large. Reuse the issue/PR/skill workflow unless an explicit design decision requires additional infrastructure.
+- Child implementation failure belongs to that child; do not repair it in the parent context.
+- A failed mandatory child blocks only its descendants until no other mandatory work is schedulable.
+- A failed optional child may be deferred only if the parent contract explicitly permits that closure outcome.
+- Merge conflicts between reviewed predecessor heads are integration blockers, not permission for the orchestrator to invent a resolution.
+- Worker/process/transport failure is not a technical verdict; retry/resume through another permitted transport when ownership remains safe.
+- If the DAG contract itself is contradictory, cyclic, incomplete, or ambiguous, return the parent to `design-required` rather than improvising topology.
 
-## Completion
+## Batch mode compatibility
 
-After all permitted workers have terminated, produce one compact table with at least:
+Batch mode preserves the original simpler semantics.
 
-| Issue | Outcome | PR / branch | Result or blocker |
-| --- | --- | --- | --- |
+Valid combinations:
 
-Useful outcomes include:
+| Schedule | Dependency | Meaning |
+| --- | --- | --- |
+| `parallel` | `independent` | launch independent workers concurrently from one common base |
+| `sequential` | `independent` | run independent workers one at a time from the declared base |
+| `sequential` | `dependent` | run a linear stacked chain, each successful reviewed head becoming the next base |
 
-- `review-ready`;
-- `already-completed`;
-- `blocked`;
-- `design-required`;
-- `investigation-required`;
-- `failed`;
-- `not-run-dependency-failure`.
+`parallel + dependent` remains invalid in batch mode.
 
-Do not duplicate complete worker logs or PR histories. The issue and PR remain the source of truth for each worker's detailed execution.
+For independent batch issues, one failure does not cancel unrelated workers. For a dependent linear chain, a predecessor that cannot provide a valid `review-ready` published head stops downstream execution. Batch mode does not create an epic integration PR and does not infer a DAG.
 
-The orchestration completes when every independent issue has terminated, or when a dependent chain has either completed or stopped at its first failed dependency. It never implies that any PR is approved for merge.
+## Completion report
+
+For batch mode, retain the compact issue/outcome/PR-or-branch/result table.
+
+For epic mode, report at least:
+
+- parent issue and state;
+- final integration branch/PR when created;
+- mandatory children satisfied versus total;
+- optional children delivered/deferred/rejected;
+- blocked/failed children and affected descendants;
+- exact next schedulable wave when not complete;
+- final integration validation/review result when complete.
+
+Do not duplicate complete child histories or logs. GitHub issues, PRs and preserved evidence remain the detailed source of truth.
