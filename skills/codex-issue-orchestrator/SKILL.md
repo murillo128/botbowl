@@ -53,7 +53,16 @@ The contract must define at least:
 - optional `mutex` / conflict groups;
 - whether the child is mandatory for epic closure.
 
-The machine-readable epic contract is authoritative for orchestration topology. The child issue remains authoritative for its technical scope and acceptance criteria. If those two sources materially disagree about a dependency, kind, or closure condition, stop that node and return the mismatch to design rather than guessing.
+A child may additionally declare `ready_state`. When omitted, use these defaults:
+
+- `implementation` -> `execution-ready`;
+- `investigation` -> `investigation-required`;
+- `design` -> `design-required`;
+- `optional-design` -> `design-required`.
+
+`ready_state` exists for children such as an implementation issue that must pass a design gate after its DAG prerequisites become available.
+
+The machine-readable epic contract is authoritative for orchestration topology. The child issue remains authoritative for its technical scope and acceptance criteria. If those two sources materially disagree about a dependency, kind, ready state, or closure condition, stop that node and return the mismatch to design rather than guessing.
 
 Before starting, validate that:
 
@@ -61,12 +70,29 @@ Before starting, validate that:
 2. every dependency references another declared child;
 3. the graph is acyclic;
 4. no child has more than one workflow-state label;
-5. `max_parallel_workers >= 1`;
-6. no active child has ambiguous branch/PR ownership;
-7. the initial base exists and is fetchable;
-8. the parent is `execution-ready` or `in-progress`.
+5. every explicit `ready_state` is one of `execution-ready`, `investigation-required`, or `design-required` and is coherent with the child contract;
+6. `max_parallel_workers >= 1`;
+7. no active child has ambiguous branch/PR ownership;
+8. the initial base exists and is fetchable;
+9. the parent is `execution-ready` or `in-progress`.
 
 Move the parent from `execution-ready` to `in-progress` immediately before orchestration work begins. Do not use the parent label as a substitute for child labels.
+
+## DAG-blocked children
+
+Epic planning commonly leaves a child labeled `blocked` solely because its declared predecessors have not finished. In epic mode this is a **dormant DAG state**, not automatically an external failure.
+
+For a declared child with non-empty `depends_on`:
+
+- while one or more declared prerequisites are unsatisfied, `blocked` is a valid dormant state;
+- once all declared prerequisites are satisfied, inspect the child body/comments for any material blocker independent of those prerequisites;
+- if no independent blocker exists, replace `blocked` with the child's declared/default `ready_state` without adding a state-only comment;
+- if an independent external/technical blocker is recorded, preserve `blocked` and do not auto-unblock it;
+- if it is ambiguous whether `blocked` means DAG wait or a real blocker, stop that node and resolve the ambiguity from authoritative issue evidence before mutation.
+
+A root node (`depends_on: []`) labeled `blocked` is never auto-unblocked merely because it is a root; it needs an explicit blocker resolution.
+
+This automatic transition is limited to the parent-declared DAG. It does not grant a generic orchestrator authority to clear arbitrary `blocked` labels.
 
 ## Epic child kinds
 
@@ -80,6 +106,7 @@ A child that ultimately delivers code/docs/configuration/tests through `spec-dri
 - `in-progress` -> resume the existing owner rather than creating a competing worker.
 - `design-required` -> dispatch design authority first; if the resulting contract becomes `execution-ready`, the same epic may later schedule an implementation worker.
 - `investigation-required` -> dispatch an investigation worker first; schedule implementation only if investigation produces an execution-ready contract.
+- `blocked` -> apply the DAG-blocked rule above; preserve a genuine blocker.
 - `review-ready` or `completed` -> reuse the observed successful result when its reviewed target is still valid for this epic.
 
 ### `investigation`
@@ -95,6 +122,8 @@ A completed investigation must end in one of these explicit outcomes:
 - `design-required` when a material choice remains;
 - `blocked` when a required external capability is genuinely unavailable.
 
+A dependency-blocked investigation transitions to its ready state (`investigation-required` by default) only when its declared prerequisites are satisfied.
+
 If an investigation discovers a separate defect or feature outside its contract, create/update a bounded child issue rather than implementing it incidentally. Adding a new child to an already executing epic requires an explicit parent-contract amendment and DAG revalidation.
 
 ### `design`
@@ -106,7 +135,7 @@ A successful design pass must either:
 - leave the issue `execution-ready` with a complete implementation contract; or
 - mark/close it according to an explicit design-only terminal decision when no implementation is required.
 
-Do not treat prose discussion as a completed design while the authoritative label remains `design-required`.
+A dependency-blocked design transitions to `design-required` only after its declared prerequisites are satisfied. Do not treat prose discussion as a completed design while the authoritative label remains `design-required`.
 
 ### `optional-design`
 
@@ -118,9 +147,9 @@ A child is **schedulable** only when every declared predecessor has produced an 
 
 By default an implementation dependency is satisfied only by a technically accepted exact target (`review-ready` or already `completed`) that can be composed into the child's base. A design/investigation dependency is satisfied by the terminal outcome required by its child contract; if it produced a successor implementation contract, that successor state must also match the parent DAG before downstream work starts.
 
-`blocked`, `failed`, unresolved `design-required`, or unresolved `investigation-required` do not satisfy downstream dependencies.
+An unresolved external `blocked`, failed work, unresolved `design-required`, or unresolved `investigation-required` does not satisfy downstream dependencies. A `blocked` label caused only by still-unsatisfied DAG prerequisites is expected dormant state and must not be reported as an independent failure.
 
-When a mandatory node cannot progress, mark only its descendants as `not-run-dependency-failure`; independent parts of the DAG may continue. The whole epic becomes blocked only when no schedulable mandatory work remains and at least one mandatory closure path is unsatisfied.
+When a mandatory node cannot progress, mark only its descendants as `not-run-dependency-failure`; independent parts of the DAG may continue. The whole epic becomes blocked only when no schedulable mandatory work remains and at least one mandatory closure path is unsatisfied by a genuine failure/blocker/unresolved gate.
 
 ## Conflict groups and parallelism
 
@@ -188,11 +217,11 @@ Parent:
 
 - `execution-ready` -> ready to start epic orchestration;
 - `in-progress` -> epic is actively being orchestrated or can be resumed;
-- `blocked` -> no remaining schedulable mandatory work and at least one mandatory path is blocked;
+- `blocked` -> no remaining schedulable mandatory work and at least one mandatory path has a genuine blocker/unresolved failure;
 - `review-ready` -> all mandatory epic outcomes have been integrated into one final non-default epic target, required final integration validation/review has passed, and the final epic PR is ready for user-facing review;
 - `completed` -> only after an explicit user-facing merge/acceptance is observed.
 
-Children keep the normal repository workflow. Never mark all children `execution-ready` merely because the parent started. Promote each child only when its own design/investigation gate and DAG dependencies are actually satisfied.
+Children keep the normal repository workflow. Never mark all children `execution-ready` merely because the parent started. Promote each child only when its own design/investigation gate and DAG dependencies are actually satisfied. Dependency-blocked children are awakened one at a time to their declared/default `ready_state` as prerequisites become valid.
 
 State-only transitions should remain comments-free. Use comments for material dependency amendments, conflict/blocker evidence, investigation/design outcomes, exact integration targets, or final handoff.
 
@@ -202,38 +231,44 @@ State-only transitions should remain comments-free. Use comments for material de
 
 Read the parent contract and every declared child metadata/state. Reuse `completed` and valid `review-ready` work. Resume unambiguous `in-progress` work. Detect stale parent assumptions, superseded child contracts, closed/renumbered children, changed dependencies, and active competing ownership.
 
+Classify every `blocked` child as either dormant-on-DAG or genuinely blocked from authoritative issue evidence.
+
 ### 2. Build and validate the DAG
 
-Construct the exact graph from the parent contract, calculate transitive prerequisites, verify acyclicity, and identify roots, ready nodes, blocked descendants and mutex conflicts.
+Construct the exact graph from the parent contract, calculate transitive prerequisites, verify acyclicity, and identify roots, ready nodes, dormant blocked descendants, genuine blockers and mutex conflicts.
 
 Do not derive dependencies merely from issue-number order or priority.
 
-### 3. Select the next wave
+### 3. Wake newly unblocked children
+
+For every dormant child whose declared prerequisites are now satisfied, verify no independent blocker appeared and replace `blocked` with its explicit/default `ready_state`. Re-read the issue after mutation before scheduling it.
+
+### 4. Select the next wave
 
 Choose up to `max_parallel_workers` schedulable nodes whose mutex sets do not intersect. Favor mandatory nodes and shorter prerequisite paths before optional work unless the parent explicitly defines another priority.
 
-### 4. Prepare exact bases
+### 5. Prepare exact bases
 
 For each chosen implementation node, construct or reuse the exact base containing all satisfied implementation predecessors. Verify ancestry and remote publication before worker launch.
 
 Design/investigation nodes normally use the current declared initial/integration context needed to inspect evidence, but must not accidentally inherit unrelated sibling implementation as technical truth.
 
-### 5. Dispatch fresh workers
+### 6. Dispatch fresh workers
 
 Dispatch by child kind and current label. Preserve each child's own acceptance criteria and tests. Do not convert an investigation into implementation or design into code merely to keep the epic moving.
 
-### 6. Reconcile outcomes
+### 7. Reconcile outcomes
 
-After each wave, refresh child labels, PRs, exact heads, comments/contract amendments and any newly discovered blockers. Rebuild the schedulable set. Do not rely on the worker's prose summary when GitHub/repository state says otherwise.
+After each wave, refresh child labels, PRs, exact heads, comments/contract amendments and any newly discovered blockers. Rebuild the schedulable set and wake any newly satisfied dormant nodes. Do not rely on the worker's prose summary when GitHub/repository state says otherwise.
 
-### 7. Repeat until closure boundary
+### 8. Repeat until closure boundary
 
-Continue while schedulable work exists. Independent branches of the graph continue even when another branch blocks.
+Continue while schedulable work exists. Independent branches of the graph continue even when another branch genuinely blocks.
 
 When no work is schedulable:
 
 - if all mandatory closure conditions are satisfied, build the final integration target;
-- if mandatory paths are unresolved, set/report the parent `blocked` with the minimal blocker set;
+- if mandatory paths are genuinely unresolved, set/report the parent `blocked` with the minimal blocker set;
 - if only optional work was explicitly deferred/rejected according to contract, continue to final integration.
 
 ## Final epic integration and review
@@ -263,6 +298,7 @@ On resume:
 - reuse `completed` children;
 - reuse `review-ready` children only if their exact reviewed target is still the one required by the parent DAG;
 - resume an `in-progress` child only with unambiguous ownership;
+- reclassify `blocked` children from current issue evidence rather than preserving an old session's assumption;
 - never create a second worker merely because the original session is no longer visible;
 - recompute schedulability from current state every time.
 
@@ -274,19 +310,20 @@ For long epics, post concise parent progress only at useful wave/phase boundarie
 
 - orchestration started and graph validated;
 - a wave completed with newly unblocked nodes;
-- a mandatory path became blocked;
+- a mandatory path became genuinely blocked;
 - an epic contract amendment changed topology;
 - final integration/review started;
 - final ready-for-review handoff.
 
 Do not mirror every child comment on the parent. Child technical detail belongs to the child issue/PR.
 
-Useful parent progress includes counts such as `completed/review-ready`, `active`, `blocked descendants`, and the next schedulable wave, plus exact refs only when needed for recovery.
+Useful parent progress includes counts such as `completed/review-ready`, `active`, `dormant-on-DAG`, `genuinely blocked`, and the next schedulable wave, plus exact refs only when needed for recovery.
 
 ## Epic failure policy
 
 - Child implementation failure belongs to that child; do not repair it in the parent context.
 - A failed mandatory child blocks only its descendants until no other mandatory work is schedulable.
+- A dependency-blocked child is not a failure and should automatically wake when its prerequisites are satisfied.
 - A failed optional child may be deferred only if the parent contract explicitly permits that closure outcome.
 - Merge conflicts between reviewed predecessor heads are integration blockers, not permission for the orchestrator to invent a resolution.
 - Worker/process/transport failure is not a technical verdict; retry/resume through another permitted transport when ownership remains safe.
@@ -318,7 +355,8 @@ For epic mode, report at least:
 - final integration branch/PR when created;
 - mandatory children satisfied versus total;
 - optional children delivered/deferred/rejected;
-- blocked/failed children and affected descendants;
+- dormant dependency-blocked children;
+- genuinely blocked/failed children and affected descendants;
 - exact next schedulable wave when not complete;
 - final integration validation/review result when complete.
 
