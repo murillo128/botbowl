@@ -56,7 +56,7 @@ Load skills lazily by role:
 - main executor: `skills/spec-driven-codex-loop/SKILL.md`;
 - Git and GitHub mutation/publication: `skills/codex-github-operations/SKILL.md`;
 - independent checkpoint/final technical review: `skills/codex-independent-review/SKILL.md`;
-- multi-issue orchestration: `skills/codex-issue-orchestrator/SKILL.md`;
+- multi-issue batch and executable epic-DAG orchestration: `skills/codex-issue-orchestrator/SKILL.md`;
 - derived repository wiki curation: `skills/repository-wiki-curation/SKILL.md`.
 
 Do not read a role skill merely because it exists. Keep repository-wide invariants here, reusable procedure in skills, and task-specific scope/inputs/commands/gates in the controlling issue.
@@ -76,6 +76,8 @@ For non-trivial controlling issues, use exactly one current workflow-state label
 The label is authoritative for current workflow state. State-only transitions should not produce comments whose sole purpose is to announce the transition.
 
 `review-ready` is the executor's successful terminal state: implementation, validation, and required final technical review are complete and the PR is ready for user-facing review. `completed` is post-acceptance/post-merge. Executors and independent reviewers must not merge or enable auto-merge on their own authority.
+
+For a parent issue explicitly declaring `execution_mode: epic-dag`, the parent label represents orchestration state while every child retains its own independent workflow state. The epic orchestrator may create/update only the non-default `codex/epic-<parent>/integration/**` refs authorized by the parent contract to compose exact reviewed child heads. That coordination authority never permits moving the default branch or merging the final epic PR.
 
 ## Bot Bowl repository invariants
 
@@ -112,5 +114,6 @@ Never publish secrets, credentials, private data, or artifacts without the neces
 - Agent-created commits follow the convention owned by `skills/codex-github-operations/SKILL.md`.
 - Do not force-push or rewrite shared valid history without explicit user authorization.
 - Direct commits to the default branch require explicit user instruction except for the narrowly authorized `repository-wiki-curation` workflow.
+- Epic-DAG integration refs are non-default coordination branches only; their use does not weaken default-branch merge authority.
 - A Codex implementation workflow ends with a ready-for-review pull request, the controlling issue transitioned from `in-progress` to `review-ready`, and a handoff.
-- Merge requires a later explicit user-facing instruction after review finds no material blocker.
+- Merge into the default branch requires a later explicit user-facing instruction after review finds no material blocker.
