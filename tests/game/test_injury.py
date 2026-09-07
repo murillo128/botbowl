@@ -12,9 +12,9 @@ def test_injury_default_stunned(mock_game):
         a.return_value=stack
 
         # fix the dice rolls - 3+4 = 7 => Stunned
-        D6.FixedRolls.clear()
-        D6.FixedRolls.append(3)
-        D6.FixedRolls.append(4)
+        mock_game.dice = DiceSource()
+        mock_game.dice.fix(D6, 3)
+        mock_game.dice.fix(D6, 4)
 
         role = Role("Blitzer", "orc", 6,3,3,9, [], 50000, None)
         player = Player("1", role, "test", 1, "orc")
@@ -35,9 +35,9 @@ def test_injury_default_casualty(mock_game):
         a.return_value=stack
 
         # fix the dice rolls - 3+6 = 9 => KO
-        D6.FixedRolls.clear()
-        D6.FixedRolls.append(3)
-        D6.FixedRolls.append(6)
+        mock_game.dice = DiceSource()
+        mock_game.dice.fix(D6, 3)
+        mock_game.dice.fix(D6, 6)
 
         role = Role("Blitzer", "orc", 6,3,3,9, [], 50000, None)
         player = Player("1", role, "test", 1, "orc")
@@ -59,9 +59,9 @@ def test_injury_with_mighty_blow(mock_game):
         a.return_value=stack
 
         # fix the dice rolls - 3+4 = 7 => Stunned
-        D6.FixedRolls.clear()
-        D6.FixedRolls.append(3)
-        D6.FixedRolls.append(4)
+        mock_game.dice = DiceSource()
+        mock_game.dice.fix(D6, 3)
+        mock_game.dice.fix(D6, 4)
 
         role = Role("Blitzer", "orc", 6,3,3,9, [], 50000, None)
         player = Player("1", role, "test", 1, "orc")
@@ -83,9 +83,9 @@ def test_injury_with_mighty_blow_used(mock_game):
         a.return_value=stack
 
         # fix the dice rolls - 3+4 = 7 => Stunned
-        D6.FixedRolls.clear()
-        D6.FixedRolls.append(3)
-        D6.FixedRolls.append(4)
+        mock_game.dice = DiceSource()
+        mock_game.dice.fix(D6, 3)
+        mock_game.dice.fix(D6, 4)
 
         role = Role("Blitzer", "orc", 6,3,3,9, [], 50000, None)
         player = Player("1", role, "test", 1, "orc")
@@ -107,9 +107,9 @@ def test_injury_stunned_with_stunty(mock_game):
         a.return_value=stack
 
         # fix the dice rolls - 3+4 = 7 => KO for stunty
-        D6.FixedRolls.clear()
-        D6.FixedRolls.append(3)
-        D6.FixedRolls.append(4)
+        mock_game.dice = DiceSource()
+        mock_game.dice.fix(D6, 3)
+        mock_game.dice.fix(D6, 4)
 
         role = Role("Blitzer", "orc", 6,3,3,9, [], 50000, None)
         player = Player("1", role, "test", 1, "orc", extra_skills=[Skill.STUNTY])
@@ -131,9 +131,9 @@ def test_injury_ko_with_stunty(mock_game):
         a.return_value = stack
 
         # fix the dice rolls - 3+6 = 9 => CAS for stunty
-        D6.FixedRolls.clear()
-        D6.FixedRolls.append(3)
-        D6.FixedRolls.append(6)
+        mock_game.dice = DiceSource()
+        mock_game.dice.fix(D6, 3)
+        mock_game.dice.fix(D6, 6)
 
         role = Role("Blitzer", "orc", 6, 3, 3, 9, [], 50000, None)
         player = Player("1", role, "test", 1, "orc", extra_skills=[Skill.STUNTY])
@@ -155,9 +155,9 @@ def test_injury_ko_with_thick_skull(mock_game):
         a.return_value = stack
 
         # fix the dice rolls - 4+4 = 8 => stunned for Thick skull
-        D6.FixedRolls.clear()
-        D6.FixedRolls.append(4)
-        D6.FixedRolls.append(4)
+        mock_game.dice = DiceSource()
+        mock_game.dice.fix(D6, 4)
+        mock_game.dice.fix(D6, 4)
 
         role = Role("Blitzer", "orc", 6, 3, 3, 9, [], 50000, None)
         player = Player("1", role, "test", 1, "orc", extra_skills=[Skill.THICK_SKULL])
@@ -179,9 +179,9 @@ def test_injury_cas_with_thick_skull(mock_game):
         a.return_value = stack
 
         # fix the dice rolls - 5+5 = 10 => no effect for Thick skull
-        D6.FixedRolls.clear()
-        D6.FixedRolls.append(5)
-        D6.FixedRolls.append(5)
+        mock_game.dice = DiceSource()
+        mock_game.dice.fix(D6, 5)
+        mock_game.dice.fix(D6, 5)
 
         role = Role("Blitzer", "orc", 6, 3, 3, 9, [], 50000, None)
         player = Player("1", role, "test", 1, "orc", extra_skills=[Skill.THICK_SKULL])

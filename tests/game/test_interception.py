@@ -77,7 +77,7 @@ def test_interception_safe_throw_very_long_legs_fail():
     game.state.weather = WeatherType.NICE
     game.set_available_actions()
     game.step(Action(ActionType.START_PASS, player=passer))
-    D6.fix(6)  # Interception
+    game.dice.fix(D6, 6)  # Interception
     game.step(Action(ActionType.PASS, position=catcher.position))
     game.step(Action(ActionType.SELECT_PLAYER, player=interceptor))
     assert game.has_report_of_type(OutcomeType.INTERCEPTION)
@@ -105,9 +105,9 @@ def test_interception_fail():
     game.state.weather = WeatherType.NICE
     game.set_available_actions()
     game.step(Action(ActionType.START_PASS, player=passer))
-    D6.fix(1)  # Interception
-    D6.fix(6)  # Pass
-    D6.fix(6)  # Catch
+    game.dice.fix(D6, 1)  # Interception
+    game.dice.fix(D6, 6)  # Pass
+    game.dice.fix(D6, 6)  # Catch
     game.step(Action(ActionType.PASS, position=catcher.position))
     game.step(Action(ActionType.SELECT_PLAYER, player=interceptor))
     assert not game.has_report_of_type(OutcomeType.INTERCEPTION)

@@ -21,10 +21,10 @@ def test_strip_ball(sure_hands):
     game.set_available_actions()
     game.state.reports.clear() 
     
-    BBDie.clear_fixes()
-    BBDie.fix(BBDieResult.PUSH)
-    BBDie.fix(BBDieResult.PUSH)
-    D8.fix(2)
+    game.dice.clear(BBDie)
+    game.dice.fix(BBDie, BBDieResult.PUSH)
+    game.dice.fix(BBDie, BBDieResult.PUSH)
+    game.dice.fix(D8, 2)
     
     game.step(Action(ActionType.START_BLOCK, player=blocker))
     game.step(Action(ActionType.BLOCK, position=victim.position ))
@@ -60,10 +60,10 @@ def test_strip_ball_taken_root():
     game.set_available_actions()
     game.state.reports.clear() 
     
-    BBDie.clear_fixes()
-    BBDie.fix(BBDieResult.PUSH)
-    BBDie.fix(BBDieResult.PUSH)
-    D8.fix(2)
+    game.dice.clear(BBDie)
+    game.dice.fix(BBDie, BBDieResult.PUSH)
+    game.dice.fix(BBDie, BBDieResult.PUSH)
+    game.dice.fix(D8, 2)
     
     game.step(Action(ActionType.START_BLOCK, player=blocker))
     game.step(Action(ActionType.BLOCK, position=victim.position ))
@@ -95,10 +95,10 @@ def test_strip_ball_stand_firm():
     game.set_available_actions()
     game.state.reports.clear() 
     
-    BBDie.clear_fixes()
-    BBDie.fix(BBDieResult.PUSH)
-    BBDie.fix(BBDieResult.PUSH)
-    D8.fix(2)
+    game.dice.clear(BBDie)
+    game.dice.fix(BBDie, BBDieResult.PUSH)
+    game.dice.fix(BBDie, BBDieResult.PUSH)
+    game.dice.fix(D8, 2)
     
     game.step(Action(ActionType.START_BLOCK, player=blocker))
     game.step(Action(ActionType.BLOCK, position=victim.position ))
@@ -135,11 +135,11 @@ def test_strip_ball_chain_push_sequence():
     game.set_available_actions()
     game.state.reports.clear() 
     
-    BBDie.clear_fixes()
-    BBDie.fix(BBDieResult.PUSH)
-    BBDie.fix(BBDieResult.PUSH)
-    D8.fix(7) # scatter to blocker
-    D6.fix(6) # blocker's catch roll success
+    game.dice.clear(BBDie)
+    game.dice.fix(BBDie, BBDieResult.PUSH)
+    game.dice.fix(BBDie, BBDieResult.PUSH)
+    game.dice.fix(D8, 7) # scatter to blocker
+    game.dice.fix(D6, 6) # blocker's catch roll success
     
     game.step(Action(ActionType.START_BLOCK, player=blocker))
     game.step(Action(ActionType.BLOCK, position=victim.position ))

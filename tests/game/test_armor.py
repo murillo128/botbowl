@@ -12,9 +12,9 @@ def test_armour_with_mighty_blow(mock_game):
         a.return_value=stack
 
         # fix the dice rolls - 4+5 = 9 -> not broken without MB
-        D6.FixedRolls.clear()
-        D6.FixedRolls.append(4)
-        D6.FixedRolls.append(5)
+        mock_game.dice = DiceSource()
+        mock_game.dice.fix(D6, 4)
+        mock_game.dice.fix(D6, 5)
 
         role = Role("Blitzer", "orc", 6,3,3,9, [], 50000, None)
         player = Player("1", role, "test", 1, "orc")
@@ -36,9 +36,9 @@ def test_armour_broken_with_mighty_blow_unused(mock_game):
         a.return_value=stack
 
         # fix the dice rolls - 5+5 = 10 -> broken without MB
-        D6.FixedRolls.clear()
-        D6.FixedRolls.append(5)
-        D6.FixedRolls.append(6)
+        mock_game.dice = DiceSource()
+        mock_game.dice.fix(D6, 5)
+        mock_game.dice.fix(D6, 6)
 
         role = Role("Blitzer", "orc", 6,3,3,9, [], 50000, None)
         player = Player("1", role, "test", 1, "orc")
@@ -60,9 +60,9 @@ def test_armour_no_break(mock_game):
         a.return_value=stack
 
         # fix the dice rolls - 4+5 = 9 -> not broken without MB
-        D6.FixedRolls.clear()
-        D6.FixedRolls.append(4)
-        D6.FixedRolls.append(5)
+        mock_game.dice = DiceSource()
+        mock_game.dice.fix(D6, 4)
+        mock_game.dice.fix(D6, 5)
 
         role = Role("Blitzer", "orc", 6,3,3,9, [], 50000, None)
         player = Player("1", role, "test", 1, "orc")
