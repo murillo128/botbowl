@@ -5,7 +5,7 @@ import pytest
 
 from botbowl import Action, ActionType, CasualtyEffect, OutcomeType, Skill, WeatherType
 from botbowl.core.procedure import Setup, Touchdown, Turn
-from tests.util import get_game_coin_toss, get_game_setup, get_game_turn, only_fixed_rolls
+from tests.util import get_custom_game_turn, get_game_coin_toss, get_game_setup, get_game_turn, only_fixed_rolls
 
 
 def offered_players(game):
@@ -202,3 +202,35 @@ def test_upstream_240_initial_setup_clears_old_heat():
         game.step(Action(action_type))
     assert game.get_players_on_pitch()
     assert all(not player.state.heated for player in game.get_players_on_pitch())
+
+
+@pytest.mark.parametrize("home_team", [True, False])
+def test_touchdown_ends_activation_before_setup(home_team):
+    game, players = get_custom_game_turn([(5, 8)], [(6, 8)], ball_position=(2, 2))
+    if (game.state.current_team == game.state.home_team) != home_team:
+        game.step(Action(ActionType.END_TURN))
+    scorer = next(player for player in players if player.team == game.state.current_team)
+    endzone_x = 1 if home_team else game.arena.width - 2
+    game.move(scorer, game.get_square(endzone_x + (1 if home_team else -1), 8))
+    game.get_ball().move_to(scorer.position)
+    game.get_ball().is_carried = True
+    game.set_available_actions()
+    game.step(Action(ActionType.START_MOVE, player=scorer))
+    assert game.state.active_player is scorer
+    game.enable_forward_model()
+    before = deepcopy(game.state)
+    step = game.get_step()
+    with only_fixed_rolls(game):
+        game.step(Action(ActionType.MOVE, position=game.get_square(endzone_x, 8)))
+    assert isinstance(game.get_procedure(), Setup)
+    assert game.has_report_of_type(OutcomeType.TOUCHDOWN)
+    assert game.state.active_player is None
+    assert game.state.player_action_type is None
+    assert scorer.position is None
+    assert not scorer.state.used
+    assert scorer.state.moves == 0
+    after = deepcopy(game.state)
+    undone = game.revert(step)
+    assert not game.state.compare(before)
+    game.forward(undone)
+    assert not game.state.compare(after)

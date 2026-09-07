@@ -3856,6 +3856,7 @@ class EndTurn(Procedure):
         self.game.state.current_team = None
         self.game.remove_clocks()
         self.game.state.rerolled_procs.clear()
+        self.game.state.active_player = None
         self.game.state.player_action_type = None
         return True
 
