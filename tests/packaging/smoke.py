@@ -18,6 +18,7 @@ def core_smoke(backend, minimal=False):
             raise AssertionError(f"Unexpected minimal dependency: {distribution}")
     import botbowl as bb
     import botbowl.core.pathfinding as pf
+    from botbowl.lab.rules import describe_rules
 
     for module in ("flask", "gym", "docker", "matplotlib", "tkinter"):
         assert module not in sys.modules, module
@@ -29,6 +30,9 @@ def core_smoke(backend, minimal=False):
         config.competition_mode = False
         home = bb.load_team_by_filename("human", rules, board_size=size)
         away = bb.load_team_by_filename("human", rules, board_size=size)
+        descriptor = describe_rules(config, rules, bb.load_arena(config.arena), home, away)
+        assert descriptor.ruleset_id == "BB2016" and descriptor.backend_id == backend
+        assert descriptor.engine_version == metadata.version("botbowl")
         game = bb.Game("installed-smoke", home, away, bb.Agent("home", human=True),
                        bb.Agent("away", human=True), config, seed=17)
         game.init()
