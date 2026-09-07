@@ -43,7 +43,9 @@ constrains the complete dependency/tool families; `core.txt` and `rl.txt` select
 the NumPy profile. Constraints do not install unused extras. Each install resolves
 the requested package/extras once under one coherent profile. Build subprocesses
 receive the same constraints through `PIP_CONSTRAINT`/`PIP_BUILD_CONSTRAINT`.
-There is no preceding installation of the old 2023 environment snapshot.
+Fresh venvs also upgrade their pip/setuptools bootstrap under these constraints;
+otherwise Python 3.11 ensurepip can retain old setuptools independently of build
+isolation. There is no preceding installation of the old 2023 environment snapshot.
 
 The pins were resolved on 2026-09-07 with uv from `pyproject.toml` (all extras) and
 `requirements/ci-tools.in`. To update them, use `uv pip compile pyproject.toml

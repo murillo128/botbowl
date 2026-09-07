@@ -50,7 +50,9 @@ def main():
         target = output / name
         run(name, [sys.executable, '-m', 'venv', target])
         python = target / ('Scripts/python.exe' if os.name == 'nt' else 'bin/python')
-        run(name + '-pip', [python, '-m', 'pip', 'install', 'pip==26.2.1'])
+        # CPython 3.11 ensurepip can seed old setuptools independently of build
+        # isolation. Bring installer tools under the same audited constraints.
+        run(name + '-bootstrap', [python, '-m', 'pip', 'install', '--upgrade', 'pip', 'setuptools'])
         return python
 
     try:

@@ -3,7 +3,8 @@
 This change is based on accepted integration
 `23d8c09a5822157a510174c9f0c6bfd3501f74f0`, containing reviewed #4/#5/#7/#13.
 It changes dependency metadata/constraints, the hosted Tests workflow, CI helpers,
-documentation and one coordinated core/Gym test boundary. Production engine and
+documentation one coordinated core/Gym test boundary, and the existing sdist verifier’s installer
+bootstrap/freeze. Production engine and
 Skillforge launcher sources are unchanged. The transient validation PR is
 [#82](https://github.com/murillo128/botbowl/pull/82); epic delivery remains #81.
 
@@ -72,6 +73,15 @@ and red jobs remain in shared history. The restored source runs the complete
 23-job matrix. The unfinished negative matrix jobs may be canceled by the restore
 push after completed lint/pytest failures establish the controls; cancellation
 is not a correctness result or a substitute for final matrix validation.
+
+The first restored head `eb3dd12c3fb93a3114b4acb4c117f64342d14ef6`
+started run [34105429666](https://github.com/murillo128/botbowl/actions/runs/34105429666).
+Inventory inspection then found ensurepip-seeded setuptools 65.5.0/79.0.1 outside
+the maintained pins. Those versions have explicit audit findings. A narrow
+bootstrap correction upgrades pip/setuptools under the existing constraints in
+both CI venv creation and the sdist verifier; the fresh-source/native assertions
+are preserved. The superseded run is retained as partial evidence, and a new
+exact-head matrix is required after the correction.
 
 ## Dependency audit
 

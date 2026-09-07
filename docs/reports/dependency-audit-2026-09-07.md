@@ -71,3 +71,15 @@ Raw audit JSON, resolved environments and logs live under
 `/tmp/botbowl-issue6-evidence/`. Hosted artifacts retain their exact source revision
 and inventory. [The CI report](ci-issue-6.md) records job results and negative
 controls. These are dated observations; advisory data can change after this date.
+
+Additional bootstrap finding: captured 3.11 venv inventories retained setuptools
+65.5.0 on Windows/macOS and 79.0.1 on Linux from ensurepip, despite the build and
+audit profiles using 84.0.0. Explicit identity audits found advisories in both
+seed versions. Fresh CI venvs and the fresh-sdist native install now upgrade
+pip/setuptools under the same audited constraints before installing Bot Bowl.
+The native sdist smoke also records its complete freeze. This closes the gap
+between a constrained build environment and the independently seeded installer.
+
+- setuptools 65.5.0: PYSEC-2022-43012, PYSEC-2025-49, PYSEC-2026-1918, PYSEC-2026-3447; upgraded to 84.0.0.
+
+- setuptools 79.0.1: PYSEC-2026-3447; upgraded to 84.0.0.
