@@ -2616,7 +2616,8 @@ class MoveAction(Procedure):
         if self.player_action_type == PlayerActionType.MOVE:
             self.game.report(Outcome(OutcomeType.MOVE_ACTION_STARTED, player=self.player))
             self.game.state.player_action_type = PlayerActionType.MOVE
-        self.can_undo = self.game.get_team_agent(self.player.team).human and not self.player.state.failed_nega_trait_this_turn
+        self.can_undo = (self.game.external_control or self.game.get_team_agent(self.player.team).human) \
+            and not self.player.state.failed_nega_trait_this_turn
 
     def step(self, action):
 
@@ -2907,7 +2908,7 @@ class ThrowBombAction(Procedure):
     def start(self):
         self.game.report(Outcome(OutcomeType.THROW_BOMB_ACTION_STARTED, player=self.player))
         self.game.state.player_action_type = PlayerActionType.THROW_BOMB
-        self.can_undo = self.game.get_team_agent(self.player.team).human
+        self.can_undo = self.game.external_control or self.game.get_team_agent(self.player.team).human
 
     def step(self, action):
         if action.action_type == ActionType.THROW_BOMB:
@@ -2987,7 +2988,7 @@ class BlockAction(Procedure):
     def start(self):
         self.game.report(Outcome(OutcomeType.BLOCK_ACTION_STARTED, player=self.player))
         self.game.state.player_action_type = PlayerActionType.BLOCK
-        self.can_undo = self.game.get_team_agent(self.player.team).human
+        self.can_undo = self.game.external_control or self.game.get_team_agent(self.player.team).human
 
     def step(self, action):
 
@@ -3578,11 +3579,11 @@ class ClearBoard(Procedure):
         self.game.state.pitch.balls.clear()
         for team in self.game.state.teams:
             for player in team.players:
+                # Recover drive-scoped state, including players who sat out.
+                # Persistent injuries, KO and ejection are owned elsewhere.
+                player.state.reset()
                 # If player not in reserves. move it to it
                 if player.position is not None:
-                    # Set to ready
-                    player.state.reset()
-                    player.state.up = True
                     # Remove from pitch
                     self.game.pitch_to_reserves(player)
                     # Check if heat exhausted
@@ -3677,7 +3678,7 @@ class Setup(Procedure):
             ActionChoice(ActionType.PLACE_PLAYER, team=self.team,
                          players=self.game.get_players_on_pitch(
                              self.team) if self.reorganize else self.game.get_players_on_pitch(
-                             self.team) + self.game.get_reserves(self.team),
+                             self.team) + self.game.get_reserves(self.team, include_heated=False),
                          positions=positions),
             ActionChoice(ActionType.END_SETUP, team=self.team)
         ]
@@ -3856,6 +3857,7 @@ class EndTurn(Procedure):
         self.game.state.current_team = None
         self.game.remove_clocks()
         self.game.state.rerolled_procs.clear()
+        self.game.state.active_player = None
         self.game.state.player_action_type = None
         return True
 
@@ -4314,6 +4316,9 @@ class Reroll(Procedure):
                 return False
             elif action.action_type == ActionType.DONT_USE_SKILL:
                 self.can_use_pro = False
+                if self.game.external_control and self.can_use_team_reroll:
+                    # Declining Pro is one decision; a team reroll is the next.
+                    return False
 
         # Did Loner roll succeed?
         if self.loner is not None:
@@ -4357,9 +4362,21 @@ class Reroll(Procedure):
         """
         If bot, take actions in several steps: 1. Pro, 2. Reroll, 3. Go back to context
         If human, show all actions at once, but hide uneccessary don't use/reroll actions.
+        External control uses the same staged choices for every agent.
         """
         actions = []
         if self.skill is not None or self.loner is not None:
+            return actions
+        if self.game.external_control:
+            # A completed Pro roll resolves automatically, without asking again.
+            if self.pro is not None:
+                return actions
+            if self.can_use_pro:
+                return [ActionChoice(ActionType.USE_SKILL, skill=Skill.PRO, team=self.player.team),
+                        ActionChoice(ActionType.DONT_USE_SKILL, skill=Skill.PRO, team=self.player.team)]
+            if self.can_use_team_reroll:
+                return [ActionChoice(ActionType.USE_REROLL, team=self.player.team),
+                        ActionChoice(ActionType.DONT_USE_REROLL, team=self.player.team)]
             return actions
         if not self.game.get_team_agent(self.player.team).human:  # Actor is non-human agent, action accuired from agent.act(game)
             if self.can_use_pro:
@@ -4416,7 +4433,7 @@ class Pro(Procedure):
     def step(self, action):
         if self.roll is None:
             # Roll
-            self.roll = DiceRoll([D6(self.game.dice)], roll_type=RollType.PRO)
+            self.roll = DiceRoll([D6(self.game.dice)], roll_type=RollType.PRO_ROLL)
             self.roll.target = 4
 
             if self.roll.is_d6_success():

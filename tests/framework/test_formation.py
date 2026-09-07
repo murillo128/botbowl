@@ -45,6 +45,51 @@ def test_stock_formations_are_legal_and_do_not_change_opponents(size, name, home
     assert game.get_procedure().team != team
 
 
+@pytest.mark.parametrize("size,name", FORMATIONS)
+@pytest.mark.parametrize("home", (False, True))
+@pytest.mark.parametrize("eligible_count", (0, 1))
+def test_formations_exclude_heated_reserves_on_setup_and_reorganization(size, name, home, eligible_count):
+    game = setup_game(size, home)
+    team, opponent = game.active_team, game.get_opp_team(game.active_team)
+    reserves = list(game.get_reserves(team))
+    eligible, heated = reserves[:eligible_count], reserves[eligible_count:]
+    for player in heated:
+        player.state.heated = True
+    for player, position in zip(game.get_reserves(opponent)[:size], game.get_team_side(opponent)):
+        game.reserves_to_pitch(player, position)
+    opponents_before = [(player, player.position) for player in opponent.players]
+    formation = bb.load_formation(name, size=size)
+    game.get_procedure().formations = [formation]
+    macro = bb.ActionType.__members__.get("SETUP_FORMATION_" + formation.name.upper())
+
+    for reorganize, use_macro in ((False, False), (False, True), (True, True)):
+        game.get_procedure().reorganize = reorganize
+        game.set_available_actions()
+        offered = next(choice.players for choice in game.get_available_actions()
+                       if choice.action_type is bb.ActionType.PLACE_PLAYER)
+        assert set(offered) == set(eligible)
+        before = snapshot(game)
+        actions = formation.actions(game, team)
+        assert snapshot(game) == before
+        placements = [action for action in actions if action.position is not None]
+        assert {action.player for action in placements} == set(eligible)
+        assert len(placements) == len(eligible)
+        assert len({action.position for action in placements}) == len(eligible)
+        if use_macro and macro is not None:
+            game.step(bb.Action(macro))
+        else:
+            for action in actions:
+                assert game.is_action_allowed(action)
+                game.step(action)
+        assert game.is_setup_legal(team)
+        assert set(game.get_players_on_pitch(team)) == set(eligible)
+        assert all(player.state.heated and player.position is None for player in heated)
+        assert all(player in game.get_reserves(team) for player in heated)
+        assert [(player, player.position) for player in opponent.players] == opponents_before
+    game.step(bb.Action(bb.ActionType.END_SETUP))
+    assert game.get_procedure().team != team
+
+
 @pytest.mark.parametrize("home", (False, True))
 @pytest.mark.parametrize("available", (1, 2, 4))
 @pytest.mark.parametrize("geometry", ("padded", "moved_scrimmage"))

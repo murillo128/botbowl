@@ -258,6 +258,7 @@ class PlayerState(Reversible):
     def reset(self):
         self.up = True
         self.used = False
+        self.moves = 0
         self.in_air = False
         self.stunned = False
         self.bone_headed = False
@@ -1633,7 +1634,7 @@ class Formation(Immutable):
             raise ValueError(f"Formation {self.name!r}: expected this team's setup procedure")
         slots = self.validate(game.arena, game.config, home=team == game.state.home_team)
         on_pitch = [player for player in team.players if player.position is not None]
-        reserves = game.get_reserves(team)
+        reserves = game.get_reserves(team, include_heated=False)
         players = on_pitch + ([] if proc.reorganize else reserves)
         if proc.reorganize and len(players) > len(slots):
             raise ValueError(f"Formation {self.name!r}: insufficient positions to reorganize all players")
