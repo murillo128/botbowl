@@ -163,3 +163,38 @@ def test_replay_dump_is_attempted_after_record_failure():
     game._end_game()
     assert calls == ['record', 'dump']
     assert game.home_agent.ends == game.away_agent.ends == 1
+
+
+def test_competition_rechecks_timeout_after_invalid_action_retry():
+    game = fresh(external=False)
+    game.time_source = FakeTime()
+    game.home_agent = PolicySpy('home')
+    game.away_agent = PolicySpy('away')
+    submitted = []
+    one_step = game._one_step
+
+    def capture(action):
+        if action is not None:
+            submitted.append(action.action_type)
+        return one_step(action)
+
+    game._one_step = capture
+    attempts = []
+
+    def retry(game):
+        attempts.append(game.actor)
+        if len(attempts) == 1:
+            return bb.Action(bb.ActionType.USE_APOTHECARY)
+        if len(attempts) == 2:
+            game.time_source.now += 1000
+            return bb.Action(bb.ActionType.TAILS)
+        return progress_action(game)
+
+    game.away_agent.act = retry
+    comp = bb.Competition(game.home_agent, game.away_agent, game.state.home_team,
+                          game.state.away_team, game.config, game.ruleset, game.arena,
+                          max_steps=1000)
+    comp._run_game(game)
+    assert game.state.game_over
+    assert bb.ActionType.TAILS not in submitted
+    assert bb.ActionType.HEADS in submitted

@@ -6,6 +6,7 @@ Year: 2019
 This module contains a competition class to handle a competition between two bots.
 """
 import tabulate
+import time
 from contextlib import ExitStack
 from itertools import combinations
 from typing import Callable, Optional, Any, List
@@ -121,7 +122,13 @@ class Competition:
             if time_left is None or time_left > 0:
                 try:
                     assert game.actor is not None
-                    action = game.actor.act(game)  # Allow actor to try again
+                    game.last_request_time = time.time()
+                    try:
+                        action = game._safe_act()  # Allow actor to try again.
+                    finally:
+                        game.last_action_time = time.time()
+                    if game._check_clocks(max_steps=budget):
+                        continue  # A late retry belongs to the expired decision.
                     game.step(action, max_steps=budget)
                 except InvalidActionError as e:
                     print(e)
