@@ -914,12 +914,14 @@ class Game:
     def get_dugout(self, team: Team) -> Dugout:
         return self.state.dugouts[team.team_id]
 
-    def get_reserves(self, team: Team) -> List[Player]:
+    def get_reserves(self, team: Team, include_heated: bool = True) -> List[Player]:
         """
-        :param team: 
-        :return: The reserves in the dugout of this team.
+        :param team:
+        :param include_heated: Include players sitting out due to Sweltering Heat.
+        :return: The reserves list, or a filtered copy for setup eligibility.
         """
-        return self.get_dugout(team).reserves
+        reserves = self.get_dugout(team).reserves
+        return reserves if include_heated else [player for player in reserves if not player.state.heated]
 
     def get_knocked_out(self, team: Team) -> List[Player]:
         """
@@ -1503,7 +1505,8 @@ class Game:
         :param min_players: The minimum number of players in the area.
         :return: True if team is setup legally in the specified tile area.
         """
-        min_players_checked = min(min_players, len(self.get_reserves(team)) + len(self.get_players_on_pitch(team)))
+        min_players_checked = min(min_players, len(self.get_reserves(team, include_heated=False)) +
+                                  len(self.get_players_on_pitch(team)))
         cnt = 0
 
         if tile is None:

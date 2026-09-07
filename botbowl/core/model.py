@@ -262,6 +262,7 @@ class PlayerState(Reversible):
     def reset(self):
         self.up = True
         self.used = False
+        self.moves = 0
         self.in_air = False
         self.stunned = False
         self.bone_headed = False
@@ -1591,7 +1592,7 @@ class Formation(Immutable):
         # Go through formation from scrimmage to touchdown zone
         players = player_on_pitch
         if not reorganize:
-            players += game.get_reserves(team)
+            players += game.get_reserves(team, include_heated=False)
 
         positions_used = set()
 
