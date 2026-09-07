@@ -325,7 +325,8 @@ def capability_catalogue(size=11):
             {"id": "baseline-scenarios", "status": "implemented",
              "evidence": ["tests/game/test_baseline.py", "docs/reports/baseline-issue-4.md"],
              "limits": "Movement, block, pass, reroll, drive and end-game fixtures at seeds 0/17; "
-                       "synthetic micropositions, kickoff/pathfinding disabled. Size-1 pass uses "
+                       "synthetic micropositions, pathfinding disabled and kick_off_table=False; "
+                       "inherited Kickoff.step still schedules kickoff events. Size-1 pass uses "
                        "two teammates and is not a legal one-player setup."},
             {"id": "pathfinding", "status": "partial",
              "evidence": ["tests/ai/test_pathfinding.py", "docs/reports/pathfinding-issue-13.md"],

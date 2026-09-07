@@ -152,7 +152,9 @@ table; their defaults disable pathfinding. The standard `bot-bowl` config enable
 pathfinding and competition mode. Catalogue tests check the table against actual
 loaded defaults. Small-size bundled team files are human only; size 11 has 13
 team files. The baseline scenarios establish movement, block, pass, reroll, drive
-and game-end observations for seeds 0/17. They disable kickoff/pathfinding, use
+and game-end observations for seeds 0/17. They disable pathfinding and set
+`kick_off_table=False`, but inherited `Kickoff.step` still schedules kickoff
+events (seed 17 reproduces them for all five sizes). The fixtures use
 synthetic micropositions and include a size-1 pass with two teammates; that pass
 is not a legal one-player setup. See [the baseline evidence](../reports/baseline-issue-4.md).
 

@@ -135,3 +135,12 @@ These local results establish the tested Linux/Python environment only. Full
 rules-edition conformance, arbitrary custom-geometry/native-table behavior,
 exhaustive skill interactions, and unresolved QuickSnap/forward-model work are
 not claimed. The catalogue's evidence limitations remain part of its data.
+
+Catalogue wording clarification: the baseline fixtures set `kick_off_table=False`
+and disable pathfinding, but inherited `Kickoff.step` still schedules kickoff
+events. The [independent observation at `09a470d`](https://github.com/murillo128/botbowl/pull/87#pullrequestreview-5131205904)
+records seed-17 RIOT events for sizes 1/7/11 and PERFECT_DEFENSE for sizes 3/5;
+its reproduction and output remain in
+`/tmp/botbowl-review30-probes/catalogue_wording.py` and `catalogue-wording.log`.
+This corrects the catalogue's disabled-kickoff claim without changing engine
+behavior or reattributing the source-specific suite/artifact evidence above.
