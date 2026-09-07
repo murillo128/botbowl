@@ -340,6 +340,10 @@ def test_liveness_error_keeps_existing_cause_and_can_restore_an_ancestor():
         context.step(PREFIX[0])
     assert caught.value.code == "step_budget"
     assert not context.game.state.game_over and context.decisions == 0
+    advanced = fingerprint(context)
+    with pytest.raises(EpisodeCompatibilityError, match="fresh"):
+        context.replay(PREFIX, context.manifest())
+    assert fingerprint(context) == advanced
     context.restore_checkpoint(initial)
     assert fingerprint(context) == before
 

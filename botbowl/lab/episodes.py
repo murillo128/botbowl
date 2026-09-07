@@ -241,7 +241,7 @@ class EpisodeContext:
     def replay(self, actions, manifest):
         """Check provenance, then replay a supplied prefix on a fresh/reset context."""
         self.require_compatible(manifest)
-        if self.decisions:
+        if self.decisions or self.game.get_step():
             raise EpisodeCompatibilityError("Replay requires a fresh or reset episode")
         results = []
         iterator = iter(actions)
