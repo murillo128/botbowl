@@ -577,8 +577,13 @@ class Game:
 
         # Record state
         if self.replay is not None:
-            if action is not None and action.action_type is not ActionType.PLACE_BALL:
-                self.replay.record_step(self)
+            if action is not None:
+                if action.action_type is ActionType.PLACE_BALL:
+                    # Controller macros submit a real placement; retain its exact
+                    # target before subsequent kick scatter changes the ball.
+                    self.replay.record_action(action)
+                else:
+                    self.replay.record_step(self)
 
         # Is game over
         if self.state.stack.is_empty():

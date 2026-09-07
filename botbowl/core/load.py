@@ -270,7 +270,7 @@ def load_config(name):
 def load_formation(name, directory=None, size=11):
     """
     :param name: the filename to load.
-    :param path: path to a text file describing the setup formation. If None, the botbowl formation path will be used.
+    :param directory: directory containing the formation file. If None, use the botbowl formation path.
     :param size: The number of players on the pitch in the used botbowl variant.
     :return: The formation in data/formations/<size>/<name>
     """
@@ -284,8 +284,10 @@ def load_formation(name, directory=None, size=11):
     name = name.replace(".txt", "").replace("off_", "").replace("def_", "").title()
     with open(path, 'r') as file_:
         for line in file_:
-            if not line:
-                break
-            row = list(line.strip())
+            row = list(line.rstrip('\r\n'))
             board.append(np.array(row))
-    return Formation(name, board)
+    formation = Formation(name, board)
+    count = sum(symbol != '-' for row in board for symbol in row)
+    if not 1 <= count <= size:
+        raise ValueError(f"Formation {name!r}: player count {count} must be between 1 and {size}")
+    return formation

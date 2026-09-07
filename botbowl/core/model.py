@@ -1533,9 +1533,59 @@ class RuleSet:
 
 class Formation(Immutable):
 
+    _priorities = 'Sspbcmavd0x'
+
     def __init__(self, name, formation):
         self.name = name
         self.formation = formation
+        self._validate_structure()
+
+    def _validate_structure(self):
+        if isinstance(self.formation, (str, bytes)) or not hasattr(self.formation, '__getitem__'):
+            raise ValueError(f"Formation {self.name!r}: expected a rectangular matrix")
+        try:
+            widths = [len(row) for row in self.formation]
+        except TypeError as error:
+            raise ValueError(f"Formation {self.name!r}: expected a rectangular matrix") from error
+        if not widths or not widths[0] or any(width != widths[0] for width in widths):
+            raise ValueError(f"Formation {self.name!r}: expected a nonempty rectangular matrix")
+        for y, row in enumerate(self.formation):
+            for x, symbol in enumerate(row):
+                if not isinstance(symbol, str) or len(symbol) != 1 or symbol not in '-' + self._priorities:
+                    raise ValueError(f"Formation {self.name!r}: unknown symbol {symbol!r} at row {y + 1}, column {x + 1}")
+
+    def validate(self, arena, config, home=False):
+        """Validate a complete template and return its slots in placement order.
+
+        Rows cover the playable height. Columns start at the left endzone and
+        reflect for home; trailing empty columns are allowed within the pitch.
+        Arena tiles, rather than a file column, identify scrimmage and wings.
+        """
+        self._validate_structure()
+        if len(self.formation) != arena.height - 2 or len(self.formation[0]) > arena.width - 2:
+            raise ValueError(f"Formation {self.name!r}: dimensions disagree with the arena")
+        side = TwoPlayerArena.home_tiles if home else TwoPlayerArena.away_tiles
+        slots = []
+        for y, row in enumerate(self.formation):
+            for x, symbol in enumerate(row):
+                if symbol == '-':
+                    continue
+                position = Square(arena.width - x - 2 if home else x + 1, y + 1)
+                tile = arena.board[position.y][position.x]
+                if tile not in side:
+                    raise ValueError(f"Formation {self.name!r}: position {position} is outside the team's side")
+                slots.append((symbol, position, tile))
+        if not max(1, config.pitch_min) <= len(slots) <= config.pitch_max:
+            raise ValueError(f"Formation {self.name!r}: player count {len(slots)} is outside setup limits")
+        if sum(tile in TwoPlayerArena.scrimmage_tiles for _, _, tile in slots) < config.scrimmage_min:
+            raise ValueError(f"Formation {self.name!r}: insufficient scrimmage positions")
+        for wing in (TwoPlayerArena.wing_left_tiles, TwoPlayerArena.wing_right_tiles):
+            if sum(tile in wing for _, _, tile in slots) > config.wing_max:
+                raise ValueError(f"Formation {self.name!r}: too many positions in a wide zone")
+        return sorted(slots, key=lambda slot: (
+            slot[2] not in TwoPlayerArena.scrimmage_tiles,
+            self._priorities.index(slot[0]), slot[1].y,
+            slot[1].x if home else -slot[1].x))
 
     def _get_player(self, players, t):
         if t == 'S':
@@ -1576,61 +1626,39 @@ class Formation(Immutable):
         return players[0]
 
     def actions(self, game, team):
-        reorganize = game.get_procedure().reorganize
+        """Plan a legal setup without mutating the game, including reduced rosters.
 
-        home = team == game.state.home_team
-        actions = []
-        # Move all player on the pitch back to the reserves
-        player_on_pitch = []
-        for player in team.players:
-            if player.position is not None:
-                if not reorganize:
-                    actions.append(Action(ActionType.PLACE_PLAYER, position=None, player=player))
-                player_on_pitch.append(player)
+        Unavailable players are omitted, with scrimmage filled first. Perfect
+        Defence can only rearrange players already on the pitch. Invalid plans
+        raise ValueError before any removal or placement is returned.
+        """
+        proc = game.get_procedure()
+        if getattr(proc, 'team', None) != team or not hasattr(proc, 'reorganize'):
+            raise ValueError(f"Formation {self.name!r}: expected this team's setup procedure")
+        slots = self.validate(game.arena, game.config, home=team == game.state.home_team)
+        on_pitch = [player for player in team.players if player.position is not None]
+        reserves = game.get_reserves(team)
+        players = on_pitch + ([] if proc.reorganize else reserves)
+        if proc.reorganize and len(players) > len(slots):
+            raise ValueError(f"Formation {self.name!r}: insufficient positions to reorganize all players")
+        selected = slots[:len(players)]
+        available = len(on_pitch) + len(reserves)
+        if (len(selected) < min(game.config.pitch_min, available) or
+                sum(game.is_scrimmage(position) for _, position, _ in selected) <
+                min(game.config.scrimmage_min, available)):
+            raise ValueError(f"Formation {self.name!r}: insufficient players for a legal setup")
+        for _, position, _ in selected:
+            occupant = game.get_player_at(position)
+            if occupant is not None and occupant.team != team:
+                raise ValueError(f"Formation {self.name!r}: position {position} is occupied by an opponent")
 
-        # Go through formation from scrimmage to touchdown zone
-        players = player_on_pitch
-        if not reorganize:
-            players += game.get_reserves(team)
-
-        positions_used = set()
-
-        # setup on scrimmage
-        for t in ['S', 's', 'p', 'b', 'c', 'm', 'a', 'v', 'd', '0', 'x']:
-            for y in range(len(self.formation)):
-                if len(players) == 0:
-                    return actions
-                x = len(self.formation[0]) - 1
-                tp = self.formation[y][x]
-                if tp == '-' or tp != t:
-                    continue
-                yy = y + 1
-                xx = x + 1 if not home else game.arena.width - x - 2
-                position = game.get_square(xx, yy)
-                if not game.is_scrimmage(position) or position in positions_used:
-                    continue
-                player = self._get_player(players, t)
-                players.remove(player)
-                actions.append(Action(ActionType.PLACE_PLAYER, position=position, player=player))
-                positions_used.add(position)
-
-        for t in ['S', 's', 'p', 'b', 'c', 'm', 'a', 'v', 'd', '0', 'x']:
-            for y in range(len(self.formation)):
-                for x in reversed(range(len(self.formation[0]))):
-                    if len(players) == 0:
-                        return actions
-                    tp = self.formation[y][x]
-                    if tp == '-' or tp != t:
-                        continue
-                    yy = y + 1
-                    xx = x + 1 if not home else game.arena.width - x - 2
-                    position = game.get_square(xx, yy)
-                    if game.is_scrimmage(position) or position in positions_used:
-                        continue
-                    player = self._get_player(players, t)
-                    players.remove(player)
-                    actions.append(Action(ActionType.PLACE_PLAYER, position=position, player=player))
-                    positions_used.add(position)
+        actions = [] if proc.reorganize else [
+            Action(ActionType.PLACE_PLAYER, position=None, player=player) for player in on_pitch]
+        for symbol, position, _ in selected:
+            player = self._get_player(players, symbol)
+            players.remove(player)
+            actions.append(Action(ActionType.PLACE_PLAYER,
+                                  position=game.get_square(position.x, position.y), player=player))
         return actions
 
     def compare(self, other, path):
