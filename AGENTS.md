@@ -10,16 +10,6 @@ The durable product/domain description belongs in `README.md` and the repository
 
 This file owns repository-wide agent invariants and routes work to reusable skills. Skills define reusable procedure; issues define bounded task contracts; repository documentation defines durable project knowledge.
 
-## One-time Skillforge bootstrap
-
-This fork has been equipped with the Skillforge agent/workflow layer after being forked from upstream Bot Bowl.
-
-- The presence of `skills/repository-bootstrap/SKILL.md` means the GitHub metadata bootstrap is not yet complete.
-- Before normal non-trivial issue-driven execution, run that skill once after GitHub Issues is enabled for this fork.
-- A successful bootstrap must verify/create the required workflow labels, keep the already project-specific `README.md`, adapt this file only if new repository-wide invariants are genuinely required, delete `skills/repository-bootstrap/`, and remove this bootstrap section plus its routing entry.
-- Local Codex runner provisioning is optional and never required for repository bootstrap completion. If explicitly requested, bootstrap may hand off after successful publication to `skills/codex-local-runner/SKILL.md`.
-- If bootstrap cannot complete safely, it must remain installed so initialization can be retried.
-
 ## Load context progressively
 
 For non-trivial work, start with:
@@ -50,7 +40,6 @@ When authoritative sources materially conflict, do not silently choose one. Surf
 
 Load skills lazily by role:
 
-- one-time repository initialization: `skills/repository-bootstrap/SKILL.md`;
 - optional local Codex runner provisioning/repair: `skills/codex-local-runner/SKILL.md`;
 - design authority: `skills/design-github-issue/SKILL.md`;
 - main executor: `skills/spec-driven-codex-loop/SKILL.md`;
