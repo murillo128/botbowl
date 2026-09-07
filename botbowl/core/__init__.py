@@ -1,5 +1,5 @@
 from .game import *
-from .driver import PolicyDriver, DecisionTrace
+from .driver import Policy, PolicyDriver, DecisionTrace
 from .load import *
 from .model import *
 from .procedure import *

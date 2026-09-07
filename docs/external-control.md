@@ -1,5 +1,9 @@
 # External decision control
 
+For resource loading and validation, use the public
+[`create_game` factory](public-api.md). It returns this same initialized `Game`
+at `START_GAME` and supports `close()` without declaring a match result.
+
 Construct `Game(..., external_control=True)` to control both teams from outside
 the engine. This choice is independent of `Agent.human`. Set it at construction;
 changing it midway through a procedure is not supported. Existing games default

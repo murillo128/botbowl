@@ -29,9 +29,11 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.11'
-      - run: python -m pip install --upgrade -c requirements/core.txt pip setuptools wheel ruff
+      - run: python -m pip install --upgrade -c requirements/core.txt -r requirements/public-types.txt pip setuptools wheel ruff
       - name: Python errors
         run: python -m ruff check --select E9,F63,F7,F82 botbowl tests examples tools setup.py
+      - name: Bounded public API types and negative calls
+        run: python tools/ci/check_public_types.py
       - name: Core selection negative controls
         run: python tools/ci/check_core_selection.py
       - name: Parallel shard process controls

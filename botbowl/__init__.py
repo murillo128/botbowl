@@ -1,6 +1,8 @@
 """The headless engine; optional AI integrations are resolved on first use."""
 from .core import *
 from . import ai as _ai
+from .api import create_game as create_game
+from .ai.registry import make_bot as make_bot, register_bot as register_bot
 
 
 def __getattr__(name):

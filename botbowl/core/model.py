@@ -15,7 +15,10 @@ from copy import copy
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from numbers import Integral
-from typing import List, Optional, Set, Dict
+from typing import TYPE_CHECKING, List, Optional, Set, Dict
+
+if TYPE_CHECKING:
+    from botbowl.core.game import Game
 
 import numpy as np
 import uuid
@@ -144,8 +147,8 @@ class TimeLimits:
 
 class Configuration:
     name: str
-    arena: Optional['TwoPlayerArena']
-    ruleset: Optional['RuleSet']
+    arena: Optional[str]
+    ruleset: Optional[str]
     roster_size: int
     pitch_max: int
     pitch_min: int
@@ -315,7 +318,7 @@ class Agent:
     human: bool
     agent_id: str
 
-    def __init__(self, name: str, human: bool=False, agent_id=None):
+    def __init__(self, name: str, human: bool = False, agent_id: Optional[str] = None) -> None:
         if agent_id is not None:
             self.agent_id = agent_id
         else:
@@ -338,13 +341,13 @@ class Agent:
     def __hash__(self):
         return self.agent_id
 
-    def new_game(self, game, team):
+    def new_game(self, game: "Game", team: "Team") -> None:
         raise NotImplementedError("This method must be overridden by non-human subclasses")
 
-    def act(self, game):
+    def act(self, game: "Game") -> "Action":
         raise NotImplementedError("This method must be overridden by non-human subclasses")
 
-    def end_game(self, game):
+    def end_game(self, game: "Game") -> None:
         raise NotImplementedError("This method must be overridden by non-human subclasses")
 
 
@@ -682,7 +685,8 @@ class Action:
     position: Optional['Square']
     player: Optional['Player']
 
-    def __init__(self, action_type, position=None, player=None):
+    def __init__(self, action_type: ActionType, position: Optional["Square"] = None,
+                 player: Optional["Player"] = None) -> None:
         self.action_type = action_type
         self.position = position
         self.player = player

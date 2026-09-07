@@ -158,6 +158,9 @@ def main():
                     process_env={**env, 'BOTBOWL_BUILD_NATIVE': '0'})
                 run('check-' + str(index), [python, '-m', 'pip', 'check'])
                 run('smoke-' + str(index), [python, source / 'tests/packaging/smoke.py', '--minimal'])
+                for example in ('public_external', 'public_policy'):
+                    run(example + '-' + str(index),
+                        [python, source / ('examples/' + example + '.py'), '--max-steps', '100'])
                 run('freeze-' + str(index), [python, '-m', 'pip', 'freeze', '--all'])
             return
         run('build', [sys.executable, '-m', 'build', '--wheel', '--outdir', output / 'dist'], source,

@@ -40,7 +40,7 @@ class GameTruncatedError(NoProgressError):
 class StepBudget:
     """Finite engine steps and policy attempts, shareable across driver retries."""
 
-    def __init__(self, steps=100000):
+    def __init__(self, steps: int = 100000) -> None:
         if type(steps) is not int or steps < 0:
             raise ValueError("Step budget must be a nonnegative integer")
         self.remaining = steps
@@ -133,11 +133,26 @@ class Game:
         self.action = None
         self.external_control = external_control
         self._initialized = False
+        self._closed = False
         self._end_notified = False
         self.finalization_errors = []
         self.time_source = time_source
         self.trajectory = Trajectory()
         self.square_shortcut = self.state.pitch.squares
+
+    @property
+    def closed(self) -> bool:
+        return self._closed
+
+    def close(self) -> None:
+        """Stop accepting decisions, retaining inspectable state without a result.
+
+        Idempotent. Pause clocks, but do not finish the match, call end_game or
+        write a replay. Caller-owned policies/resources remain caller-owned.
+        """
+        if not self._closed:
+            self.pause_clocks()
+            self._closed = True
 
     @property
     def rng(self):
@@ -284,6 +299,8 @@ class Game:
         with two bots. Legacy games auto-start when both agents are bots.
         Lifecycle callbacks retain the legacy non-human-agent convention.
         """
+        if self.closed:
+            raise InvalidActionError("Game is closed", code="game_closed")
         if self._initialized:
             return
         self._initialized = True
@@ -317,7 +334,7 @@ class Game:
             from botbowl.core.driver import LegacyPolicyDriver
             LegacyPolicyDriver(self).run(action, max_steps=max_steps)
 
-    def advance(self, action: Optional[Action] = None, *, max_steps=100000) -> DecisionResult:
+    def advance(self, action: Optional[Action] = None, *, max_steps: Union[int, StepBudget] = 100000) -> DecisionResult:
         """Apply one decision and resolve automatic consequences, without act().
 
         Stops at every next offered decision, including consecutive decisions
@@ -355,6 +372,8 @@ class Game:
         """
         Checks clocks and runs forced actions. Useful in called in human games.
         """
+        if self.closed:
+            raise InvalidActionError("Game is closed", code="game_closed")
         if self.state.game_over:
             return
         budget = _step_budget(max_steps)
@@ -437,6 +456,8 @@ class Game:
         def reject(code, message):
             return ActionValidationResult(False, code, message), None
 
+        if self.closed:
+            return reject("game_closed", "Game is closed")
         allowed = ActionValidationResult(True, "ok", "Action is allowed.")
         if self.state.game_over:
             if action is None:
