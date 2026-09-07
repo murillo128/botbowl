@@ -9,7 +9,6 @@ from flask import Flask, g, request, render_template, jsonify
 from werkzeug.exceptions import HTTPException
 from botbowl.web import api
 from botbowl.web.errors import WebError
-from botbowl.core.game import InvalidActionError
 from botbowl.core.model import Action, Agent, Square
 from botbowl.core.table import ActionType
 from botbowl.ai.registry import make_bot
@@ -35,11 +34,6 @@ def unlock_host(error):
 @app.errorhandler(WebError)
 def web_error(error):
     return jsonify(error={'code': error.code, 'message': str(error)}), error.status
-
-
-@app.errorhandler(InvalidActionError)
-def invalid_action(error):
-    return jsonify(error={'code': error.code, 'message': str(error)}), 409
 
 
 @app.errorhandler(HTTPException)
@@ -172,8 +166,14 @@ def step(game_id):
                 raise WebError("Player ID must be a string.")
             player = game.state.player_by_id.get(player_id)
             if player is None:
-                raise InvalidActionError("Player ID does not belong to this game.", code='unknown_player')
+                raise WebError("Player ID does not belong to this game.", 409, 'unknown_player')
         action = Action(action_type, position=position, player=player)
+    # Only initial client validation is a rejection. The request lock keeps
+    # these choices current until step; later bot/engine failures are internal
+    # errors and may follow accepted execution that already changed the game.
+    validation = game.validate_action(action)
+    if not validation.allowed:
+        raise WebError(validation.message, 409, validation.code)
     return jsonify(api.step(game_id, action).to_json())
 
 

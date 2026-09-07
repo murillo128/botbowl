@@ -33,9 +33,14 @@ rosters. Coaches are `human` or a registered bot; unknown coaches are invalid.
 
 Every HTTP failure has JSON shape
 `{"error": {"code": "...", "message": "..."}}`. Invalid JSON, fields, mode,
-name, or pagination return 400; missing resources return 404; unavailable or
-invalid game actions and duplicate/ambiguous save names return 409. Unexpected
-engine failures return 500, and unreadable/corrupt local storage returns 500 with
+name, or pagination return 400; missing resources return 404; initially rejected
+client actions and duplicate/ambiguous save names return 409. Bot or engine
+failures after client-action acceptance or during explicit update return 500
+with `internal_error`, even if the internal failure is an invalid action.
+Execution may already have advanced the game and RNG; this response does not
+claim rejection or rollback of the client's action. GET observes the current
+state without advancing it. Other unexpected engine failures also return 500,
+and unreadable/corrupt local storage returns 500 with
 `storage_error`. Failures never return a successful game response. Invalid
 HTTP methods return 405 with the same JSON envelope.
 

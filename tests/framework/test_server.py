@@ -9,6 +9,8 @@ import pytest
 
 pytest.importorskip('flask')
 import botbowl as bb
+from botbowl.ai.bots.illegal_action_bot import IllegalActionBot
+from botbowl.ai.registry import registry
 from botbowl.web import api, server
 from botbowl.web.errors import WebError
 from botbowl.web.host import InMemoryHost
@@ -208,6 +210,90 @@ def test_internal_error_is_json_failure(client, game, monkeypatch):
     response = act(client, game, {'action_type': 'START_MOVE', 'position': {'x': 3, 'y': 3}})
     assert_error(response, 500, 'internal_error')
     assert b'private diagnostic' not in response.data
+
+
+@pytest.fixture
+def slow_bot_game(client, host, monkeypatch):
+    monkeypatch.setitem(registry.bots, 'web-test-illegal', IllegalActionBot)
+    # Keep elapsed clock JSON comparable between the acting and observing clients.
+    monkeypatch.setattr('botbowl.core.model.time.time', lambda: 10000.0)
+
+    def create(bot_side):
+        name = client.get('/teams/1v1').json[0]['name']
+        response = client.put('/game/create', json={
+            'mode': '1v1', 'game': {'home_team_name': name, 'away_team_name': name,
+                                    bot_side: 'web-test-illegal'}})
+        assert response.status_code == 200
+        game = host.get_game(response.json['game_id'])
+        assert game.config.fast_mode is False
+        assert game.config.competition_mode is True
+        return game
+
+    return create
+
+
+def test_valid_client_action_then_bot_failure_is_internal(client, slow_bot_game):
+    game = slow_bot_game('home_player')
+    observer = server.app.test_client()
+    for _ in range(10):
+        if any(choice.action_type == bb.ActionType.HEADS for choice in game.state.available_actions):
+            break
+        if game.actor is not None and game.actor.human:
+            response = act(client, game, progress_action(game).to_json())
+        else:
+            response = client.post('/games/' + game.game_id + '/update', json={})
+        assert response.status_code == 200
+    assert game.actor.human
+    assert game.validate_action(bb.Action(bb.ActionType.HEADS)).allowed
+    game.set_seed(1)  # HEADS loses to the home bot, whose next action is invalid.
+    game.home_agent.i = 1
+
+    before, rng_before = pickle.dumps(game), game.capture_rng_state()
+    reports_before = len(game.state.reports)
+    observed_before = observer.get('/games/' + game.game_id).json
+    assert_error(act(client, game, {'action_type': 'USE_APOTHECARY'}), 409, 'action_not_available')
+    assert observer.get('/games/' + game.game_id).json == observed_before
+    assert pickle.dumps(game) == before
+    assert game.capture_rng_state() == rng_before
+
+    response = act(client, game, {'action_type': 'HEADS'})
+    assert_error(response, 500, 'internal_error')
+    assert response.json['error']['message'] == 'Internal server error.'
+    assert len(game.state.reports) == reports_before + 1
+    assert game.capture_rng_state() != rng_before
+    after = pickle.dumps(game)
+    assert after != before
+    observed = observer.get('/games/' + game.game_id)
+    assert observed.status_code == 200
+    assert observed.json == game.to_json()
+    assert len(observed.json['state']['reports']) == reports_before + 1
+    assert pickle.dumps(game) == after
+
+
+def test_explicit_update_bot_failure_is_internal(client, slow_bot_game):
+    game = slow_bot_game('away_player')
+    observer = server.app.test_client()
+    game.set_seed(87)
+    game.away_agent.rnd.seed(101)
+    for _ in range(2):
+        assert client.post('/games/' + game.game_id + '/update', json={}).status_code == 200
+
+    before, rng_before = pickle.dumps(game), game.capture_rng_state()
+    reports_before = len(game.state.reports)
+    assert type(game.state.stack.peek()).__name__ == 'Fans'
+    response = client.post('/games/' + game.game_id + '/update', json={})
+    assert_error(response, 500, 'internal_error')
+    assert response.json['error']['message'] == 'Internal server error.'
+    assert len(game.state.reports) > reports_before
+    assert game.capture_rng_state() != rng_before
+    assert type(game.state.stack.peek()).__name__ == 'CoinTossKickReceive'
+    after = pickle.dumps(game)
+    assert after != before
+    observed = observer.get('/games/' + game.game_id)
+    assert observed.status_code == 200
+    assert observed.json == game.to_json()
+    assert len(observed.json['state']['reports']) == len(game.state.reports)
+    assert pickle.dumps(game) == after
 
 
 def test_save_load_duplicate_delete(client, host, game):
