@@ -24,7 +24,27 @@ def worker(remote, parent_remote, env, reset_steps):
     failure = None
     try:
         steps = tds = tds_opp = 0
-        next_opp = botbowl.make_bot('random')
+        next_opp = None
+        root = getattr(env, 'unwrapped', None) or env.root_env
+
+        def reset_env():
+            if next_opp is not None:
+                controller = env
+                while hasattr(controller, 'env') and not hasattr(controller, 'opponent'):
+                    controller = controller.env
+                if hasattr(controller, 'opponent'):
+                    if not callable(next_opp):
+                        raise ValueError('Gymnasium swap requires an explicit callable opponent')
+                    controller.opponent = next_opp
+                else:
+                    root.away_agent = next_opp
+            value = env.reset()
+            if len(value) == 2 and isinstance(value[0], dict):
+                obs, info = value
+                if info.get('terminated') or info.get('truncated'):
+                    raise ValueError('Episode ended during reset; no learner decision is available')
+                return tuple(obs[k] for k in ('spatial', 'non_spatial', 'action_mask')), info
+            return value, {}
         ppcg_wrapper = None
         if hasattr(env, 'get_wrapper_with_type'):
             from botbowl.ai.env import PPCGWrapper
@@ -41,28 +61,35 @@ def worker(remote, parent_remote, env, reset_steps):
                 continue
             if command == 'reset':
                 steps = tds = tds_opp = 0
-                env.root_env.away_agent = next_opp
-                obs = env.reset()
+                obs, info = reset_env()
                 result = (*obs, 0.0, 0, 0, False, False)
             elif command == 'step':
                 steps += 1
                 if ppcg_wrapper is not None:
                     ppcg_wrapper.difficulty = data[1]
-                obs, reward, terminated, info = env.step(data[0])
-                game = env.game
+                value = env.step(data[0])
+                if len(value) == 5:
+                    obs, reward, terminated, truncated, info = value
+                    obs = tuple(obs[k] for k in ('spatial', 'non_spatial', 'action_mask'))
+                else:
+                    obs, reward, terminated, info = value
+                    truncated = False
+                game = root.game
                 scored = game.state.home_team.state.score - tds
                 conceded = game.state.away_team.state.score - tds_opp
                 tds = game.state.home_team.state.score
                 tds_opp = game.state.away_team.state.score
-                truncated = steps >= reset_steps and not terminated
+                truncated = truncated or (steps >= reset_steps and not terminated)
                 if terminated or truncated:
-                    env.root_env.away_agent = next_opp
-                    obs = env.reset()
+                    final_observation, final_info = obs, info
+                    obs, reset_info = reset_env()
+                    info = {'final_observation': final_observation, 'final_info': final_info,
+                            'reset_info': reset_info}
                     steps = tds = tds_opp = 0
                 result = (*obs, reward, scored, conceded, terminated, truncated)
             else:
                 raise ValueError(f"Unknown worker command: {command!r}")
-            remote.send(('ok', result))
+            remote.send(('ok', (result, info)))
     except Exception:
         failure = traceback.format_exc()
     finally:
@@ -91,6 +118,7 @@ class VecEnv:
         self.closed = False
         self.timeout = timeout
         self.errors = []
+        self.last_infos = []
         self.remotes = []
         self.ps = []
         ctx = context or multiprocessing.get_context('spawn')
@@ -132,7 +160,9 @@ class VecEnv:
             raise ValueError('Expected one value per environment')
         for remote, data in zip(self.remotes, values):
             remote.send((command, data))
-        return tuple(map(np.stack, zip(*(self._receive(r) for r in self.remotes))))
+        replies = [self._receive(r) for r in self.remotes]
+        self.last_infos = [info for _, info in replies]
+        return tuple(map(np.stack, zip(*(result for result, _ in replies))))
 
     def step(self, actions, difficulty=1.0):
         """Return observations, reward, TDs, terminated and truncated arrays."""

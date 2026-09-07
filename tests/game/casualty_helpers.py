@@ -40,7 +40,7 @@ def assert_rewards(game, victim, amount):
         for team, expected in [(victim.team, -amount),
                                (game.get_opp_team(victim.team), amount)]:
             game.state.available_actions = [ActionChoice(ActionType.CONTINUE, team=team)]
-            reward = A2C_Reward()
+            reward = A2C_Reward('home' if team is game.state.home_team else 'away')
             assert reward(game) == expected
             assert reward(game) == 0.0
     finally:

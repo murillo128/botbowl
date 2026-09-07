@@ -12,7 +12,7 @@ import importlib.abc
 import sys
 class RejectOptional(importlib.abc.MetaPathFinder):
     def find_spec(self, fullname, path=None, target=None):
-        if fullname.split('.')[0] in {'gym', 'flask', 'docker', 'tkinter', 'matplotlib'}:
+        if fullname.split('.')[0] in {'gym', 'gymnasium', 'flask', 'docker', 'tkinter', 'matplotlib'}:
             raise AssertionError('unexpected optional import: ' + fullname)
 sys.meta_path.insert(0, RejectOptional())
 import botbowl as bb
@@ -31,7 +31,7 @@ assert bb.load_team_by_filename('human', bb.ruleset, board_size=1).players
     subprocess.run([sys.executable, "-c", code], cwd=tmp_path, check=True)
 
 
-@pytest.mark.parametrize("name", ["BotBowlEnv", "EnvConf", "BotBowlWrapper", "RewardWrapper",
+@pytest.mark.parametrize("name", ["BotBowlEnv", "LegacyV4Env", "EnvConf", "BotBowlWrapper", "RewardWrapper",
                                   "ScriptedActionWrapper", "PPCGWrapper"])
 def test_legacy_rl_exports(name):
     pytest.importorskip("gym")

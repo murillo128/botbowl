@@ -21,7 +21,8 @@ attribution and rules preserved.
 The legacy `rl` extra is supported only on CPython **3.11 and 3.12**. It uses
 Gym 0.26.2 and NumPy <2. It is **unsupported on 3.13/3.14**: Gym's checker
 accesses `np.bool8`, removed in NumPy 2, while NumPy 1.26 supports Python only
-through 3.12. The Gymnasium migration and any later expansion belong to issue #17.
+through 3.12. The separate `gymnasium` extra supplies the versioned v5 adapter on CPython
+3.11–3.14 with NumPy 2; see [its API and migration guide](gymnasium.md).
 Do not install this extra on newer interpreters expecting compatibility.
 
 Install only the integrations you use, for example from a checkout:
@@ -29,6 +30,7 @@ Install only the integrations you use, for example from a checkout:
 ```bash
 python -m pip install '.[web]'
 python -m pip install '.[rl]'
+python -m pip install '.[gymnasium]'
 python -m pip install '.[competition]'
 python -m pip install '.[render]'
 python -m pip install '.[dev]'
@@ -38,6 +40,7 @@ python -m pip install '.[dev]'
 | --- | --- | --- |
 | `web` | Existing Flask HTTP routes | Flask and its dependencies |
 | `rl` | Legacy Gym environments and wrappers | Gym 0.26.2, NumPy <2; see compatibility below |
+| `gymnasium` | Versioned Gymnasium v5 adapter and explicit controllers | Gymnasium >=1.3,<2; CPython 3.11–3.14, NumPy 2 |
 | `competition` | Competition helpers and socket/Docker agents | Docker Python client, tabulate; a daemon is needed only to run container agents |
 | `render` | Matplotlib plotting in examples | Matplotlib; the legacy `EnvRenderer` separately needs the interpreter's Tk installation and a display when constructed |
 | `dev` | Tests and package builds | pytest, build, more-itertools; install other extras for their tests |
@@ -149,4 +152,5 @@ including exact tested dependency versions and limits, are recorded in
 [the packaging report](reports/packaging-issue-5.md). No platform or optional
 integration is supported merely because `requires-python` permits installation.
 The legacy Gym adapter still uses its old reset/step API and emits existing
-warnings; this packaging change does not implement the Gymnasium migration.
+warnings. The [v5 adapter](gymnasium.md) has separate IDs, spaces and wrappers;
+its runtime evidence does not expand the legacy adapter boundary.

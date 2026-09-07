@@ -1,4 +1,7 @@
 # Reinforcement Learning I: OpenAI Gym Environment
+
+This page describes the explicit legacy v4 API (`botbowl.LegacyV4Env`, `.[rl]`).
+For Gymnasium v5 and updated runnable examples, see [the migration guide](gymnasium.md).
 This tutorial will introduce you to botbowl's implementations of the [Open AI Gym interface](https://arxiv.org/pdf/1606.01540.pdf) 
 that will allow for easy integration of reinforcement learning algorithms. 
 

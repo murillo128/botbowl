@@ -10,7 +10,7 @@ import sys
 def core_smoke(backend, minimal=False):
     if minimal:
         assert "DISPLAY" not in os.environ
-        for distribution in ("Flask", "gym", "docker", "matplotlib", "pytest"):
+        for distribution in ("Flask", "gym", "gymnasium", "docker", "matplotlib", "pytest"):
             try:
                 metadata.version(distribution)
             except metadata.PackageNotFoundError:
@@ -20,7 +20,7 @@ def core_smoke(backend, minimal=False):
     import botbowl.core.pathfinding as pf
     from botbowl.lab.rules import describe_rules
 
-    for module in ("flask", "gym", "docker", "matplotlib", "tkinter"):
+    for module in ("flask", "gym", "gymnasium", "docker", "matplotlib", "tkinter"):
         assert module not in sys.modules, module
     assert pf.get_safest_path.__module__.endswith(
         ".cython_pathfinding" if backend == "native" else ".python_pathfinding")
@@ -68,6 +68,22 @@ def extra_smoke(extra):
         assert isinstance(env.unwrapped, bb.BotBowlEnv)
         env.close()
         assert "tkinter" not in sys.modules
+    elif extra == "gymnasium":
+        import gymnasium as gym
+        import numpy as np
+        from botbowl.ai import register_gymnasium_envs
+
+        register_gymnasium_envs()
+        for size in (1, 3, 5, 7, 11):
+            env = gym.make(f"botbowl-{size}-v5")
+            obs, info = env.reset(seed=17)
+            assert env.observation_space.contains(obs)
+            obs, reward, terminated, truncated, info = env.step(int(np.flatnonzero(obs['action_mask'])[0]))
+            assert env.observation_space.contains(obs) and isinstance(reward, float)
+            assert not terminated and not truncated
+            env.close()
+            env.close()
+        assert "gym" not in sys.modules and "tkinter" not in sys.modules
     elif extra == "competition":
         import botbowl as bb
         from botbowl.ai.competition.python_socket import AgentCommand, Request
@@ -98,7 +114,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--backend", choices=("python", "native"), default="python")
     parser.add_argument("--minimal", action="store_true")
-    parser.add_argument("--extra", choices=("web", "rl", "competition", "dev", "render"))
+    parser.add_argument("--extra", choices=("web", "rl", "gymnasium", "competition", "dev", "render"))
     args = parser.parse_args()
     result = core_smoke(args.backend, args.minimal)
     if args.extra:
