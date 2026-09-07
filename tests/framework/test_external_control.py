@@ -378,9 +378,9 @@ def test_explicit_two_policy_driver_matches_legacy_complete_trace():
     legacy_trace = []
     advance = legacy.advance
 
-    def capture(action=None):
+    def capture(action=None, **kwargs):
         before = (legacy.actor.agent_id, choices(legacy), action.to_json())
-        result = advance(action)
+        result = advance(action, **kwargs)
         legacy_trace.append((before, [e.to_json() for e in result.events],
                              result.actor.agent_id if result.actor else None, result.terminal,
                              deepcopy(legacy.state.to_json(ignore_clocks=True))))
