@@ -94,8 +94,9 @@ def create():
             raise WebError("Unknown coach.")
     game = api.new_game(home_team_name=text_field(settings, 'home_team_name'),
                         away_team_name=text_field(settings, 'away_team_name'),
-                        home_agent=agents[0], away_agent=agents[1], game_mode=mode)
-    return jsonify(game.to_json())
+                        home_agent=agents[0], away_agent=agents[1], game_mode=mode,
+                        local=settings.get('local', False))
+    return jsonify(api.game_to_json(game))
 
 
 @app.route('/game/save', methods=['POST'])
@@ -119,8 +120,8 @@ def delete_saved(name):
 
 @app.route('/games/', methods=['GET'])
 def get_all_games():
-    return jsonify(games=[game.to_json() for game in api.get_games()],
-                   saved_games=[{'name': name, 'game': game.to_json()} for name, game in api.get_saved_games()])
+    return jsonify(games=[api.game_to_json(game) for game in api.get_games()],
+                   saved_games=[{'name': name, 'game': api.game_to_json(game)} for name, game in api.get_saved_games()])
 
 
 @app.route('/game-modes/', methods=['GET'])
@@ -144,6 +145,7 @@ def step(game_id):
     if 'action' not in data:
         raise WebError("An action field is required.")
     game = api.get_game(game_id)
+    api.host.require_running(game)
     raw = data['action']
     action = None
     if raw is not None:
@@ -174,18 +176,30 @@ def step(game_id):
     validation = game.validate_action(action)
     if not validation.allowed:
         raise WebError(validation.message, 409, validation.code)
-    return jsonify(api.step(game_id, action).to_json())
+    return jsonify(api.game_to_json(api.step(game_id, action)))
 
 
 @app.route('/games/<game_id>/update', methods=['POST'])
 def update_game(game_id):
     empty_body()
-    return jsonify(api.update_game(game_id).to_json())
+    return jsonify(api.game_to_json(api.update_game(game_id)))
+
+
+@app.route('/games/<game_id>/pause', methods=['POST'])
+def pause_game(game_id):
+    empty_body()
+    return jsonify(api.game_to_json(api.host.pause_game(game_id)))
+
+
+@app.route('/games/<game_id>/resume', methods=['POST'])
+def resume_game(game_id):
+    empty_body()
+    return jsonify(api.game_to_json(api.host.resume_game(game_id)))
 
 
 @app.route('/games/<game_id>', methods=['GET'])
 def get_game(game_id):
-    return jsonify(api.get_game(game_id).to_json())
+    return jsonify(api.game_to_json(api.get_game(game_id)))
 
 
 @app.route('/replays/<replay_id>', methods=['GET'])
@@ -206,7 +220,7 @@ def get_steps(replay_id, from_idx, num_steps):
 @app.route('/game/load/<name>', methods=['POST'], strict_slashes=False)
 def load_game(name):
     empty_body()
-    return jsonify(api.load_game(name).to_json())
+    return jsonify(api.game_to_json(api.load_game(name)))
 
 
 @app.route('/bots/', methods=['GET'])

@@ -265,7 +265,7 @@ def test_valid_client_action_then_bot_failure_is_internal(client, slow_bot_game)
     assert after != before
     observed = observer.get('/games/' + game.game_id)
     assert observed.status_code == 200
-    assert observed.json == game.to_json()
+    assert observed.json == api.game_to_json(game)
     assert len(observed.json['state']['reports']) == reports_before + 1
     assert pickle.dumps(game) == after
 
@@ -291,7 +291,7 @@ def test_explicit_update_bot_failure_is_internal(client, slow_bot_game):
     assert after != before
     observed = observer.get('/games/' + game.game_id)
     assert observed.status_code == 200
-    assert observed.json == game.to_json()
+    assert observed.json == api.game_to_json(game)
     assert len(observed.json['state']['reports']) == len(game.state.reports)
     assert pickle.dumps(game) == after
 

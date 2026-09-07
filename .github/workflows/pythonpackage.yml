@@ -34,6 +34,8 @@ jobs:
         run: python -m ruff check --select E9,F63,F7,F82 botbowl tests examples tools setup.py
       - name: Bounded public API types and negative calls
         run: python tools/ci/check_public_types.py
+      - name: Bounded lab protocol types and negative signatures
+        run: python tools/ci/check_lab_types.py
       - name: Core selection negative controls
         run: python tools/ci/check_core_selection.py
       - name: Parallel shard process controls
