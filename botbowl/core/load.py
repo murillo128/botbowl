@@ -161,9 +161,13 @@ def load_team_by_filename(name: str, ruleset: RuleSet, board_size: int = 11) -> 
 
 
 def load_team_by_name(name: str, ruleset: RuleSet, board_size: int = 11) -> Team:
-    for team in load_all_teams(ruleset, board_size):
-        if team.name == name:
-            return team
+    # Look up the requested roster before resolving its roles. Other rosters
+    # may belong to a different edition and must not contaminate this lookup.
+    path = get_data_path('teams/')
+    for filepath in glob.glob(f'{path}/{board_size}/*json'):
+        with open(filepath) as stream:
+            if json.load(stream)['name'] == name:
+                return load_team(filepath, ruleset)
     raise ValueError(f"Team with name {name!r} not found for size {board_size}.")
 
 

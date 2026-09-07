@@ -50,6 +50,26 @@ def test_default_and_legacy_imports():
     assert bb.Agent and bb.Action and bb.PolicyDriver and bb.RandomBot
 
 
+@pytest.mark.parametrize("name", ["bot-bowl.json", "web-1", "web-3", "web-5", "web-7", "web-11"])
+def test_other_shipped_configurations(name):
+    game = bb.create_game(name, control="external")
+    assert game.get_available_actions()[0].action_type == bb.ActionType.START_GAME
+    game.close()
+
+
+def test_loading_does_not_mutate_ruleset_constructor_defaults():
+    defaults = bb.RuleSet("defaults")
+    before = deepcopy((defaults.races, defaults.star_players, defaults.inducements,
+                       defaults.spp_actions, defaults.spp_levels, defaults.improvements))
+    game = bb.create_game(size=1, control="external")
+    game.close()
+    after = (defaults.races, defaults.star_players, defaults.inducements,
+             defaults.spp_actions, defaults.spp_levels, defaults.improvements)
+    # Constructor defaults may be populated by unrelated legacy callers.
+    assert [len(value) for value in after] == [len(value) for value in before]
+    assert game.ruleset.races is not defaults.races
+
+
 def test_object_and_loader_isolation():
     config = bb.load_config("gym-3")
     config.rounds = 2
