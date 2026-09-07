@@ -81,3 +81,8 @@ ignores and is not a claim that the entire engine is strictly typed.
 Existing public imports, direct `Game` construction, loaders and legacy
 `init/step` scheduling remain available. No API is deprecated by this addition;
 consumers can opt into the factory without migrating unrelated code.
+
+The separate [lab protocols](lab/protocols.md) define structural simulation,
+restricted policy, observer, recorder, scenario and evaluator roles. Their
+`LegacyBotAdapter` explicitly forwards engine-aware bots to this existing
+`PolicyDriver` boundary; `botbowl.Policy` keeps its current meaning.
