@@ -59,3 +59,24 @@ def test_formation_loader():
     assert off_line.name == "Line"
     assert off_wedge.name == "Wedge"
 
+
+@pytest.mark.parametrize("contents,diagnostic", [
+    ("", "nonempty rectangular"),
+    ("--\n\n-x\n", "rectangular"),
+    ("--\n?x\n--\n", "unknown symbol"),
+    ("--\n x\n--\n", "unknown symbol"),
+    ("--\nxx\n--\n", "player count"),
+    ("--\n--\n--\n", "player count"),
+])
+def test_malformed_formation_loader(tmp_path, contents, diagnostic):
+    (tmp_path / "invalid.txt").write_text(contents)
+    with pytest.raises(ValueError, match=diagnostic):
+        load_formation("invalid", directory=str(tmp_path), size=1)
+
+
+def test_ragged_formation_fixture():
+    from pathlib import Path
+
+    directory = Path(__file__).resolve().parents[1] / "fixtures" / "formations"
+    with pytest.raises(ValueError, match="rectangular"):
+        load_formation("ragged", directory=str(directory), size=3)

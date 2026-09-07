@@ -82,8 +82,14 @@ class EnvConf:
         ]
         self.formations = [load_formation(formation, size=size) for formation in formation_defaults[size]]
         if extra_formations is not None:
-            assert all(map(lambda x: type(x) is Formation, extra_formations)), ''
+            extra_formations = list(extra_formations)
+            if not all(isinstance(formation, Formation) for formation in extra_formations):
+                raise TypeError("extra_formations must contain Formation instances")
             self.formations.extend(extra_formations)
+        arena = load_arena(self.config.arena)
+        for formation in self.formations:
+            for home in (False, True):
+                formation.validate(arena, self.config, home=home)
         self.simple_action_types.extend(self.formations)
 
         self.positional_action_types = [

@@ -11,6 +11,8 @@ from botbowl.ai.env import BotBowlEnv, ScriptedActionWrapper, RewardWrapper, Env
 from examples.a2c.a2c_env import A2C_Reward
 import gym
 
+from tests.formation_helpers import reduce_roster, setup_game, snapshot
+
 
 @pytest.mark.parametrize("name", ['botbowl-v4',
                                   'botbowl-11-v4',
@@ -73,6 +75,49 @@ def test_compute_action():
         same_action = env._compute_action(env._compute_action_idx(action))[0]
         assert action.action_type == same_action.action_type, f"Wrong type: {action} != {same_action}"
         assert action.position == same_action.position, f"Wrong position: {action} != {same_action}"
+
+
+@pytest.mark.parametrize("size", (1, 3, 5, 7, 11))
+@pytest.mark.parametrize("home", (False, True))
+@pytest.mark.parametrize("reduced", (False, True))
+def test_extra_formation_generator_expands_to_legal_setup(size, home, reduced):
+    stock = botbowl.load_formation("def_spread", size=size)
+    custom = botbowl.Formation("Custom", [list(row) + ['-'] for row in stock.formation])
+    conf = EnvConf(size=size, extra_formations=(f for f in [custom]))
+    assert conf.formations[-1] is custom
+    env = BotBowlEnv(conf)
+    env.game = setup_game(size, home)
+    if reduced:
+        reduce_roster(env.game, 1)
+    team = env.game.active_team
+    before = snapshot(env.game)
+    actions = env._compute_action(conf.simple_action_types.index(custom))
+    assert snapshot(env.game) == before
+    assert actions[-1].action_type is botbowl.ActionType.END_SETUP
+    for action in actions[:-1]:
+        assert env.game.is_action_allowed(action)
+        env.game.step(action)
+    assert env.game.is_setup_legal(team)
+    env.game.step(actions[-1])
+
+
+@pytest.mark.parametrize("invalid", ("type", "dimensions", "symbol", "count", "scrimmage", "wings"))
+def test_env_conf_rejects_invalid_extra_formations(invalid):
+    formation = botbowl.load_formation("def_spread", size=3)
+    if invalid == "type":
+        formation = "def_spread"
+    elif invalid == "dimensions":
+        formation.formation[:] = ["--", "-x", "--"]
+    elif invalid == "symbol":
+        formation.formation[0][0] = '?'
+    elif invalid == "count":
+        formation.formation[0][0] = 'x'
+    elif invalid == "scrimmage":
+        formation.formation[2][5] = '-'
+    elif invalid == "wings":
+        formation.formation[:] = ["-xx---", "------", "-----0", "------", "------"]
+    with pytest.raises(TypeError if invalid == "type" else ValueError):
+        EnvConf(size=3, extra_formations=(f for f in [formation]))
 
 
 def test_reward_and_scripted_wrapper():
