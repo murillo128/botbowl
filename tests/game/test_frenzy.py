@@ -20,10 +20,10 @@ def test_frenzy_block():
             defender = adjacent[0]
             break
     defender_pos = Square(defender.position.x, defender.position.y)
-    BBDie.fix(BBDieResult.PUSH)
-    BBDie.fix(BBDieResult.PUSH)
-    BBDie.fix(BBDieResult.PUSH)
-    BBDie.fix(BBDieResult.PUSH)
+    game.dice.fix(BBDie, BBDieResult.PUSH)
+    game.dice.fix(BBDie, BBDieResult.PUSH)
+    game.dice.fix(BBDie, BBDieResult.PUSH)
+    game.dice.fix(BBDie, BBDieResult.PUSH)
     game.step(Action(ActionType.START_BLOCK, player=attacker))
     game.step(Action(ActionType.BLOCK, position=defender.position))
     game.step(Action(ActionType.DONT_USE_REROLL))
@@ -56,10 +56,10 @@ def test_frenzy_blitz():
             defender = adjacent[0]
             break
     defender_pos = Square(defender.position.x, defender.position.y)
-    BBDie.fix(BBDieResult.PUSH)
-    BBDie.fix(BBDieResult.PUSH)
-    BBDie.fix(BBDieResult.PUSH)
-    BBDie.fix(BBDieResult.PUSH)
+    game.dice.fix(BBDie, BBDieResult.PUSH)
+    game.dice.fix(BBDie, BBDieResult.PUSH)
+    game.dice.fix(BBDie, BBDieResult.PUSH)
+    game.dice.fix(BBDie, BBDieResult.PUSH)
     game.step(Action(ActionType.START_BLITZ, player=attacker))
     game.step(Action(ActionType.BLOCK, position=defender.position))
     game.step(Action(ActionType.DONT_USE_REROLL))
@@ -92,8 +92,8 @@ def test_frenzy_knocked_down():
             defender = adjacent[0]
             break
     defender_pos = Square(defender.position.x, defender.position.y)
-    BBDie.fix(BBDieResult.DEFENDER_DOWN)
-    BBDie.fix(BBDieResult.DEFENDER_DOWN)
+    game.dice.fix(BBDie, BBDieResult.DEFENDER_DOWN)
+    game.dice.fix(BBDie, BBDieResult.DEFENDER_DOWN)
     game.step(Action(ActionType.START_BLOCK, player=attacker))
     game.step(Action(ActionType.BLOCK, position=defender.position))
     game.step(Action(ActionType.DONT_USE_REROLL))

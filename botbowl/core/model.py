@@ -12,6 +12,9 @@ from botbowl.core.forward_model import Immutable, Reversible, CallableStep, trea
 
 from abc import ABC, abstractmethod
 from copy import copy
+from contextlib import contextmanager
+from dataclasses import dataclass, field
+from numbers import Integral
 from typing import List, Optional, Set, Dict
 
 import numpy as np
@@ -783,6 +786,8 @@ class DiceRoll:
                 d = string
             dice = [Die.from_string(d, rng) for _ in range(n)]
             return DiceRoll(dice)
+        except ForcedRollExhausted:
+            raise
         except Exception as e:
             raise Exception("Not a valid dice format. Examples: d3, d6, d8, bb, 2d6")
 
@@ -871,21 +876,133 @@ class DiceRoll:
         return True
 
 
-class D3(Die):
-    FixedRolls = []
+@dataclass(frozen=True)
+class DiceSourceState:
+    """In-memory RNG and forced-roll state, not a persistent snapshot format."""
+
+    rng_state: tuple
+    queues: tuple
+    strict: tuple
+    _scopes: tuple = field(repr=False)
+
+
+class ForcedRollExhausted(RuntimeError):
+    """A test requested a die with no remaining result in a strict context."""
+
+
+class DiceSource:
+    """Game-owned dice using the existing NumPy RandomState algorithm.
+
+    Forced results are a test facility, not samples from the natural distribution.
+    Queues belong to this source; `force` bounds their lifetime to a context.
+    Direct calls to `rng` share the game's random stream, but never consume dice
+    queues. Bot/policy RNGs must be owned and seeded separately.
+    """
+
+    def __init__(self, seed=None):
+        self.rng = np.random.RandomState(seed)
+        self._queues = [self._empty_queues()]
+        self._strict = [False]
+        self._scopes = []
 
     @staticmethod
-    def fix(value):
-        if 1 <= value <= 3:
-            D3.FixedRolls.append(value)
-        else:
-            raise ValueError("Fixed result of D3 must be between 1 and 3")
+    def _empty_queues():
+        return {die: [] for die in (D3, D6, D8, BBDie)}
+
+    @staticmethod
+    def _validate(die, values):
+        sides = {D3: 3, D6: 6, D8: 8}
+        if die not in (*sides, BBDie):
+            raise ValueError("Expected D3, D6, D8 or BBDie")
+        for value in values:
+            if die is BBDie:
+                valid = isinstance(value, BBDieResult)
+            else:
+                valid = (isinstance(value, Integral) and not isinstance(value, (bool, np.bool_))
+                         and 1 <= value <= sides[die])
+            if not valid:
+                raise ValueError(f"Invalid forced result for {die.__name__}: {value!r}")
+
+    def fix(self, die, *values):
+        """Append validated test results, consumed FIFO without advancing RNG."""
+        self._validate(die, values)
+        self._queues[-1][die].extend(values)
+
+    def pending(self, die):
+        """Return an immutable view of this context's remaining test results."""
+        self._validate(die, ())
+        return tuple(self._queues[-1][die])
+
+    def clear(self, die=None):
+        """Clear only this source's current context (or one die within it)."""
+        if die is not None:
+            self._validate(die, ())
+        for kind in self._queues[-1] if die is None else (die,):
+            self._queues[-1][kind].clear()
+
+    def roll(self, die):
+        self._validate(die, ())
+        queue = self._queues[-1][die]
+        if queue:
+            return queue.pop(0)
+        if self._strict[-1]:
+            raise ForcedRollExhausted(f"No forced result remaining for {die.__name__}")
+        return die(self.rng).value
+
+    @contextmanager
+    def force(self, *, d3=(), d6=(), d8=(), block_dice=(), strict=False):
+        """Temporarily replace all four queues; restore the outer queues on exit.
+
+        Exhaustion falls back to the natural RNG unless `strict=True`, which
+        raises ForcedRollExhausted. Exit discards unused inner results, including
+        after exceptions, but does not rewind natural RNG draws made inside.
+        """
+        queues = {D3: list(d3), D6: list(d6), D8: list(d8), BBDie: list(block_dice)}
+        for die, values in queues.items():
+            self._validate(die, values)
+        self._queues.append(queues)
+        self._strict.append(strict)
+        self._scopes.append(object())
+        try:
+            yield self
+        finally:
+            self._queues.pop()
+            self._strict.pop()
+            self._scopes.pop()
+
+    def get_state(self):
+        """Capture MT19937 keys/position/Gaussian cache and every queue frame.
+
+        The returned data does not share mutable queues or RNG arrays. Restore
+        within the same active `force` scopes; a snapshot cannot resurrect an
+        expired test context. With no active scope, RNG state can be copied to
+        another source (e.g. a branch) without sharing mutable data.
+        """
+        name, keys, pos, has_gauss, cached_gaussian = self.rng.get_state()
+        return DiceSourceState(
+            (name, tuple(int(key) for key in keys), pos, has_gauss, cached_gaussian),
+            tuple(tuple(tuple(values) for values in queues.values()) for queues in self._queues),
+            tuple(self._strict), tuple(self._scopes))
+
+    def _validate_state(self, state):
+        if not isinstance(state, DiceSourceState):
+            raise TypeError("Expected a DiceSourceState from get_state()")
+        if state._scopes != tuple(self._scopes):
+            raise ValueError("Restore RNG state within the same active forced-roll contexts")
+
+    def set_state(self, state):
+        """Restore captured RNG and queues without reseeding or sharing queues."""
+        self._validate_state(state)
+        self.rng.set_state(state.rng_state)
+        self._queues = [dict(zip((D3, D6, D8, BBDie), (list(values) for values in queues)))
+                        for queues in state.queues]
+        self._strict = list(state.strict)
+
+
+class D3(Die):
 
     def __init__(self, rng):
-        if len(D3.FixedRolls) > 0:
-            self.value = D3.FixedRolls.pop(0)
-        else:
-            self.value = rng.randint(1, 4)
+        self.value = rng.roll(D3) if isinstance(rng, DiceSource) else rng.randint(1, 4)
 
     def __repr__(self):
         return f"D3({self.value})"
@@ -901,7 +1018,6 @@ class D3(Die):
 
 
 class D6(Die, Immutable):
-    FixedRolls = []
 
     TWO_PROBS = {
         2: (1 / 6 * 1 / 6),
@@ -917,18 +1033,8 @@ class D6(Die, Immutable):
         12: 1 * (1 / 6 * 1 / 6)
     }
 
-    @staticmethod
-    def fix(value):
-        if 1 <= value <= 6:
-            D6.FixedRolls.append(value)
-        else:
-            raise ValueError("Fixed result of D6 must be between 1 and 6")
-
     def __init__(self, rng):
-        if len(D6.FixedRolls) > 0:
-            self.value = D6.FixedRolls.pop(0)
-        else:
-            self.value = rng.randint(1, 7)
+        self.value = rng.roll(D6) if isinstance(rng, DiceSource) else rng.randint(1, 7)
 
     def __repr__(self):
         return f"D6({self.value})"
@@ -944,20 +1050,9 @@ class D6(Die, Immutable):
 
 
 class D8(Die, Immutable):
-    FixedRolls = []
-
-    @staticmethod
-    def fix(value):
-        if 1 <= value <= 8:
-            D8.FixedRolls.append(value)
-        else:
-            raise ValueError("Fixed result of D8 must be between 1 and 8")
 
     def __init__(self, rng):
-        if len(D8.FixedRolls) > 0:
-            self.value = D8.FixedRolls.pop(0)
-        else:
-            self.value = rng.randint(1, 9)
+        self.value = rng.roll(D8) if isinstance(rng, DiceSource) else rng.randint(1, 9)
 
     def __repr__(self):
         return f"D8({self.value})"
@@ -974,22 +1069,18 @@ class D8(Die, Immutable):
 
 class BBDie(Die, Immutable):
     value: BBDieResult
-    FixedRolls = []
 
-    @staticmethod
-    def fix(value):
-        if type(value) == BBDieResult:
-            BBDie.FixedRolls.append(value)
-        else:
-            raise ValueError("Fixed result of BBDie must be a BBDieResult")
-
-    @staticmethod
-    def clear_fixes():
-        BBDie.FixedRolls.clear()
+    @classmethod
+    def from_result(cls, value):
+        """Represent an already selected block result without rolling any dice."""
+        DiceSource._validate(BBDie, (value,))
+        die = cls.__new__(cls)
+        die.value = value
+        return die
 
     def __init__(self, rng):
-        if len(BBDie.FixedRolls) > 0:
-            self.value = BBDie.FixedRolls.pop(0)
+        if isinstance(rng, DiceSource):
+            self.value = rng.roll(BBDie)
         else:
             r = rng.randint(1, 7)
             if r == 6:

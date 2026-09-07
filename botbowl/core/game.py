@@ -6,7 +6,7 @@ Year: 2018
 This module contains the Game class, which is the main class and interface used to interact with a game in botbowl.
 """
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import itertools
 from numbers import Integral
 
@@ -29,6 +29,16 @@ class ActionValidationResult:
     allowed: bool
     code: str
     message: str
+
+
+@dataclass(frozen=True)
+class GameCheckpoint:
+    """In-memory ancestor checkpoint for one game's enabled trajectory."""
+
+    step: int
+    rng_state: DiceSourceState
+    _trajectory: Trajectory = field(repr=False, compare=False)
+    _anchor: Optional[Step] = field(repr=False, compare=False)
 
 
 class Game:
@@ -67,7 +77,7 @@ class Game:
         self.arena = load_arena(config.arena) if arena is None else arena
         self.ruleset = load_rule_set(config.ruleset) if ruleset is None else ruleset
         self.state = state if state is not None else GameState(self, deepcopy(home_team), deepcopy(away_team))
-        self.rng = np.random.RandomState(seed)
+        self.dice = DiceSource(seed)
         self.ff_map = None
         self.start_time = None
         self.end_time = None
@@ -76,6 +86,15 @@ class Game:
         self.action = None
         self.trajectory = Trajectory()
         self.square_shortcut = self.state.pitch.squares
+
+    @property
+    def rng(self):
+        """The existing NumPy RandomState stream, also used by natural dice."""
+        return self.dice.rng
+
+    @rng.setter
+    def rng(self, rng):
+        self.dice.rng = rng
 
     def to_json(self, ignore_reports: bool = False):
         return {
@@ -108,11 +127,11 @@ class Game:
         """
         home_agent = self.home_agent 
         away_agent = self.away_agent
-        rng = self.rng
+        dice = self.dice
         replay = self.replay
         self.away_agent = Agent(home_agent.name, human=True) 
         self.home_agent = Agent(home_agent.name, human=True) 
-        self.rng = np.random.RandomState()
+        self.dice = DiceSource()
         self.replay = None
 
         try: 
@@ -120,7 +139,7 @@ class Game:
         finally:
             self.home_agent = home_agent 
             self.away_agent = away_agent
-            self.rng = rng
+            self.dice = dice
             self.replay = replay
 
 
@@ -143,6 +162,7 @@ class Game:
 
     def revert(self, to_step: int) -> List[Step]:
         """
+        Undo trajectory state only; RNG and forced queues remain advanced.
         :param to_step: reverts the gamestate to this step, this step should come from self.get_step()
         :returns: list of the undone steps that can be used to redo the steps with function self.foward()
         """
@@ -155,6 +175,45 @@ class Game:
         """
         assert self.trajectory.enabled
         self.trajectory.step_forward(steps)
+
+    def capture_rng_state(self) -> DiceSourceState:
+        """Capture the complete game RNG and forced queues, excluding policy RNGs."""
+        return self.dice.get_state()
+
+    def restore_rng_state(self, state: DiceSourceState) -> None:
+        """Restore RNG and forced queues only, within the same test contexts."""
+        self.dice.set_state(state)
+
+    def capture_checkpoint(self) -> GameCheckpoint:
+        """Capture trajectory position plus RNG for repeatable action sequences.
+
+        Requires the forward model. Covers trajectory-managed state and game
+        randomness, not external policy state, wall clocks or persistent replays.
+        """
+        if not self.trajectory.enabled:
+            raise RuntimeError("Checkpoints require the forward model")
+        step = self.get_step()
+        anchor = self.trajectory.action_log[step - 1] if step else None
+        return GameCheckpoint(step, self.capture_rng_state(), self.trajectory, anchor)
+
+    def restore_checkpoint(self, checkpoint: GameCheckpoint) -> List[Step]:
+        """Undo to a live ancestor checkpoint and restore its complete game RNG.
+
+        Returned steps retain the legacy state-only `forward` behavior. A
+        checkpoint from another game or a discarded branch is rejected before
+        changing state. Active forced-roll contexts must match the capture.
+        """
+        if not isinstance(checkpoint, GameCheckpoint):
+            raise TypeError("Expected a GameCheckpoint from capture_checkpoint()")
+        if not self.trajectory.enabled or checkpoint._trajectory is not self.trajectory:
+            raise ValueError("Checkpoint belongs to another or disabled trajectory")
+        if not 0 <= checkpoint.step <= self.get_step() or (
+                checkpoint.step and self.trajectory.action_log[checkpoint.step - 1] is not checkpoint._anchor):
+            raise ValueError("Checkpoint is not an ancestor of the current trajectory")
+        self.dice._validate_state(checkpoint.rng_state)
+        steps = self.revert(checkpoint.step)
+        self.restore_rng_state(checkpoint.rng_state)
+        return steps
 
     @property
     def active_team(self) -> Optional[Team]:
@@ -681,7 +740,8 @@ class Game:
 
     def set_seed(self, seed: int) -> None:
         '''
-        Sets the random seed of the game.
+        Restart the game's RNG stream only; do not seed policies or clear forced
+        queues. Use restore_rng_state to resume an advanced stream exactly.
         '''
         self.seed = seed
         self.rng = np.random.RandomState(self.seed)

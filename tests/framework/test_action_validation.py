@@ -235,7 +235,7 @@ def test_disabled_block_choice_and_gym_mask_wait_for_reroll(game, use_reroll, ca
     attacker.team.state.rerolls = 1
     dice = (bb.BBDieResult.ATTACKER_DOWN, bb.BBDieResult.ATTACKER_DOWN, bb.BBDieResult.DEFENDER_DOWN)
     for result in dice:
-        bb.BBDie.fix(result)
+        game.dice.fix(bb.BBDie, result)
     game.step(bb.Action(bb.ActionType.START_BLOCK, player=attacker))
     game.step(bb.Action(bb.ActionType.BLOCK, player=defender))
     action = bb.Action(bb.ActionType.SELECT_DEFENDER_DOWN)
@@ -255,7 +255,7 @@ def test_disabled_block_choice_and_gym_mask_wait_for_reroll(game, use_reroll, ca
 
     if use_reroll:
         for result in dice:
-            bb.BBDie.fix(result)
+            game.dice.fix(bb.BBDie, result)
     game.step(bb.Action(bb.ActionType.USE_REROLL if use_reroll else bb.ActionType.DONT_USE_REROLL))
     assert game.active_team is defender.team
     assert attacker.team.state.rerolls == (0 if use_reroll else 1)

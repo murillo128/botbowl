@@ -84,12 +84,15 @@ def test_step_budget_reports_reproduction_context():
 
 
 def test_fixed_rolls_restored_after_failure():
-    saved = bb.D6.FixedRolls
-    with pytest.raises(RuntimeError):
-        with scenario(size=1):
-            bb.D6.fix(6)
-            raise RuntimeError("fixture cleanup")
-    assert bb.D6.FixedRolls is saved
+    with scenario(size=1) as outer:
+        outer.game.dice.fix(bb.D6, 3)
+        with pytest.raises(RuntimeError):
+            with scenario(size=1) as inner:
+                inner.game.dice.fix(bb.D6, 6)
+                raise RuntimeError("fixture cleanup")
+        assert outer.game.dice.pending(bb.D6) == (3,)
+        assert inner.game.dice.pending(bb.D6) == ()
+    assert outer.game.dice.pending(bb.D6) == ()
 
 
 def test_one_turn_game_configuration():

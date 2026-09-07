@@ -93,32 +93,21 @@ def progress_action(game):
 
 @contextmanager
 def scenario(size=11, seed=0, turns=8, max_steps=256):
-    """Fresh size-matched rosters; never changes the inherited cached helpers.
-
-    Fixed dice are process-global in the inherited engine. Restore all queues even
-    after failure so these micropositions do not contaminate unrelated tests.
-    """
-    dice = (bb.D3, bb.D6, bb.D8, bb.BBDie)
-    saved = [die.FixedRolls for die in dice]
-    try:
-        for die in dice:
-            die.FixedRolls = []
-        config = bb.load_config(f"gym-{size}")
-        config.kick_off_table = False
-        config.pathfinding_enabled = False
-        config.rounds = turns
-        rules = bb.load_rule_set(config.ruleset)
-        home = bb.load_team_by_filename("human", rules, board_size=size)
-        away = bb.load_team_by_filename("human", rules, board_size=size)
-        game = bb.Game("baseline", home, away, bb.Agent("home", human=True),
-                       bb.Agent("away", human=True), config, seed=seed)
-        probe = Scenario(game, seed, size, max_steps)
-        game.init()
-        probe.until(lambda g: type(g.get_procedure()) is Turn)
+    """Fresh size-matched rosters with game-local, scoped test dice."""
+    config = bb.load_config(f"gym-{size}")
+    config.kick_off_table = False
+    config.pathfinding_enabled = False
+    config.rounds = turns
+    rules = bb.load_rule_set(config.ruleset)
+    home = bb.load_team_by_filename("human", rules, board_size=size)
+    away = bb.load_team_by_filename("human", rules, board_size=size)
+    game = bb.Game("baseline", home, away, bb.Agent("home", human=True),
+                   bb.Agent("away", human=True), config, seed=seed)
+    probe = Scenario(game, seed, size, max_steps)
+    game.init()
+    probe.until(lambda g: type(g.get_procedure()) is Turn)
+    with game.dice.force():
         yield probe
-    finally:
-        for die, fixed in zip(dice, saved):
-            die.FixedRolls = fixed
 
 
 def place_players(probe, own, opponents=(), ball=None):
