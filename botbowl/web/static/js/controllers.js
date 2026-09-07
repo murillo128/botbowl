@@ -137,6 +137,7 @@ appControllers.controller('GamePlayCtrl', ['$scope', '$routeParams', '$location'
         $scope.saved = false;
         $scope.loading = true;
         $scope.refreshing = false;
+        $scope.timeLoopStarted = false;
         $scope.hover_player = null;
         $scope.selected_square = null;
         $scope.selected_player = null;
@@ -944,7 +945,7 @@ appControllers.controller('GamePlayCtrl', ['$scope', '$routeParams', '$location'
                     if (!$scope.loading && !$scope.refreshing){
                         if ($scope.opp_turn){
                             // It's opponent's turn
-                            $scope.act($scope.newAction('CONTINUE'));
+                            $scope.reload(true);
                         }
                     }
                 }, time);
@@ -1271,6 +1272,7 @@ appControllers.controller('GamePlayCtrl', ['$scope', '$routeParams', '$location'
             $scope.refreshing = true;
             $scope.reportsLimit = 20;
             GameService.act($scope.game.game_id, action).success(function(data) {
+                $scope.error = null;
                 $scope.game = data;
                 $scope.disableOppActions();
                 console.log(data);
@@ -1298,8 +1300,14 @@ appControllers.controller('GamePlayCtrl', ['$scope', '$routeParams', '$location'
                 }
                 $scope.saved = false;
                 $scope.blocked = false;
-            }).error(function(status, data) {
-                $location.path("/#/");
+            }).error(function(data, status) {
+                $scope.refreshing = false;
+                $scope.error = data && data.error ? data.error.message : 'Action failed.';
+                // A second client may have advanced this decision. Observe the
+                // current game without turning the rejected action into update.
+                if (status === 409) {
+                    $scope.reload();
+                }
             });
         };
 
@@ -1420,13 +1428,10 @@ appControllers.controller('GamePlayCtrl', ['$scope', '$routeParams', '$location'
                 var clock = $scope.getActiveClock();
                 if (clock != null){
                     if ($scope.getSecondsLeft(clock, false) < 0 && !$scope.refreshing){
-                        $scope.reload();
-                    } else {
-                        $scope.runTimeLoop(time, game_id);
+                        $scope.reload(true);
                     }
-                } else {
-                    $scope.runTimeLoop(time, game_id);
                 }
+                $scope.runTimeLoop(time, game_id);
             }, time);
         };
 
@@ -1495,13 +1500,20 @@ appControllers.controller('GamePlayCtrl', ['$scope', '$routeParams', '$location'
             }
         };
 
-        $scope.reload = function reload(){
+        $scope.reload = function reload(advance){
             $scope.refreshing = true;
             if ($scope.replaying){
 
                 ReplayService.get($scope.replay_id).success(function (data) {
                     $scope.replay = data;
-                    $scope.game = data.steps[0];
+                    let firstStep = Object.keys(data.steps)[0];
+                    if (firstStep === undefined) {
+                        $scope.emptyReplay = true;
+                        $scope.loading = false;
+                        $scope.refreshing = false;
+                        return;
+                    }
+                    $scope.game = data.steps[firstStep];
                     $scope.disableOppActions();
                     $scope.playersById = Object.assign({}, $scope.game.state.home_team.players_by_id, $scope.game.state.away_team.players_by_id);
                     $scope.setLocalState();
@@ -1519,7 +1531,8 @@ appControllers.controller('GamePlayCtrl', ['$scope', '$routeParams', '$location'
 
             } else {
 
-                GameService.get($scope.game_id).success(function (data) {
+                let operation = advance ? GameService.update : GameService.get;
+                operation($scope.game_id).success(function (data) {
                     $scope.game = data;
                     $scope.disableOppActions();
                     $scope.playersById = Object.assign({}, $scope.game.state.home_team.players_by_id, $scope.game.state.away_team.players_by_id);
@@ -1532,9 +1545,14 @@ appControllers.controller('GamePlayCtrl', ['$scope', '$routeParams', '$location'
                     $scope.checkForReload(2500);
                     $scope.saved = false;
                     $scope.blocked = false;
-                    $scope.runTimeLoop(20, data.game_id);
-                }).error(function (status, data) {
-                    $location.path("/#/");
+                    if (!$scope.timeLoopStarted) {
+                        $scope.timeLoopStarted = true;
+                        $scope.runTimeLoop(20, data.game_id);
+                    }
+                }).error(function (data, status) {
+                    $scope.loading = false;
+                    $scope.refreshing = false;
+                    $scope.error = data && data.error ? data.error.message : 'Game update failed.';
                 });
 
             }
