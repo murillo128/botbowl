@@ -23,6 +23,9 @@
     </div>
 </nav>
 
+<div class="alert alert-danger" ng-if="error" role="alert">{{ error }}</div>
+<div class="alert alert-info" ng-if="emptyReplay">This replay has no frames.</div>
+
 <div class="modal" tabindex="-1" role="dialog" ng-show="modalVisible" style="display: block;">
   <div class="modal-dialog" role="document">
     <div class="modal-content">
@@ -54,7 +57,7 @@
   </div>
 </div>
 
-<div class="game-free" ng-if="!loading">
+<div class="game-free" ng-if="!loading && !emptyReplay">
     <div class="scoreboard">
         <div class="row scoreboard-content">
             <div>
@@ -141,7 +144,7 @@
     </div>
 </div>
 
-<div class="game-free" ng-if="!loading">
+<div class="game-free" ng-if="!loading && !emptyReplay">
 
     <div class="gamecontent">
 
