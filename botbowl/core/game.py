@@ -380,7 +380,8 @@ class Game:
                 return reject("action_required", "An action is required while a decision is pending.")
             return allowed, None
 
-        choices = [choice for choice in self.state.available_actions if choice.action_type == action.action_type]
+        choices = [choice for choice in self.state.available_actions
+                   if choice.action_type == action.action_type and not choice.disabled]
         if not choices:
             return reject("action_not_available", "Action type is not currently available.")
         for choice in choices:
@@ -426,13 +427,14 @@ class Game:
         """
         Return action that prioritize to end the player's turn.
         """
+        available_actions = [choice for choice in self.state.available_actions if not choice.disabled]
         # Take first negative action
         for action_type in [ActionType.END_TURN, ActionType.END_SETUP, ActionType.END_PLAYER_TURN,
                             ActionType.SELECT_NONE, ActionType.HEADS, ActionType.KICK, ActionType.SELECT_DEFENDER_DOWN,
                             ActionType.SELECT_DEFENDER_STUMBLES, ActionType.SELECT_ATTACKER_DOWN,
                             ActionType.SELECT_PUSH, ActionType.SELECT_BOTH_DOWN, ActionType.DONT_USE_REROLL,
                             ActionType.DONT_USE_APOTHECARY]:
-            for action in self.state.available_actions:
+            for action in available_actions:
                 if action.action_type == action_type:
                     if action_type == ActionType.END_SETUP:
                         if self.is_setup_legal(self.get_agent_team(self.actor)): # type: ignore
@@ -441,11 +443,11 @@ class Game:
                         return Action(action_type)
         # Take random action
         while True:
-            action_choice = self.rng.choice(self.state.available_actions)
+            action_choice = self.rng.choice(available_actions)
             # Ignore PLACE_PLAYER actions
             if action_choice.action_type != botbowl.ActionType.PLACE_PLAYER:
                 break
-        action_choice = self.rng.choice(self.state.available_actions)
+        action_choice = self.rng.choice(available_actions)
         position = self.rng.choice(action_choice.positions) if len(action_choice.positions) > 0 else None
         player = self.rng.choice(action_choice.players) if len(action_choice.players) > 0 else None
         return Action(action_choice.action_type, position=position, player=player)

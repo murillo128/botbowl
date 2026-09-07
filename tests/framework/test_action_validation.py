@@ -213,6 +213,58 @@ def test_repeated_types_allow_later_position(game):
     assert game.is_action_allowed(bb.Action(bb.ActionType.MOVE, position=bb.Square(2, 3)))
 
 
+def test_enabled_alternative_remains_available_after_disabled_choice(game):
+    team = game.active_team
+    game.state.available_actions = [
+        bb.ActionChoice(bb.ActionType.END_TURN, team, disabled=True),
+        bb.ActionChoice(bb.ActionType.END_TURN, team),
+    ]
+    action = bb.Action(bb.ActionType.END_TURN)
+    before = snapshot(game), pickle.dumps(action)
+    assert game.is_action_allowed(action)
+    assert (snapshot(game), pickle.dumps(action)) == before
+
+
+@pytest.mark.parametrize("use_reroll", [False, True])
+def test_disabled_block_choice_and_gym_mask_wait_for_reroll(game, use_reroll, capsys):
+    from botbowl.ai.env import BotBowlEnv, EnvConf
+
+    attacker = game.active_team.players[1]
+    defender = game.get_opp_team(game.active_team).players[0]
+    attacker.extra_st = 1 - attacker.get_st()
+    attacker.team.state.rerolls = 1
+    dice = (bb.BBDieResult.ATTACKER_DOWN, bb.BBDieResult.ATTACKER_DOWN, bb.BBDieResult.DEFENDER_DOWN)
+    for result in dice:
+        bb.BBDie.fix(result)
+    game.step(bb.Action(bb.ActionType.START_BLOCK, player=attacker))
+    game.step(bb.Action(bb.ActionType.BLOCK, player=defender))
+    action = bb.Action(bb.ActionType.SELECT_DEFENDER_DOWN)
+    choices = [choice for choice in game.get_available_actions() if choice.action_type == action.action_type]
+    assert choices and all(choice.disabled for choice in choices)
+    assert game.active_team is attacker.team
+    assert_rejected_without_mutation(game, action, "action_not_available", capsys)
+    forced = game._forced_action()
+    assert game.is_action_allowed(forced)
+    assert forced.action_type == bb.ActionType.DONT_USE_REROLL
+
+    env = BotBowlEnv(EnvConf(size=3), seed=0, away_agent="human")
+    env.game = game
+    action_index = env._compute_action_idx(action)
+    mask = env.get_state()[2]
+    assert not mask[action_index]
+
+    if use_reroll:
+        for result in dice:
+            bb.BBDie.fix(result)
+    game.step(bb.Action(bb.ActionType.USE_REROLL if use_reroll else bb.ActionType.DONT_USE_REROLL))
+    assert game.active_team is defender.team
+    assert attacker.team.state.rerolls == (0 if use_reroll else 1)
+    assert game.is_action_allowed(action)
+    assert env.get_state()[2][action_index]
+    game.step(action)
+    assert isinstance(game.get_procedure(), bb.Push)
+
+
 @pytest.mark.parametrize("action", [None, bb.Action(bb.ActionType.CONTINUE)])
 def test_no_decision_accepts_none_or_continue(game, action, monkeypatch):
     game.state.available_actions = []

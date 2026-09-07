@@ -323,7 +323,8 @@ class BotBowlEnv(gym.Env):
 
         # Available action types
         aa_types = np.zeros(len(self.env_conf.action_types))
-        game_aa_types = set(action_choice.action_type for action_choice in game.get_available_actions())
+        game_aa_types = set(action_choice.action_type for action_choice in game.get_available_actions()
+                            if not action_choice.disabled)
         is_setup: bool = type(self.game.get_procedure()) == procedures.Setup
         for i, action_type in enumerate(self.env_conf.action_types):
             if action_type is ActionType.END_SETUP and not game.is_setup_legal(active_team):

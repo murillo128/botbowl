@@ -13,6 +13,10 @@ check the current `game.get_available_actions()` without changing the action,
 game state, procedure stack, trajectory, reports, replay, or random generator.
 They do not print or run a procedure to regenerate choices. The former private
 `game._is_action_allowed` remains a compatibility shim with the same behavior.
+Disabled choices are unavailable until their pending decision is resolved;
+an enabled alternative of the same action type can still match.
+Gym's simple-action mask and the engine's forced-action selection exclude
+disabled choices as well.
 
 ```python
 action = botbowl.Action(botbowl.ActionType.START_MOVE, player=player)

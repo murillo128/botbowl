@@ -33,6 +33,31 @@ because it computes elapsed wall time on each read; the raw clock state remains
 covered by the serialized graph. Input bytes and relevant object identities are
 also compared. No baseline expected game outcome was weakened.
 
+Two additional real uphill-block probes (use or decline the reroll) reproduced
+acceptance of a disabled defender die result before the enabled-choice correction:
+**2 failed, 1 passed in 0.14 s** for the disabled-choice and same-type-alternative
+tests. Disabled dice must wait for the attacker's reroll decision. The corrected
+checks require atomic rejection before that decision and acceptance afterward,
+and retain an enabled alternative when another choice of its type is disabled.
+Gym's existing simple-action mask now excludes disabled choices as the narrow
+caller integration; action indices, space shapes, and encoding stay unchanged.
+
+Enforcing those existing disabled flags exposed eight inherited Frenzy/Strip
+Ball cases that selected a disabled uphill result without first declining the
+reroll. Their sequences now submit `DONT_USE_REROLL` explicitly before each such
+selection, including the second Frenzy block. All original fixed dice, resources,
+positions, and rule-outcome assertions are retained; the tests no longer rely on
+the illegal-input bypass.
+
+The forward-model test policy now samples only enabled choices without changing
+its RNG source, PLACE_PLAYER exclusion, player/position sampling, or state/revert
+assertions. Clock-forced selection likewise filters disabled choices in its
+priority scan and every fallback pool, retaining the existing priority and
+sampling structure. The added real uphill forced-action assertion failed in both
+reroll branches before this correction (**2 failed, 50 deselected in 0.10 s**):
+the forced result was disabled SELECT_DEFENDER_DOWN. It now requires legal
+DONT_USE_REROLL while the attacker's decision is pending.
+
 ## Environment and commands
 
 Linux x86_64; CPython 3.11.16; pip 24.0; setuptools 79.0.1; wheel 0.40.0;
@@ -45,13 +70,13 @@ constraint. The known requirements/setup Requests pin mismatch remains #5/#6's
 work.
 
 ```bash
-python -m pytest tests/framework/test_action_validation.py tests/game/test_hypnotic_gaze.py tests/ai/test_competition.py --require-pathfinding=native -q
+timeout 300 python -m pytest tests/framework/test_action_validation.py tests/framework/test_forward_model.py tests/game/test_block.py tests/game/test_frenzy.py tests/game/test_strip_ball.py tests/ai/test_env.py tests/ai/test_competition.py --require-pathfinding=native -q
 timeout 300 python -m pytest --require-pathfinding=native -q
 ```
 
-The focused compatibility run passed 53 tests in 5.41 s, before three additional
-boundary tests were added. The final full native run includes all **49** new
-validation tests: **598 passed, 1 xfailed, 102 warnings in 74.95 s**.
+The final focused compatibility run passed **94 tests** with 102 inherited Gym
+warnings in **34.10 s**. The final full native run includes all **52** new
+validation tests: **601 passed, 1 xfailed, 102 warnings in 74.18 s**.
 
 The Python reference run used a fresh process with the compiled extension moved
 outside the checkout and restored afterward, following the
@@ -61,7 +86,7 @@ outside the checkout and restored afterward, following the
 python -m pytest tests/game tests/framework tests/ai --require-pathfinding=python -q
 ```
 
-Result: **406 passed, 39 skipped, 1 xfailed, 102 warnings in 156.22 s**.
+Result: **409 passed, 39 skipped, 1 xfailed, 102 warnings in 169.42 s**.
 The 39 skips are the baseline's explicitly native-only cases. Both backend
 assertions passed before collection. No new skips or xfails were added.
 
