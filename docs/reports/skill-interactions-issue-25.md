@@ -1,4 +1,107 @@
-# Issue #25: stopped at the Push/injury boundary
+# Issue #25: bounded skill interaction corpus
+
+## Resumption on the reviewed composition
+
+Integration `8ad8a3cde1a3b5fd391d9527047a8ccb4bb5d16f` was merged additively
+into the existing issue branch. It includes #9's independently reviewed Push
+correction. The unchanged reproduction below now passes all six cases in each
+fresh installed backend. The historical report is retained below without
+relabeling its original failures or exact-base suite as new evidence.
+
+The [support inventory](skill-support-issue-25.md) covers every current `Skill`
+entry and separates implementation from test evidence: 62 implemented paths,
+3 partial, 14 unsupported. This corpus adds no engine changes, unsupported skill
+implementation, property-testing dependency, seed exclusion or xfail. Explicit
+action replay and the existing reduced Push regression provide useful reduction
+without adding a property-testing library for these bounded cases.
+
+## Corpus and invariant boundary
+
+`tests/issue25/test_interactions.py` is ordinary pytest discovery. Its 59 tests
+include 24 both-side mechanism variants, four naturally reached complete games
+and their action replays, changed-order recipe replay, interleaved games with
+all four foreign forced-die queues pending, and negative/limit controls.
+
+| Mechanism | New bounded exercise | Remaining limits |
+| --- | --- | --- |
+| Rerolls / movement / Shadowing | GFI failure → team reroll or Sure Feet → dodge → opposing Shadowing accept/decline → pickup; both sides, pathfinding off/on | Not every agility/mutation combination |
+| Push / Stand Firm | Strip Ball versus Sure Hands plus Stand Firm accept/decline; carried ball follows defender | Existing #9 tests own chain pushes, crowd, Frenzy and Side Step branches |
+| Injury / Apothecary | Mighty Blow versus Thick Skull, opposing Apothecary use/decline, resource and dugout results | Existing #12 tests own casualty/Decay/Regeneration branches; unchanged six-case Push regression retained explicitly |
+| Negatraits / drive | Actual BB2016 Human Ogre role (Bone Head/Loner), fail → successful/failed Loner team reroll → real MOVE touchdown → cleared drive state | Scorer and Ogre placement are synthetic; other negatraits remain in existing dedicated tests |
+| Natural sequences | Shipped Human rosters, legal setup formations, independently seeded choice/target policy, both teams, terminal games | Bounded turns and seeds; random games do not prove skill coverage |
+
+Natural cases start from loaded `gym-N`/BB2016 inputs with kickoff events enabled;
+no synthetic board changes or forced dice. Synthetic cases record the legal
+setup prefix, named fixture boundaries with complete state snapshots, action
+journal and exact forced-roll scopes. Human linemen use compatible General or
+doubles advancements. The Ogre roster variant replaces one sample lineman with
+the actual Human Ogre role before Game construction; it does not invent a
+Bone Head/Loner lineman. The scoring MOVE enters the real touchdown/drive stack.
+
+At each decision the checker asserts board ↔ player occupancy, canonical roster
+and team indexes, disjoint dugouts, ball bounds/unique carrier, nonnegative
+integer resources in their actual domains, valid actors and all enabled
+advertised action targets. Pregame `StartGame` has not populated reserves yet;
+airborne players are not board occupants; allocated crowd cells can be occupied;
+`ball.on_ground` is not assumed to be the inverse of `is_carried`. Signed stat
+modifiers are not incorrectly treated as resources. Bomb interactions are outside
+these fixtures. Checking invariants and selecting policy actions must preserve
+the game's RNG/queue snapshot.
+
+Progress fingerprints exclude reports, time and RNG churn, and include the
+semantic state, procedure names and used skills. All cases use 1,500 decisions,
+2,000 engine steps per decision, 16 visits per semantic state and 90 seconds per
+probe. Four visits proved too strict for legitimate randomly selected START/UNDO
+cycles; sixteen is applied uniformly, including the originally failing size-7
+seed-0 case. Limits are administrative failures, never manufactured game results.
+Controls cover a stalled `advance`, a real repeated START_MOVE/UNDO cycle,
+occupancy/roster/ball/resource/actor corruption, invalid limit values, exhausted
+decision/engine/time limits and a stuck engine interrupted by the POSIX timer.
+Other platforms retain cooperative wall checks and the engine/decision bounds;
+the separate job timeout remains necessary for a hard process limit.
+
+Natural journals replay serialized actions without consulting the generating
+policy. Synthetic replay calls the named fixture recipe and requires exact
+equality of actions, forced scopes and fixture states. It does not pretend
+synthetic placements were legal decisions. Failures retain seed/configuration,
+attempted actions, fixture states, forced queues, limits and current options/stack
+as JSON in `CorpusFailure`; pytest logs preserve that reproduction. For a natural
+record use `tests.interaction_corpus.replay(record)`; for a synthetic failure rerun
+its named scenario/side/seed/variant from `tests.interaction_scenarios`. Successful
+synthetic records also pass through `replay` with journal equality checks.
+
+## Separate broad invocation and evidence
+
+The explicitly targeted `broad_corpus.py` is not selected by ordinary filename
+discovery. Run it as a separate job in each installed backend, from the copied
+test suite (never from a path that can import checkout code):
+
+```sh
+timeout 600 /path/to/installed/bin/python -m pytest tests/issue25/broad_corpus.py \
+  --require-pathfinding=python -q -s --junitxml=/tmp/issue25-broad.xml
+# Use --require-pathfinding=native with the separately installed native wheel.
+```
+
+Its 66 cases comprise 30 generated games (sizes 1/3/5/7/11, seeds 0/3/17,
+pathfinding off/on, two turns per half) with full action replays, plus 36 both-side
+mechanism cases at seeds 3/17. Paths are actually exposed/consumed by movement
+choices with `pathfinding_directly_to_adjacent=False`; installed backend checks
+require the real native extension when native is requested. No universal Python/
+native path ordering or all-skill parity is inferred from backend identity.
+
+Resumption logs, installed artifacts, JUnit and deterministic four-shard receipts
+belong under `/tmp/botbowl-issue25-resume-evidence/`. Final-head counts, source SHA
+and CI run IDs are recorded in the PR/issue handoff, after execution. Required
+gates remain lint and core CPython 3.11 Python/native. Selection verification and
+four-process overlap must pass before relying on each suite. The accepted
+41-node Quick Snap/forward-model investigation and legacy RL capability boundary
+are unchanged; no new failures are hidden by the harness. Fresh independent
+review must inspect invariants, generation, limits, recipe/action replay and
+the exact final published head before readiness.
+
+---
+
+# Historical report: stopped at the Push/injury boundary
 
 Execution base: `ad63891a745e908313596c24a3a11fe8c2a5bda6`.
 This is a product-defect reproduction and incomplete-work report, not acceptance
