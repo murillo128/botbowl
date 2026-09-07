@@ -29,7 +29,12 @@ An example of an offensive setup formation looks like this:
 -------------
 ```
 
-A setup is always seen from the left-field perspective and is always 13x15 (half of the field) unless a smaller board size is used. 
+A setup is seen from the left-field perspective and normally covers half of the
+field: 13 columns by 15 rows for size 11. Rows must cover the playable height;
+columns start at the left endzone and are reflected for the home team. Trailing
+`-` columns are allowed up to the playable pitch width. Occupied cells must map
+to the team's side. The arena tiles identify scrimmage, so it need not be the
+last column in the file.
 
 The characters in the syntax means:
 
@@ -68,6 +73,54 @@ def_formation_spread = load_formation("def_spread")
 def_formation_spread = load_formation("def_spread")
 ````
 Notice, that if no directory is specified, the default location inside botbowl is used.
+
+### Small custom example and validation
+
+[compact_three.txt](../examples/formations/compact_three.txt) is a three-player
+example with a scrimmage slot and two movement-priority slots. Its final column
+is empty. From the repository root, during a size-3 setup:
+
+```python
+formation = load_formation("compact_three", directory="examples/formations", size=3)
+for action in formation.actions(game, my_team):
+    game.step(action)
+game.step(Action(ActionType.END_SETUP))
+```
+
+Matrices must be nonempty, rectangular, and use only the selectors above.
+Whitespace is not a selector. The loader checks the player count against `size`;
+`Formation.actions` checks dimensions, team-side geometry, configured player
+counts, scrimmage minimum, and each wide-zone limit before returning any actions.
+Invalid templates raise `ValueError` without partially placing players.
+`EnvConf(extra_formations=...)` also validates templates for both sides when it
+is constructed and accepts iterables, including generators.
+
+A complete template may have fewer slots than `pitch_max` if it still meets the
+configured setup minimums. With fewer available players, scrimmage slots are
+filled first, followed by the existing selector priorities. The engine lowers
+minimum counts to the available roster, including allowing an empty setup when
+no players remain. Perfect Defence only rearranges players already on the pitch;
+it rejects a template that cannot accommodate them all or meet the legal minimums.
+
+### Centered kick controller macro
+
+During `PLACE_BALL`, a controller can return:
+
+```python
+from botbowl.ai.placement import centered_kick
+
+action = centered_kick(game)
+game.step(action)  # or return action from a bot's place_ball method
+```
+
+This expands to an ordinary legal `PLACE_BALL`, choosing the square nearest the
+geometric center of the permitted zone's bounding rectangle. Equal distances
+use the lowest `(y, x)` in arena coordinates, including for a reflected
+controller view. A zone with a hole still yields a permitted square. An empty
+or unavailable zone raises `ValueError`. The helper does not draw randomness or
+change game state, and makes no tactical optimality claim. With `Game(record=True)`,
+the accepted action and exact target are retained in `game.replay.actions` before
+kick scatter; the usual `BALL_PLACED` report also records that target.
 
 ## Custom formations
 Our scripted bot from the previous tutorial we will use a fixed offensive and a fixed defensive formation:
