@@ -26,11 +26,13 @@ def test_frenzy_block():
     BBDie.fix(BBDieResult.PUSH)
     game.step(Action(ActionType.START_BLOCK, player=attacker))
     game.step(Action(ActionType.BLOCK, position=defender.position))
+    game.step(Action(ActionType.DONT_USE_REROLL))
     game.step(Action(ActionType.SELECT_PUSH))
     game.step(Action(ActionType.PUSH, position=game.get_available_actions()[0].positions[0]))
     assert attacker.position == defender_pos
     defender_pos = Square(defender.position.x, defender.position.y)
     assert game.state.active_player is attacker
+    game.step(Action(ActionType.DONT_USE_REROLL))
     game.step(Action(ActionType.SELECT_PUSH))
     game.step(Action(ActionType.PUSH, position=game.get_available_actions()[0].positions[0]))
     assert attacker.position == defender_pos
@@ -60,11 +62,13 @@ def test_frenzy_blitz():
     BBDie.fix(BBDieResult.PUSH)
     game.step(Action(ActionType.START_BLITZ, player=attacker))
     game.step(Action(ActionType.BLOCK, position=defender.position))
+    game.step(Action(ActionType.DONT_USE_REROLL))
     game.step(Action(ActionType.SELECT_PUSH))
     game.step(Action(ActionType.PUSH, position=game.get_available_actions()[0].positions[0]))
     assert attacker.position == defender_pos
     defender_pos = Square(defender.position.x, defender.position.y)
     assert game.state.active_player is attacker
+    game.step(Action(ActionType.DONT_USE_REROLL))
     game.step(Action(ActionType.SELECT_PUSH))
     game.step(Action(ActionType.PUSH, position=game.get_available_actions()[0].positions[0]))
     assert attacker.position == defender_pos
@@ -92,6 +96,7 @@ def test_frenzy_knocked_down():
     BBDie.fix(BBDieResult.DEFENDER_DOWN)
     game.step(Action(ActionType.START_BLOCK, player=attacker))
     game.step(Action(ActionType.BLOCK, position=defender.position))
+    game.step(Action(ActionType.DONT_USE_REROLL))
     game.step(Action(ActionType.SELECT_DEFENDER_DOWN))
     game.step(Action(ActionType.PUSH, position=game.get_available_actions()[0].positions[0]))
     assert attacker.position == defender_pos

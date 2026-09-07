@@ -6,7 +6,9 @@ Year: 2018
 This module contains the Game class, which is the main class and interface used to interact with a game in botbowl.
 """
 from contextlib import contextmanager
+from dataclasses import dataclass
 import itertools
+from numbers import Integral
 
 from botbowl.core.load import *
 from botbowl.core.procedure import *
@@ -16,7 +18,17 @@ from typing import Optional, Tuple, List, Union, Any
 
 
 class InvalidActionError(Exception):
-    pass
+    def __init__(self, message, code="invalid_action"):
+        super().__init__(message)
+        self.code = code
+
+
+@dataclass(frozen=True)
+class ActionValidationResult:
+    """Side-effect-free validation outcome; code and message are stable strings."""
+    allowed: bool
+    code: str
+    message: str
 
 
 class Game:
@@ -184,10 +196,9 @@ class Game:
         :return:
         """
 
-        # Ensure player points to player object
-        if action is not None:
-            action.player = self.get_player(action.player.player_id) if action.player is not None else None
-            action.position = self.get_square(action.position.x, action.position.y) if action.position is not None else None
+        # Reject public input before changing even self.action. Normalization only
+        # writes a new Action, never the object owned by a caller or bot.
+        action = self._validated_action(action)
 
         # Set action as a property so other methods can access it
         self.action = action
@@ -300,77 +311,130 @@ class Game:
             self.replay.record_step(self)
             self.replay.dump(self)
 
-    def _is_action_allowed(self, action: Action) -> bool:
+    def validate_action(self, action: Optional[Action]) -> ActionValidationResult:
         """
-        Checks whether the specified action is allowed by comparing to actions in self.state.available_actions.
-        :param action:
-        :return: True if the specified actions is allowed.
+        Validate against the current available choices without changing game or input.
+
+        Player references from copies of this game are resolved by ID and team.
+        A square may select a player, and a player may supply a target square.
+        None and CONTINUE are allowed only when no decision is pending. This
+        checks the choices already published by the procedure, not future rules.
         """
+        return self._validate_action(action)[0]
+
+    def is_action_allowed(self, action: Optional[Action]) -> bool:
+        """Return whether an action is legal, without normalization side effects."""
+        return self.validate_action(action).allowed
+
+    def _is_action_allowed(self, action: Optional[Action]) -> bool:
+        """Compatibility shim for callers of the former private validator."""
+        return self.is_action_allowed(action)
+
+    def _validated_action(self, action: Optional[Action]) -> Optional[Action]:
+        result, normalized = self._validate_action(action)
+        if not result.allowed:
+            raise InvalidActionError(result.message, code=result.code)
+        return normalized
+
+    def _validate_action(self, action: Optional[Action]) -> Tuple[ActionValidationResult, Optional[Action]]:
+        def reject(code, message):
+            return ActionValidationResult(False, code, message), None
+
+        allowed = ActionValidationResult(True, "ok", "Action is allowed.")
         if action is None:
-            return True
-        for action_choice in self.state.available_actions:
-            if action.action_type == action_choice.action_type:
-                # Type checking
-                if type(action.action_type) is not ActionType:
-                    print("Illegal action type: ", type(action.action_type))
-                    return False
-                if action.player is not None and not isinstance(action.player, Player):
-                    print("Illegal player type: ", type(action.action_type), action, self.state.stack.peek())
-                    return False
-                if action.position is not None and not isinstance(action.position, Square):
-                    print("Illegal position type:", type(action.position), action.action_type.name)
-                    return False
-                # Check if player argument is used instead of position argument
-                if len(action_choice.players) == 0 and action.player is not None and action.position is None:
-                    action.position = action.player.position
-                    # Check if player argument is used instead of position argument
-                elif len(action_choice.positions) == 0 and action.position is not None and action.player is None:
-                    action.player = self.get_player_at(action.position)
-                # Check player argument
-                if len(action_choice.players) > 1 and action.player not in action_choice.players:
-                    if action.player is None:
-                        print("Illegal player: None")
-                    else:
-                        print("Illegal player:", action.player.to_json(), action.action_type.name)
-                    return False
-                # Check position argument
-                if len(action_choice.positions) > 0 and action.position not in action_choice.positions:
-                    if action.position is None:
-                        print("Illegal position: None")
-                    else:
-                        print("Illegal position:", action.position.to_json(), action.action_type.name)
-                    return False
-                return True
-        return False
+            if self.state.available_actions:
+                return reject("action_required", "An action is required while a decision is pending.")
+            return allowed, None
+        if not isinstance(action, Action):
+            return reject("invalid_action_type", "Action must be an Action or None.")
+        if type(action.action_type) is not ActionType:
+            return reject("invalid_action_type", "Action type must be an ActionType.")
+
+        player = action.player
+        if player is not None:
+            if not isinstance(player, Player):
+                return reject("invalid_player_type", "Player must be a Player or None.")
+            if not isinstance(player.player_id, str):
+                return reject("invalid_player_id", "Player ID must be a string.")
+            canonical = self.state.player_by_id.get(player.player_id)
+            if canonical is None:
+                return reject("unknown_player", "Player ID does not belong to this game.")
+            if not isinstance(player.team, Team) or player.team.team_id != canonical.team.team_id:
+                return reject("invalid_player_team", "Player team does not match this game's roster.")
+            player = canonical
+
+        position = action.position
+        if position is not None:
+            if not isinstance(position, Square):
+                return reject("invalid_position_type", "Position must be a Square or None.")
+            if any(isinstance(n, bool) or not isinstance(n, Integral) for n in (position.x, position.y)):
+                return reject("invalid_coordinates", "Position coordinates must be integers.")
+            # Board edges can be legal crowd-push targets; negative indices and
+            # coordinates beyond the allocated board are never public targets.
+            if not (0 <= position.x < self.arena.width and 0 <= position.y < self.arena.height):
+                return reject("position_out_of_bounds", "Position is outside the board.")
+            position = self.square_shortcut[position.y][position.x]
+
+        if action.action_type == ActionType.CONTINUE:
+            if self.state.available_actions:
+                return reject("action_required", "An action is required while a decision is pending.")
+            return allowed, None
+
+        choices = [choice for choice in self.state.available_actions
+                   if choice.action_type == action.action_type and not choice.disabled]
+        if not choices:
+            return reject("action_not_available", "Action type is not currently available.")
+        for choice in choices:
+            # Each choice gets its own candidate: a failed alternative must not
+            # influence normalization for later choices of the same action type.
+            candidate = Action(action.action_type, position=position, player=player)
+            if choice.positions and not choice.players and player is not None and position is None:
+                candidate.position = player.position
+            elif choice.players and not choice.positions and position is not None and player is None:
+                candidate.player = self.get_player_at(position)
+
+            if choice.players:
+                # Legacy skill decisions can omit their sole eligible player.
+                if candidate.player is None and position is None and len(choice.players) == 1:
+                    candidate.player = choice.players[0]
+                if candidate.player not in choice.players:
+                    continue
+                if candidate.player.team != choice.team:
+                    continue
+            elif candidate.player is not None:
+                # A rival is a legitimate position target (e.g. BLOCK), never
+                # an unrelated actor on the choosing team's action.
+                if candidate.player.team != choice.team and (
+                        not choice.positions or candidate.player.position != candidate.position):
+                    continue
+
+            # Type-only choices ignore redundant squares (legacy reroll callers
+            # may repeat the previous target). Input bounds/types still apply.
+
+            if choice.positions and candidate.position not in choice.positions:
+                continue
+            return allowed, candidate
+        return reject("invalid_target", "Player or position does not match any available choice.")
 
     def _safe_act(self) -> Optional[Action]:
         """
         Gets action from agent and sets correct player reference.
         """
         assert self.actor is not None
-        action = self.actor.act(self)
-        if not type(action) == Action:
-            return None
-        # Correct player object
-        if action.player is not None:
-            if action.player.player_id not in self.state.player_by_id.keys():
-                print(f"Unknown player id {action.player.player_id}")
-                action.player = None
-            else:
-                action.player = self.state.player_by_id[action.player.player_id]
-        return action
+        return self._validated_action(self.actor.act(self))
 
     def _forced_action(self) -> Action:
         """
         Return action that prioritize to end the player's turn.
         """
+        available_actions = [choice for choice in self.state.available_actions if not choice.disabled]
         # Take first negative action
         for action_type in [ActionType.END_TURN, ActionType.END_SETUP, ActionType.END_PLAYER_TURN,
                             ActionType.SELECT_NONE, ActionType.HEADS, ActionType.KICK, ActionType.SELECT_DEFENDER_DOWN,
                             ActionType.SELECT_DEFENDER_STUMBLES, ActionType.SELECT_ATTACKER_DOWN,
                             ActionType.SELECT_PUSH, ActionType.SELECT_BOTH_DOWN, ActionType.DONT_USE_REROLL,
                             ActionType.DONT_USE_APOTHECARY]:
-            for action in self.state.available_actions:
+            for action in available_actions:
                 if action.action_type == action_type:
                     if action_type == ActionType.END_SETUP:
                         if self.is_setup_legal(self.get_agent_team(self.actor)): # type: ignore
@@ -379,11 +443,11 @@ class Game:
                         return Action(action_type)
         # Take random action
         while True:
-            action_choice = self.rng.choice(self.state.available_actions)
+            action_choice = self.rng.choice(available_actions)
             # Ignore PLACE_PLAYER actions
             if action_choice.action_type != botbowl.ActionType.PLACE_PLAYER:
                 break
-        action_choice = self.rng.choice(self.state.available_actions)
+        action_choice = self.rng.choice(available_actions)
         position = self.rng.choice(action_choice.positions) if len(action_choice.positions) > 0 else None
         player = self.rng.choice(action_choice.players) if len(action_choice.players) > 0 else None
         return Action(action_choice.action_type, position=position, player=player)
@@ -411,32 +475,10 @@ class Game:
         :return: True if game requires action or game is over, False if not
         """
 
-        # Get proc
+        # Bot and clock-forced actions pass through the same boundary. Do not
+        # catch procedure failures below: those are internal errors, not input.
+        action = self._validated_action(action)
         proc = self.state.stack.peek()
-
-        # If no action and action is required
-        if action is None and len(self.state.available_actions) > 0:
-            raise InvalidActionError("None action is not allowed when actions are available")
-
-        # If action but it's not available
-        if action is not None:
-            if action.action_type == ActionType.CONTINUE:
-                if len(self.state.available_actions) == 0:
-                    # Consider this as a None action
-                    action = None
-                else:
-                    if self.config.debug_mode:
-                        print("CONTINUE action is not allowed when actions are available")
-                    return True  # Game needs user input
-            else:
-                # Only allowed actions
-                if not self._is_action_allowed(action):
-
-                    if type(action) is Action:
-                        raise InvalidActionError(
-                            f"Action not allowed {action.to_json() if action is not None else 'None'}")
-                    else:
-                        raise InvalidActionError(f"Action not allowed {action}")
 
         # Run proc
         if self.config.debug_mode:
