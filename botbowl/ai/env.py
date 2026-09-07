@@ -9,7 +9,6 @@ This module contains the BotBowlEnv class; implementing the Open AI Gym interfac
 
 import botbowl.core.procedure as procedures
 from botbowl.ai.bots import RandomBot
-from botbowl.ai.env_render import EnvRenderer
 from botbowl.ai.registry import registry as bot_registry
 from botbowl.ai.layers import *
 from botbowl.core.model import *
@@ -374,6 +373,8 @@ class BotBowlEnv(gym.Env):
 
     def render(self, mode='human', feature_layers=False):
         if self._renderer is None:
+            from botbowl.ai.env_render import EnvRenderer
+
             self._renderer = EnvRenderer(self, feature_layers)
         self._renderer.render()
 
@@ -592,3 +593,10 @@ class PPCGWrapper(BotBowlWrapper):
                     self.env.step(None, skip_observation=True)  # process the Touchdown-procedure
 
         return self.root_env.get_step_return(skip_observation=skip_observation)
+
+
+# Explicitly importing the RL adapter also supports an uninstalled source
+# checkout. Installed distributions register through Gym's plugin entry point.
+from botbowl.ai import register_envs as _register_envs
+
+_register_envs()

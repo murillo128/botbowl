@@ -27,12 +27,12 @@ Go to: http://127.0.0.1:1234/
 
 ### Installation with Pip
 
-[Make sure python 3.8 or newer is installed, together with pip.](https://www.makeuseof.com/tag/install-pip-for-python/)
+This fork's new packaging line requires Python 3.11 or newer and pip.
 Then run:
 ```
-pip install git+https://github.com/njustesen/botbowl
+python -m pip install git+https://github.com/murillo128/botbowl
 ```
-If python detects a C++ compiler in your system it compiles the pathfinding algorithm which makes it faster. If you used `git clone` you have to manually compile. Here's a more [detailed guide](docs/installation.md) on how to set up the Bot Bowl framework.
+The default installation is headless and uses Python pathfinding without a compiler. Optional integrations and explicit native builds are described in the [installation guide](docs/installation.md). Built distributions exclude the legacy browser artwork; the existing graphical UI can be run from a checkout with its applicable permissions.
 
 ## Tutorials
 Head over to our [tutorials](docs/tutorials.md) to learn about how to use the Bot Bowl framework.

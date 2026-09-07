@@ -1,47 +1,69 @@
-from gym.envs.registration import register
+"""Bot helpers with optional integrations loaded on first use."""
+from importlib import import_module as _import_module
 
-from .env import BotBowlEnv, EnvConf, BotBowlWrapper, RewardWrapper, ScriptedActionWrapper, PPCGWrapper
 from .layers import *
 from .registry import *
-from .competition import *
-from .env_render import *
 from .proc_bot import *
 from .bots import *
 
-ruleset = load_rule_set('BB2016')
+_LAZY_EXPORTS = {
+    **dict.fromkeys(("BotBowlEnv", "EnvConf", "BotBowlWrapper", "RewardWrapper",
+                     "ScriptedActionWrapper", "PPCGWrapper"), ".env"),
+    "EnvRenderer": ".env_render",
+    "register": "gym.envs.registration",
+    **dict.fromkeys(("Competition", "MultiAgentCompetition", "TimeoutException",
+                     "default_score_calculator"), ".competition.competition"),
+    **dict.fromkeys(("TeamResult", "GameResult", "CompetitionResults",
+                     "AgentSummaryResult"), ".competition.result_structures"),
+    **dict.fromkeys(("AgentCommand", "Request", "Response", "send_data", "receive_data",
+                     "PythonSocketClient", "DockerAgent", "PythonSocketServer",
+                     "docker_image_exists", "get_free_port", "T"), ".competition.python_socket"),
+}
 
-register(
-    id='botbowl-v4',
-    entry_point='botbowl.ai.env:BotBowlEnv',
-    kwargs={}
-)
 
-register(
-    id='botbowl-11-v4',
-    entry_point='botbowl.ai.env:BotBowlEnv',
-    kwargs={}
-)
+def __getattr__(name):
+    if name == "ruleset":
+        from botbowl.core.load import load_rule_set
 
-register(
-    id='botbowl-7-v4',
-    entry_point='botbowl.ai.env:BotBowlEnv',
-    kwargs={'env_conf': EnvConf(size=7)}
-)
+        value = load_rule_set("BB2016")
+    elif name in _LAZY_EXPORTS:
+        try:
+            value = getattr(_import_module(_LAZY_EXPORTS[name], __name__), name)
+        except ModuleNotFoundError as error:
+            extras = {"gym": "rl", "docker": "competition", "tabulate": "competition"}
+            if error.name not in extras:
+                raise
+            extra = extras[error.name]
+            raise ModuleNotFoundError(
+                f"{name} needs an optional dependency; install botbowl[{extra}]"
+            ) from error
+    else:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    globals()[name] = value
+    return value
 
-register(
-    id='botbowl-5-v4',
-    entry_point='botbowl.ai.env:BotBowlEnv',
-    kwargs={'env_conf': EnvConf(size=5)}
-)
 
-register(
-    id='botbowl-3-v4',
-    entry_point='botbowl.ai.env:BotBowlEnv',
-    kwargs={'env_conf': EnvConf(size=3)}
-)
+def register_envs():
+    """Register legacy Gym IDs when Gym loads its installed plugins."""
+    from gym.envs.registration import register, registry
 
-register(
-    id='botbowl-1-v4',
-    entry_point='botbowl.ai.env:BotBowlEnv',
-    kwargs={'env_conf': EnvConf(size=1)}
-)
+    for size in (11, 7, 5, 3, 1):
+        env_id = f"botbowl-{size}-v4"
+        if env_id not in registry:
+            register(id=env_id, entry_point="botbowl.ai:_make_env", kwargs={"size": size})
+    if "botbowl-v4" not in registry:
+        register(id="botbowl-v4", entry_point="botbowl.ai:_make_env")
+
+
+def _make_env(size=11, **kwargs):
+    from .env import BotBowlEnv, EnvConf
+
+    kwargs.setdefault("env_conf", EnvConf(size=size))
+    return BotBowlEnv(**kwargs)
+
+
+__all__ = [name for name in globals() if not name.startswith("_")] + list(_LAZY_EXPORTS) + ["ruleset"]
+
+
+def __dir__():
+    return sorted(set(globals()) | set(__all__))

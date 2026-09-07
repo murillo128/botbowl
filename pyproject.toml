@@ -1,0 +1,63 @@
+[build-system]
+requires = ["setuptools>=77,<85", "Cython>=3.2,<4"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "botbowl"
+version = "1.1.0"
+description = "A framework for playing Blood Bowl and developing AI bots"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{name = "Niels Justesen and Bot Bowl contributors"}]
+dependencies = ["numpy>=1.24.3,<3", "untangle>=1.2.1,<2"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Topic :: Games/Entertainment :: Board Games",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+[project.urls]
+Repository = "https://github.com/murillo128/botbowl"
+Upstream = "https://github.com/njustesen/botbowl"
+Documentation = "https://github.com/murillo128/botbowl/tree/main/docs"
+
+[project.optional-dependencies]
+web = ["Flask>=2.3.2,<4"]
+rl = ["gym==0.26.2", "numpy<2"]
+competition = ["docker>=6.1.1,<8", "tabulate>=0.9,<1"]
+dev = ["pytest>=7.3.1,<10", "build>=1.2,<2", "more-itertools>=9.1,<11"]
+render = ["matplotlib>=3.7.1,<4"]
+
+[project.entry-points."gym.envs"]
+__root__ = "botbowl.ai:register_envs"
+
+[tool.setuptools]
+include-package-data = false
+
+[tool.setuptools.packages.find]
+include = ["botbowl", "botbowl.*"]
+namespaces = false
+
+[tool.setuptools.package-data]
+botbowl = [
+    "data/arenas/*.txt",
+    "data/config/*.json",
+    "data/formations/*/*.txt",
+    "data/rules/*.xml",
+    "data/teams/*/*.json",
+]
+
+"botbowl.web" = [
+    "templates/*.html",
+    "static/partials/*.html",
+    "static/dist/js/*.js",
+    "static/dist/css/*.css",
+    "static/lib/angular/*.js",
+    "static/lib/jquery/*.js",
+    "static/lib/wysiwyg/css/bootstrap.min.css",
+    "static/lib/wysiwyg/js/bootstrap.min.js",
+    "static/lib/wysiwyg/js/wysihtml5-0.3.0.min.js",
+    "static/lib/wysiwyg/LICENCE",
+]
