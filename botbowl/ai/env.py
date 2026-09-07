@@ -9,7 +9,6 @@ This module contains the BotBowlEnv class; implementing the Open AI Gym interfac
 
 import botbowl.core.procedure as procedures
 from botbowl.ai.bots import RandomBot
-from botbowl.ai.env_render import EnvRenderer
 from botbowl.ai.registry import registry as bot_registry
 from botbowl.ai.layers import *
 from botbowl.core.model import *
@@ -373,6 +372,8 @@ class BotBowlEnv(gym.Env):
 
     def render(self, mode='human', feature_layers=False):
         if self._renderer is None:
+            from botbowl.ai.env_render import EnvRenderer
+
             self._renderer = EnvRenderer(self, feature_layers)
         self._renderer.render()
 

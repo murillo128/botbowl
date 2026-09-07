@@ -1,0 +1,102 @@
+"""Run against an installed artifact from outside its source checkout (no pytest)."""
+import argparse
+from importlib import metadata
+import json
+import os
+from pathlib import Path
+import sys
+
+
+def core_smoke(backend, minimal=False):
+    if minimal:
+        assert "DISPLAY" not in os.environ
+        for distribution in ("Flask", "gym", "docker", "matplotlib", "pytest"):
+            try:
+                metadata.version(distribution)
+            except metadata.PackageNotFoundError:
+                continue
+            raise AssertionError(f"Unexpected minimal dependency: {distribution}")
+    import botbowl as bb
+    import botbowl.core.pathfinding as pf
+
+    for module in ("flask", "gym", "docker", "matplotlib", "tkinter"):
+        assert module not in sys.modules, module
+    assert pf.get_safest_path.__module__.endswith(
+        ".cython_pathfinding" if backend == "native" else ".python_pathfinding")
+    rules = bb.load_rule_set("BB2016")
+    for size in (1, 3, 5, 7, 11):
+        config = bb.load_config(f"gym-{size}")
+        config.competition_mode = False
+        home = bb.load_team_by_filename("human", rules, board_size=size)
+        away = bb.load_team_by_filename("human", rules, board_size=size)
+        game = bb.Game("installed-smoke", home, away, bb.Agent("home", human=True),
+                       bb.Agent("away", human=True), config, seed=17)
+        game.init()
+        for action in (bb.ActionType.START_GAME, bb.ActionType.HEADS, bb.ActionType.KICK):
+            assert action in [choice.action_type for choice in game.get_available_actions()]
+            game.step(bb.Action(action))
+        assert game.state.reports and game.get_available_actions()
+    assert isinstance(bb.make_bot("random"), bb.RandomBot)
+    return {"backend": backend, "package": str(Path(bb.__file__).resolve()),
+            "python": sys.version.split()[0], "numpy": metadata.version("numpy"),
+            "sizes": [1, 3, 5, 7, 11], "decisions_per_size": 3}
+
+
+def extra_smoke(extra):
+    if extra == "web":
+        from botbowl.web.server import app
+
+        with app.test_client() as client:
+            assert client.get("/").status_code == 200
+            assert client.get("/static/lib/angular/angular.min.js").status_code == 200
+            assert client.get("/static/dist/js/botbowl.js").status_code == 200
+            assert client.get("/game-modes/").status_code == 200
+            assert "random" in client.get("/bots/").get_json(force=True)
+    elif extra == "rl":
+        import gym
+        import numpy as np
+        import botbowl as bb
+
+        env = gym.make("botbowl-1-v4")
+        _, _, mask = env.reset()
+        env.step(int(np.flatnonzero(mask)[0]))
+        assert isinstance(env.unwrapped, bb.BotBowlEnv)
+        env.close()
+        assert "tkinter" not in sys.modules
+    elif extra == "competition":
+        import botbowl as bb
+        from botbowl.ai.competition.python_socket import AgentCommand, Request
+
+        request = Request(AgentCommand.ACT, None)
+        assert request.command == AgentCommand.ACT
+        assert bb.Competition and bb.DockerAgent and bb.TeamResult
+    elif extra == "dev":
+        import build
+        import more_itertools
+        import pytest
+
+        assert callable(pytest.main) and build.ProjectBuilder and more_itertools.first([1]) == 1
+    elif extra == "render":
+        import botbowl as bb
+        from matplotlib.backends.backend_agg import FigureCanvasAgg
+        from matplotlib.figure import Figure
+
+        figure = Figure(figsize=(1, 1))
+        figure.add_subplot().plot([0, 1], [1, 0])
+        canvas = FigureCanvasAgg(figure)
+        canvas.draw()
+        assert len(canvas.buffer_rgba()) and bb.EnvRenderer
+        assert "tkinter" not in sys.modules
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--backend", choices=("python", "native"), default="python")
+    parser.add_argument("--minimal", action="store_true")
+    parser.add_argument("--extra", choices=("web", "rl", "competition", "dev", "render"))
+    args = parser.parse_args()
+    result = core_smoke(args.backend, args.minimal)
+    if args.extra:
+        extra_smoke(args.extra)
+        result["extra"] = args.extra
+    print(json.dumps(result, sort_keys=True))
