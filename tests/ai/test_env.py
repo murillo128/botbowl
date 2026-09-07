@@ -317,3 +317,82 @@ def test_legacy_scripted_reset_retains_reward_until_first_step():
     _, reward, _, _ = env.step(int(np.flatnonzero(mask)[0]))
     assert reward == -12. and env._reset_reward == 0.
     env.close()
+
+
+@pytest.mark.parametrize("script_on_reset", [False, True])
+@pytest.mark.parametrize("skip_observation", [False, True])
+def test_legacy_scripted_raw_setup_preserves_rewards_and_states(script_on_reset, skip_observation):
+    from botbowl.ai.layers import OccupiedLayer, OwnPlayerLayer, OppPlayerLayer
+
+    root = BotBowlEnv(EnvConf(size=1), seed=17, away_agent='human')
+    scripted_actions = []
+
+    def script(game):
+        action = None
+        for proc, kind in ((botbowl.StartGame, botbowl.ActionType.START_GAME),
+                           (botbowl.CoinTossFlip, botbowl.ActionType.HEADS),
+                           (botbowl.CoinTossKickReceive, botbowl.ActionType.KICK)):
+            if isinstance(game.get_procedure(), proc):
+                if kind is botbowl.ActionType.START_GAME and not script_on_reset:
+                    return None
+                action = botbowl.Action(kind)
+        if isinstance(game.get_procedure(), botbowl.Setup) and game.active_team is game.state.away_team:
+            if game.is_setup_legal(game.active_team):
+                action = botbowl.Action(botbowl.ActionType.END_SETUP)
+            else:
+                action = root.env_conf.formations[0].actions(game, game.active_team)[0]
+        if action is not None:
+            assert game.is_action_allowed(action)
+            scripted_actions.append(action.action_type)
+        return action
+
+    env = ScriptedActionWrapper(RewardWrapper(root, lambda g: 2., lambda g: -3.), script)
+    try:
+        obs = env.reset()
+        if script_on_reset:
+            transitions = env.reset_transitions
+            assert env._reset_reward == -15.
+        else:
+            assert env.reset_transitions == []
+            obs, reward, done, info = env.step(0, skip_observation=skip_observation)
+            assert reward == -15. and not done
+            transitions = info['transitions']
+
+        expected_actions = [botbowl.ActionType.START_GAME] if script_on_reset else []
+        expected_actions += [botbowl.ActionType.HEADS, botbowl.ActionType.KICK,
+                             botbowl.ActionType.PLACE_PLAYER, botbowl.ActionType.END_SETUP]
+        assert scripted_actions == expected_actions
+        # Raw setup actions must not change the historical v4 policy encoding.
+        assert botbowl.ActionType.PLACE_PLAYER not in root.env_conf.action_types
+        assert botbowl.ActionType.END_SETUP not in root.env_conf.action_types
+        assert [t[1] for t in transitions] == [-3., -3., -3., -3., -3.]
+        assert all(len(t) == 4 and not t[2] for t in transitions)
+
+        layer_indices = [next(i for i, layer in enumerate(root.env_conf.layers) if type(layer) is cls)
+                         for cls in (OccupiedLayer, OwnPlayerLayer, OppPlayerLayer)]
+        # Distinguish each retained state, including placement and the actor flip
+        # after END_SETUP. These must remain snapshots after subsequent steps.
+        expected_masks = [[1, 2], [3, 4], [20, 21, 22, 23], [20, 21, 22, 23], [20, 21, 22, 23]]
+        expected_players = [[0., 0., 0.], [0., 0., 0.], [0., 0., 0.], [1., 1., 0.], [1., 0., 1.]]
+        for transition, mask, players in zip(transitions, expected_masks, expected_players):
+            spatial, non_spatial, action_mask = transition[0]
+            assert non_spatial is not None
+            assert np.flatnonzero(action_mask).tolist() == mask
+            assert [spatial[i].sum() for i in layer_indices] == players
+        if skip_observation and not script_on_reset:
+            assert obs == (None, None, None)
+        else:
+            for actual, expected in zip(obs, transitions[-1][0]):
+                np.testing.assert_array_equal(actual, expected)
+
+        # The home learner's formation still uses its existing integer index.
+        # Reset rewards are emitted exactly once, and step rewards never repeat.
+        _, reward, done, info = env.step(20, skip_observation=skip_observation)
+        assert reward == (-13. if script_on_reset else 2.) and not done
+        assert [t[1] for t in info['transitions']] == [2.]
+        assert env._reset_reward == 0.
+        assert [t[0][0][layer_indices[0]].sum() for t in transitions] == [0., 0., 0., 1., 1.]
+        _, reward, _, _ = env.step(int(np.flatnonzero(info['transitions'][-1][0][2])[0]))
+        assert reward == -3.
+    finally:
+        env.close()

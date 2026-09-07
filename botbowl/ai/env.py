@@ -216,9 +216,9 @@ class BotBowlEnv(gym.Env):
 
         return spatial_obs, non_spatial_obs, action_mask
 
-    def step(self, action_idx: Optional[int], skip_observation: bool = False) -> EnvStepReturn:
-        # Convert to Action object
-        action_objects = self._compute_action(action_idx)
+    def step(self, action_idx: Optional[Union[int, Action]], skip_observation: bool = False) -> EnvStepReturn:
+        # Scripted engine Actions can include setup operations with no v4 index.
+        action_objects = [action_idx] if isinstance(action_idx, Action) else self._compute_action(action_idx)
 
         for action in action_objects:
             self.game.step(action)
@@ -353,7 +353,7 @@ class BotBowlWrapper:
     def get_state(self) -> EnvObs:
         return self.env.get_state()
 
-    def step(self, action: Optional[int], skip_observation: bool = False) -> EnvStepReturn:
+    def step(self, action: Optional[Union[int, Action]], skip_observation: bool = False) -> EnvStepReturn:
         return self.env.step(action, skip_observation)
 
     def render(self, mode='human'):
@@ -405,7 +405,7 @@ class RewardWrapper(BotBowlWrapper):
         self.home_reward_func = home_reward_func
         self.away_reward_func = away_reward_func
 
-    def step(self, action: int, skip_observation: bool = False):
+    def step(self, action: Optional[Union[int, Action]], skip_observation: bool = False):
         acting_team = self.game.active_team
         obs, reward, done, info = self.env.step(action, skip_observation)
         game = self.game
@@ -423,7 +423,7 @@ class ScriptedActionWrapper(BotBowlWrapper):
         self.reset_transitions = []
         self._reset_reward = 0.0
 
-    def step(self, action: int, skip_observation: bool = False) -> EnvStepReturn:
+    def step(self, action: Optional[Union[int, Action]], skip_observation: bool = False) -> EnvStepReturn:
         first = self.env.step(action, skip_observation=False)
         transitions = [first] + self.do_scripted_actions()
         obs, _, done, info = transitions[-1]
@@ -446,7 +446,7 @@ class ScriptedActionWrapper(BotBowlWrapper):
             action = self.scripted_func(game)
             if action is None:
                 break
-            transitions.append(self.env.step(self.root_env._compute_action_idx(action)))
+            transitions.append(self.env.step(action))
         return transitions
 
 
@@ -457,7 +457,7 @@ class PPCGWrapper(BotBowlWrapper):
         super().__init__(env)
         self.difficulty = difficulty
 
-    def step(self, action: int, skip_observation: bool = False) -> EnvStepReturn:
+    def step(self, action: Optional[Union[int, Action]], skip_observation: bool = False) -> EnvStepReturn:
         first = self.env.step(action, skip_observation=False)
         transitions = [first]
 
