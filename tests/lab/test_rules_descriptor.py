@@ -242,7 +242,6 @@ def test_metadata_paths_ids_clocks_credentials_and_state_excluded():
     home.team_id = "changed-uuid"
     home.players[0].name = "renamed player"
     home.players[0].player_id = "another-uuid"
-    home.players[0].nr = 99
     home.players[0].state.moves = 3
     home.players[0].position = bb.Square(3, 3)
     home.state.rerolls = 0
@@ -265,6 +264,34 @@ def test_custom_configuration_retains_ruleset_reference():
     assert custom.config_digest != first.config_digest
 
 
+def test_jersey_numbers_change_pitch_invasion_roll_assignment_and_identity():
+    def run(swapped):
+        config, ruleset, arena, home, away = inputs(3)
+        if swapped:
+            home.players[0].nr, home.players[1].nr = home.players[1].nr, home.players[0].nr
+        descriptor = describe_rules(config, ruleset, arena, home, away)
+        game = bb.Game("pitch-invasion", home, away, bb.Agent("h", human=True),
+                       bb.Agent("a", human=True), config, arena=arena, ruleset=ruleset, seed=17)
+        players = game.state.home_team.players[:2]
+        for y, player in enumerate(players, start=2):
+            game.put(player, game.get_square(2, y))
+        for roll in (6, 6, 1, 6):
+            game.dice.fix(bb.D6, roll)
+        procedure.KickoffTable(game, bb.Ball(game.get_square(4, 2))).step(None)
+        # Resolve just the scheduled invasion rolls in the engine's stack order.
+        for proc in reversed(list(game.state.stack.items)):
+            if isinstance(proc, procedure.PitchInvasionRoll):
+                proc.step(None)
+        assert game.dice.pending(bb.D6) == ()
+        return descriptor, [player.state.stunned for player in players]
+
+    first, first_stunned = run(False)
+    swapped, swapped_stunned = run(True)
+    assert first_stunned == [False, True]
+    assert swapped_stunned == [True, False]
+    assert first.config_digest != swapped.config_digest
+
+
 @pytest.mark.parametrize("size", (0, 2, 9, 12, True, "11", None))
 def test_unsupported_sizes_are_typed(size):
     args = inputs()
@@ -277,7 +304,7 @@ def test_unsupported_sizes_are_typed(size):
 
 @pytest.mark.parametrize("resource", ("ruleset", "duplicate", "arena", "tile", "formation", "selector",
                                       "race", "role", "roster", "ownership", "limits", "missing", "nan",
-                                      "duration", "flag", "dice"))
+                                      "duration", "flag", "dice", "team_id", "player_id"))
 def test_incoherent_resources_are_typed(resource):
     args = inputs()
     config, ruleset, arena, home, _ = args
@@ -314,6 +341,10 @@ def test_incoherent_resources_are_typed(resource):
         config.pathfinding_enabled = "yes"
     elif resource == "dice":
         config.throw_in_dice = "d2"
+    elif resource == "team_id":
+        home.team_id = args[4].team_id
+    elif resource == "player_id":
+        home.players[0].player_id = args[4].players[0].player_id
     else:
         config.time_limits.turn = float("nan")
     with pytest.raises(IncoherentResourceError):

@@ -82,7 +82,7 @@ limitations, rather than silently fixing rule parsing.
 | Ruleset races/roles | Named lookup records: race reroll cost, apothecary/stakes; role name, races, MA/ST/AG/AV, skills, cost, feeder, normal/double categories and star flag. |
 | Other loaded rule resources | Star records, inducement cost/limit/reduction, SPP actions/levels, improvements and spiralling expense parameters. Retained as resource identity even where progression is unimplemented. |
 | `Rules` tables | Pass matrix/modifiers, casualty effects, agility targets, miss-next-game effects, immovable and pass-player action lists. No assumption that all rule behavior lives in these tables. |
-| Home then away team | Race, treasury, apothecaries, rerolls, assistant coaches, cheerleaders, fan factor; ordered players with full loaded role, extra characteristics/skills, injuries, MNG and SPP. Player order matters for formation tie selection. |
+| Home then away team | Race, treasury, apothecaries, rerolls, assistant coaches, cheerleaders, fan factor; ordered players with jersey number, full loaded role, extra characteristics/skills, injuries, MNG and SPP. Player order matters for formation tie selection; jersey number determines pitch-invasion roll assignment in `KickoffTable`. |
 
 Mappings sort by key; named lookup record order is irrelevant. Identical duplicate
 named records are collapsed. Conflicting duplicates fail explicitly rather than
@@ -102,10 +102,12 @@ and non-finite numbers fail; there is no `repr()` or object-address fallback.
 
 Excluded fields include team/player/episode UUIDs, clock readings and timestamps,
 source/absolute paths, credentials, arbitrary attached metadata, display names,
-jersey labels, positions, scores, runtime player/team state, RNG/forced-roll state,
+positions, scores, runtime player/team state, RNG/forced-roll state,
 trajectories, caches and agents. `config.arena` is a locator replaced by loaded
 geometry. `config.ruleset` is a semantic reference and must be a simple name,
 not a path. Formation/role/race names are functional selectors and are retained.
+Team/player IDs are checked for uniqueness before exclusion: a collision is
+incoherent input, while changing distinct generated IDs preserves the digest.
 The unused inherited `kick_scatter_distance` and `dungeon` config fields are
 excluded: the current two-player engine uses `kick_scatter_dice` and has no
 configuration-driven dungeon mode. Any future behavioral use requires a field

@@ -176,7 +176,8 @@ def _formations(formations, arena):
         if (len(board) != arena.height - 2 or
                 any(len(row) != (arena.width - 2) // 2 for row in board)):
             raise IncoherentResourceError("Formation dimensions disagree with the arena")
-        if any(cell not in "-Sspbcmavd0x" for row in board for cell in row):
+        if any(not isinstance(cell, str) or len(cell) != 1 or cell not in "-Sspbcmavd0x"
+               for row in board for cell in row):
             raise IncoherentResourceError("Formation contains an unknown selector")
         if formation.name not in ("Wedge", "Line", "Spread", "Zone"):
             raise IncoherentResourceError("Formation has no supported setup action name")
@@ -197,7 +198,7 @@ def _team(team, rules, roster_size):
             raise IncoherentResourceError("Player role disagrees with the ruleset")
         if player.team is not team:
             raise IncoherentResourceError("Player belongs to a different team")
-        players.append({**_fields(player, ("extra_ma", "extra_st", "extra_ag", "extra_av",
+        players.append({**_fields(player, ("nr", "extra_ma", "extra_st", "extra_ag", "extra_av",
                                           "extra_skills", "injuries", "mng", "spp")),
                         "role": role})
     return {**_fields(team, ("race", "treasury", "apothecaries", "rerolls", "ass_coaches",
@@ -233,6 +234,11 @@ def describe_rules(config: Configuration, ruleset: RuleSet, arena: TwoPlayerAren
     of arbitrary engine/bot monkeypatches. No Game or RNG is required or accessed.
     """
     try:
+        if home_team is away_team or home_team.team_id == away_team.team_id:
+            raise IncoherentResourceError("Home and away must have distinct team identities")
+        player_ids = [player.player_id for team in (home_team, away_team) for player in team.players]
+        if len(set(player_ids)) != len(player_ids):
+            raise IncoherentResourceError("Player identities must be distinct across both rosters")
         if type(config.pitch_max) is not int or config.pitch_max not in SUPPORTED_SIZES:
             raise UnsupportedSizeError("Supported pitch sizes are 1, 3, 5, 7 and 11")
         reference = config.ruleset
