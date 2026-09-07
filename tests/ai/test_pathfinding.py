@@ -9,15 +9,19 @@ import botbowl.core.procedure
 import pickle
 
 import botbowl.core.pathfinding.python_pathfinding as python_pathfinding
-pathfinding_modules_to_test = [python_pathfinding]
-
-# We only test the cython pathfindng module if it exists. Otherwise half of the tests fail.
-# This way only test_compare_cython_python_paths() fails because it explicitly uses cython pf module.
+# Keep native cases visible in Python-only jobs; a requested native job must
+# additionally use --require-pathfinding=native so absence fails collection.
 try:
     import botbowl.core.pathfinding.cython_pathfinding as cython_pathfinding
-    pathfinding_modules_to_test.append(cython_pathfinding)
 except ImportError:
-    cython_pathfinding = None  # this will make the cython vs. python compare test fail.
+    cython_pathfinding = None
+
+requires_native = pytest.mark.skipif(
+    cython_pathfinding is None, reason="Optional Cython extension is not installed")
+pathfinding_modules_to_test = [
+    pytest.param(python_pathfinding, id="python"),
+    pytest.param(cython_pathfinding, id="native", marks=requires_native),
+]
 
 PROP_PRECISION = 0.000000001
 
@@ -420,6 +424,7 @@ def test_handoff(pf):
     assert total_handoffs == 2
 
 
+@requires_native
 def test_compare_cython_python_paths():
     """
     This test compares paths calculated by cython and python. They should be same.
