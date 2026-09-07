@@ -194,7 +194,7 @@ Final validation uses `final-python-src` and `final-native-src` in that evidence
 directory, with the same tracked execution source and a native extension freshly
 built from unchanged production sources earlier in this correction:
 
-| Final-source validation | Python | Native |
+| Encoder correction (`b1443cc`) | Python | Native |
 | --- | --- | --- |
 | Focused investigation plus existing forward-model tests | 38 + 6 passed | 38 + 6 passed |
 | Normal-order full suite | 854 passed, 279 capability skips, 1 inherited xfail | 1,133 passed, no skips, 1 inherited xfail |
@@ -277,6 +277,57 @@ the local results above. No production, inherited-test, workflow, timeout, matri
 skip-policy, base or DAG change is included. The original Quick Snap crash stays
 unreproduced/unresolved, and the separate setup/helper/hash findings retain their
 limits and ownership proposals below.
+
+## Collection scheduling within bounded matrix cases
+
+The encoder correction at `b1443cc09a4b2477813599942e8d7061857fc466`
+still exceeded the unchanged ten-minute limit in
+[run 34125530010](https://github.com/murillo128/botbowl/actions/runs/34125530010).
+Its log progresses beyond the Quick Snap matrix before cancellation. Both the
+explicit timeout annotation and that head's valid local results remain preserved;
+its hosted run is not reported as successful.
+
+A separate cost probe seeds 300 ordinary loader calls, then runs the same
+size-3, home-receiving, seed-0, pathfinding-enabled configuration. Automatic
+collection takes 9.24 seconds, including 3.46 seconds in 14,509 collections.
+Deferring cyclic collection until that bounded case finishes takes 5.87 seconds,
+including one 0.21-second collection, with a byte-identical complete trace.
+The measured peak rises from 98.3 to 288.3 MiB; this is an explicit memory/time
+tradeoff, not a portable memory bound. These are controlled proposal measurements
+on the retained encoder source. The final-source cProfile run takes 16.62 seconds,
+including 11.84 seconds in complete semantic observation, with the same 296 graph
+traversals. Its raw profile and summary are included in the current packet.
+
+The final test wrapper defers automatic cyclic collection only while one of the
+existing bounded matrix cases executes, then restores the caller's policy and,
+when it was enabled, collects at the boundary. Both initially enabled and disabled
+policies are tested through normal and exceptional exits, including a failing
+callee that changes the policy. The matrix body, every transition, every nested
+semantic observation, reference checks, clean controls and failure capture remain
+intact. There is no test parallelism, production change or workflow/timeout change.
+
+| Final source | Python | Native |
+| --- | --- | --- |
+| Focused investigation | 41 passed / 94.92 s | 41 passed / 93.43 s |
+| Full default-order suite | 857 passed, 279 capability skips, 1 inherited xfail / 248.41 s | 1,136 passed, no skips, 1 inherited xfail / 428.74 s |
+| Full-suite measured peak resident memory | 520.6 MiB | 901.9 MiB |
+
+All 48 final focused traces match the prior correction and their default-order
+full-run counterparts byte-for-byte: 24 configurations, 10,208 transitions and
+240 repeated queries per backend. Both ordinary prefixes retain canonical
+24/71/8 and 5/7/6 counts. The unchanged reviewer challenge again passes all 244
+graph comparisons, 45 stability checks, 13 nested faults and 12 deliberate aliases
+per backend; this remains executor validation. Ten diagnostic JSON outputs retain
+their exact earlier findings and qualifications.
+
+The JSON appends `ci_cost_collection` without modifying prior evidence sections.
+Final source archives are `collection-python-src` and `collection-native-src` under
+`/tmp/botbowl-issue20-ci-cost/`; final validation lives in `evidence/collection/`.
+The earlier cost correction, failed hosted run, both original FAIL packets,
+proposal profiles and the repaired timing-wrapper parse failure remain retained.
+The final hosted result is recorded against the published commit in PR86. The
+historical Quick Snap crash remains unreproduced/unresolved; no separate setup,
+helper or consumer correction, DAG node, readiness transition or merge is inferred.
 
 ## Reproduced setup defect
 

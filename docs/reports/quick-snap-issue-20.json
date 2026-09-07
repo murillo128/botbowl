@@ -1,5 +1,505 @@
 {
   "accepted_base": "a9a931a4618ea4b3cb45e92ccbffdf23e97bcc6b",
+  "ci_cost_collection": {
+    "challenges": {
+      "native": {
+        "artifact": {
+          "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection/native-challenges.log",
+          "sha256": "febc19a5ac1da9a709f59692c8639d081a687e9fc89d947e82afa56aa23914d2"
+        },
+        "attribution": "Executor replay of unchanged prior independent reviewer challenge; not a fresh independent review",
+        "backend": "botbowl.core.pathfinding.cython_pathfinding",
+        "counts": {
+          "alias_controls_detected": 12,
+          "configurations": 8,
+          "first_game_unchanged_checks": 45,
+          "independent_graph_pairs": 244,
+          "maximum_graph_size": 1542,
+          "nested_semantic_faults_detected": 13
+        },
+        "order": "loaders-first",
+        "script": {
+          "path": "/tmp/botbowl-issue20-ci-cost/challenge.py",
+          "sha256": "635ba0a3a44e9ed97d8f4c530352ad410dc3c5980a5ea278094d611d659d9d2b"
+        }
+      },
+      "python": {
+        "artifact": {
+          "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection/python-challenges.log",
+          "sha256": "dbf70fa2fe4b04d29f2fddcd8f672944dfe2208e30fbdf52009f3e32a8bc36c4"
+        },
+        "attribution": "Executor replay of unchanged prior independent reviewer challenge; not a fresh independent review",
+        "backend": "botbowl.core.pathfinding.python_pathfinding",
+        "counts": {
+          "alias_controls_detected": 12,
+          "configurations": 8,
+          "first_game_unchanged_checks": 45,
+          "independent_graph_pairs": 244,
+          "maximum_graph_size": 1542,
+          "nested_semantic_faults_detected": 13
+        },
+        "order": "loaders-first",
+        "script": {
+          "path": "/tmp/botbowl-issue20-ci-cost/challenge.py",
+          "sha256": "635ba0a3a44e9ed97d8f4c530352ad410dc3c5980a5ea278094d611d659d9d2b"
+        }
+      }
+    },
+    "collection_probe": {
+      "auto": {
+        "artifact": {
+          "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection-auto.json",
+          "sha256": "5540f3a968658fbbbee8aa0e9f282a769c4ce84a1258eebabd81ea6d53e462d8"
+        },
+        "result": {
+          "collected_at_end": 9452,
+          "gc_collections": {
+            "0": 13244,
+            "1": 1203,
+            "2": 62
+          },
+          "gc_enabled_restored": true,
+          "gc_seconds": {
+            "0": 0.2884295160838519,
+            "1": 0.2553182459596428,
+            "2": 2.916849248980725
+          },
+          "loader_calls": 300,
+          "mode": "auto",
+          "peak_rss_kib": 100692,
+          "seconds": 9.241337518000364
+        }
+      },
+      "deferred": {
+        "artifact": {
+          "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection-deferred.json",
+          "sha256": "d3ed3ad65274c54f2530ca9599bdf6e82f71b5ddb9791222d082818334cec3cc"
+        },
+        "result": {
+          "collected_at_end": 459388,
+          "gc_collections": {
+            "0": 0,
+            "1": 0,
+            "2": 1
+          },
+          "gc_enabled_restored": true,
+          "gc_seconds": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.2114450859990029
+          },
+          "loader_calls": 300,
+          "mode": "deferred",
+          "peak_rss_kib": 295200,
+          "seconds": 5.873226900002919
+        }
+      }
+    },
+    "controls": {
+      "native-consumer-side0": {
+        "artifact": {
+          "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection/native-consumer-side0.log",
+          "sha256": "6a0f6d813fa1ed78a2de32180afaed6d6dea3ce9ef564fb9f80ac6bfb25eea49"
+        },
+        "json_byte_identical_to_previous_evidence": true
+      },
+      "native-consumer-side1": {
+        "artifact": {
+          "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection/native-consumer-side1.log",
+          "sha256": "44b0485abb74182020f4ea6e2291824242b5f0598bb04bb7111a66239f6b2b58"
+        },
+        "json_byte_identical_to_previous_evidence": true
+      },
+      "native-helper": {
+        "artifact": {
+          "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection/native-helper.log",
+          "sha256": "dc0a34cf8134b3600932d1b09e83daa541f30f9e929ba09e36ea9b8305418e04"
+        },
+        "json_byte_identical_to_previous_evidence": true
+      },
+      "native-setup-side0": {
+        "artifact": {
+          "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection/native-setup-side0.log",
+          "sha256": "52dc8b83d19b4619aa8d7bbb17d635de93a7e3f6e7b83967bdc654fbc5427d44"
+        },
+        "json_byte_identical_to_previous_evidence": true
+      },
+      "native-setup-side1": {
+        "artifact": {
+          "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection/native-setup-side1.log",
+          "sha256": "8c8ccc48340ee7cabe3405be3180b170a041d35f5a29fe4a8ebaf94016cc8b5a"
+        },
+        "json_byte_identical_to_previous_evidence": true
+      },
+      "python-consumer-side0": {
+        "artifact": {
+          "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection/python-consumer-side0.log",
+          "sha256": "6a0f6d813fa1ed78a2de32180afaed6d6dea3ce9ef564fb9f80ac6bfb25eea49"
+        },
+        "json_byte_identical_to_previous_evidence": true
+      },
+      "python-consumer-side1": {
+        "artifact": {
+          "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection/python-consumer-side1.log",
+          "sha256": "44b0485abb74182020f4ea6e2291824242b5f0598bb04bb7111a66239f6b2b58"
+        },
+        "json_byte_identical_to_previous_evidence": true
+      },
+      "python-helper": {
+        "artifact": {
+          "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection/python-helper.log",
+          "sha256": "dc0a34cf8134b3600932d1b09e83daa541f30f9e929ba09e36ea9b8305418e04"
+        },
+        "json_byte_identical_to_previous_evidence": true
+      },
+      "python-setup-side0": {
+        "artifact": {
+          "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection/python-setup-side0.log",
+          "sha256": "52dc8b83d19b4619aa8d7bbb17d635de93a7e3f6e7b83967bdc654fbc5427d44"
+        },
+        "json_byte_identical_to_previous_evidence": true
+      },
+      "python-setup-side1": {
+        "artifact": {
+          "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection/python-setup-side1.log",
+          "sha256": "8c8ccc48340ee7cabe3405be3180b170a041d35f5a29fe4a8ebaf94016cc8b5a"
+        },
+        "json_byte_identical_to_previous_evidence": true
+      }
+    },
+    "driver_repair": {
+      "corrected_script": {
+        "path": "/tmp/botbowl-issue20-ci-cost/validate_collection.py",
+        "sha256": "8e8af98ba990b978fcabe416aab40c9c32bfada52bd7a548725c73b72af091ec"
+      },
+      "disposition": "GNU time prepended an expected-exit-1 diagnostic message to its RSS output; corrected numeric parsing and resumed already successful runs without source changes",
+      "log": {
+        "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection/initial-driver-failure.log",
+        "sha256": "b253205639d127dc07dbb7d069c2148a102363a3146418e78e1f9914fac565c5"
+      },
+      "original_script": {
+        "path": "/tmp/botbowl-issue20-ci-cost/validate_collection_initial.py",
+        "sha256": "6b94be764138928628183582018f31dd0ae6582b9d51c6e59cc55b446e124236"
+      }
+    },
+    "execution_source": {
+      "manifest": {
+        "path": "/tmp/botbowl-issue20-ci-cost/collection-execution-source-manifest.json",
+        "sha256": "0a6829676c580b1187a5a62287f2d6a90d3593c32ef90ac0f518aed4be21bb9c"
+      },
+      "matching_paths_per_archive": 1248
+    },
+    "failed_exact_head_ci": {
+      "annotations": {
+        "path": "/tmp/botbowl-issue20-ci-cost/evidence/ci-annotations-101753202508.json",
+        "sha256": "2eeaba889db975f0026f64c8e5723a3698531725891e047be559de6b075f2aa4"
+      },
+      "disposition": "Published encoder-only correction still exceeded unchanged ten-minute hosted limit; failure preserved",
+      "log": {
+        "path": "/tmp/botbowl-issue20-ci-cost/evidence/ci-job-101753202508.log",
+        "sha256": "6922a76cef9fcc71fa12b2a28ad642ceef46c0fa4d20bd5c1bc0b5bce3aa9c74"
+      },
+      "run": {
+        "path": "/tmp/botbowl-issue20-ci-cost/evidence/ci-run-34125530010.json",
+        "sha256": "e2f46bee8a0379e108e58bdc79076d5aa439658302981336dc3610e04593e688"
+      }
+    },
+    "final_profile": {
+      "artifact": {
+        "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection/final-profile-summary.txt",
+        "sha256": "04fcad7fb57156f48021d6fdee5058f91a261ad8ed23e00edf7b0240e63a6af5"
+      },
+      "raw": {
+        "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection/final-one.prof",
+        "sha256": "ddea2aa150026a4793211d4edf2b33f342542c8b0bc1671227e498daa5be7d81"
+      },
+      "summary": {
+        "functions": {
+          "consistency": {
+            "calls": 1926,
+            "cumulative_seconds": 11.586734017000001
+          },
+          "mutable_graph": {
+            "calls": 296,
+            "cumulative_seconds": 2.144705993
+          },
+          "round_trip": {
+            "calls": 47,
+            "cumulative_seconds": 14.401113879
+          },
+          "run": {
+            "calls": 1,
+            "cumulative_seconds": 15.960446673000002
+          },
+          "semantic": {
+            "calls": 1983,
+            "cumulative_seconds": 11.844323912
+          }
+        },
+        "total_calls": 64581180,
+        "total_seconds": 16.620307918999952
+      }
+    },
+    "historical_scope": "Earlier report records and both FAIL packets remain unchanged and retain their exact source attribution. Original Quick Snap crash remains unreproduced/unresolved. Setup undo, comparison-helper KeyError and hash aliases remain separate; hash alias does not prove historical cache misselection.",
+    "matrices": {
+      "native": {
+        "all_24_files_byte_identical_to_previous_correction_and_final_default_order_run": true,
+        "checked_game_transitions": 10208,
+        "configurations": 24,
+        "event_counts": {
+          "advance-0": 774,
+          "advance-1": 774,
+          "advance-2": 774,
+          "attempt-advance": 3026,
+          "commit": 176,
+          "fixture": 24,
+          "forward-0": 774,
+          "forward-1": 774,
+          "forward-2": 774,
+          "query": 240,
+          "restore-0": 774,
+          "restore-1": 774,
+          "restore-2": 774,
+          "revert-0": 774,
+          "revert-1": 774,
+          "revert-2": 774,
+          "sequence-forward": 72,
+          "sequence-replay-0": 176,
+          "sequence-replay-1": 176,
+          "sequence-replay-2": 176,
+          "sequence-restore": 72,
+          "sequence-revert": 72
+        },
+        "sha256": {
+          "size1-side0-pfFalse-seed0.json": "d99d0b586da353a991e7073c6e41208c5cdc0dbe311ec6bac9a72b8ed855e623",
+          "size1-side0-pfFalse-seed17.json": "c1cb4d5b0d0e594f8d2a717feeec191d42626ca81143445a44aaca0daff54705",
+          "size1-side0-pfFalse-seed3.json": "eee03e3af0fa2f031600a37ead0b6c729461c76b8393f3e320c4c366b9b8514c",
+          "size1-side0-pfTrue-seed0.json": "a401dfb0b84f6d84d6c5728098c9d8becbadc1da271145c69173916d492ca8af",
+          "size1-side0-pfTrue-seed17.json": "89821f5de7888c23f7407a8e89818399c3a0f0b2cc70f21c7dd16df20e402e8a",
+          "size1-side0-pfTrue-seed3.json": "2fc63f56dcd33d0fad60bbce6baa18b336b8a19f0d7f374cfd13ff1980fc7960",
+          "size1-side1-pfFalse-seed0.json": "ae99f9202ab12a78421c07dd17f3d4acf1f88a03207d45a67048e2f67b1d627b",
+          "size1-side1-pfFalse-seed17.json": "88ecacf3b313d33817a59f60cae387d9818e572a1f37ee4c1610b248a48c3714",
+          "size1-side1-pfFalse-seed3.json": "8eb8b2d79d35c90d8dde5ada7541c5b20f734c39a0f830c3c2fbb83925c75ac3",
+          "size1-side1-pfTrue-seed0.json": "931e15dcdc929f8ec1cc61b631a2e9e80e3f1052868d15c7795442826c284ec7",
+          "size1-side1-pfTrue-seed17.json": "43ff2b9f1c08ac1fd1e8456df6896c3a8620ef5eda64cfd88bf5028185afd63c",
+          "size1-side1-pfTrue-seed3.json": "3005ce21c6fbdf874d864cbed056939d41f264005aba7efa61b527f5af696cc4",
+          "size3-side0-pfFalse-seed0.json": "19968287107ba5e44256443e6f770b5f10968f0d2fdc63c008307b1f7062b18c",
+          "size3-side0-pfFalse-seed17.json": "1e8230160a2595a4dc2c068b60db28a03f7b31ade0a4a8ffd597a0ea9e636b7e",
+          "size3-side0-pfFalse-seed3.json": "0c1926c042937c9334d18a4b38d6d0313465acd4d3938bb05f58fbff22893356",
+          "size3-side0-pfTrue-seed0.json": "560eaadefed6a153e40e281417bdbe67e557b84196e5fa590eb41f43b1d8c078",
+          "size3-side0-pfTrue-seed17.json": "d86420ec81537e9452dc549c9f6af50784cef4d387642edd5c08f3ac061d5cde",
+          "size3-side0-pfTrue-seed3.json": "1d4037bc4b7a91ec16ab63689643b9b79b34ee7d66d929678dcd259f14729048",
+          "size3-side1-pfFalse-seed0.json": "70256882f8c8aeb345b9136b5252ca0a36c694f0f8c22337d447f17e173a38c9",
+          "size3-side1-pfFalse-seed17.json": "777674502b186e584aa64697f4f327507fdb67eec62f850e3aa16a5627f46fda",
+          "size3-side1-pfFalse-seed3.json": "352ec283024f293307db81a3ca9c7988083fbebe779e9418392daa3197b9215a",
+          "size3-side1-pfTrue-seed0.json": "6d5bcf31d50289d7d21ec6fd113a56d56c7481dfdf7d6ba88cbe3b1c115b08e3",
+          "size3-side1-pfTrue-seed17.json": "d1a5329d4585fda6e8da017a4dec52a8cbbc04bf012332162d8346852c8cbce2",
+          "size3-side1-pfTrue-seed3.json": "9bfdd3f691f1897a1eea044bc5e8ebbefcc1fb23b1a2efef8b28d60a84bc65c1"
+        }
+      },
+      "python": {
+        "all_24_files_byte_identical_to_previous_correction_and_final_default_order_run": true,
+        "checked_game_transitions": 10208,
+        "configurations": 24,
+        "event_counts": {
+          "advance-0": 774,
+          "advance-1": 774,
+          "advance-2": 774,
+          "attempt-advance": 3026,
+          "commit": 176,
+          "fixture": 24,
+          "forward-0": 774,
+          "forward-1": 774,
+          "forward-2": 774,
+          "query": 240,
+          "restore-0": 774,
+          "restore-1": 774,
+          "restore-2": 774,
+          "revert-0": 774,
+          "revert-1": 774,
+          "revert-2": 774,
+          "sequence-forward": 72,
+          "sequence-replay-0": 176,
+          "sequence-replay-1": 176,
+          "sequence-replay-2": 176,
+          "sequence-restore": 72,
+          "sequence-revert": 72
+        },
+        "sha256": {
+          "size1-side0-pfFalse-seed0.json": "d99d0b586da353a991e7073c6e41208c5cdc0dbe311ec6bac9a72b8ed855e623",
+          "size1-side0-pfFalse-seed17.json": "c1cb4d5b0d0e594f8d2a717feeec191d42626ca81143445a44aaca0daff54705",
+          "size1-side0-pfFalse-seed3.json": "eee03e3af0fa2f031600a37ead0b6c729461c76b8393f3e320c4c366b9b8514c",
+          "size1-side0-pfTrue-seed0.json": "a401dfb0b84f6d84d6c5728098c9d8becbadc1da271145c69173916d492ca8af",
+          "size1-side0-pfTrue-seed17.json": "89821f5de7888c23f7407a8e89818399c3a0f0b2cc70f21c7dd16df20e402e8a",
+          "size1-side0-pfTrue-seed3.json": "2fc63f56dcd33d0fad60bbce6baa18b336b8a19f0d7f374cfd13ff1980fc7960",
+          "size1-side1-pfFalse-seed0.json": "ae99f9202ab12a78421c07dd17f3d4acf1f88a03207d45a67048e2f67b1d627b",
+          "size1-side1-pfFalse-seed17.json": "88ecacf3b313d33817a59f60cae387d9818e572a1f37ee4c1610b248a48c3714",
+          "size1-side1-pfFalse-seed3.json": "8eb8b2d79d35c90d8dde5ada7541c5b20f734c39a0f830c3c2fbb83925c75ac3",
+          "size1-side1-pfTrue-seed0.json": "5ffc161f81864e2d11f917a59f3cfc5609e7d8da884a0aac4a8566a2824fb3ea",
+          "size1-side1-pfTrue-seed17.json": "311d4b921aefbbaf452862c04b383ed36aa113fbd99e0017822e6f98f2a6c6fd",
+          "size1-side1-pfTrue-seed3.json": "1265a9d7641c8385c527aac067d5ab0d83843bd928418086a6b0fee57164f8cf",
+          "size3-side0-pfFalse-seed0.json": "19968287107ba5e44256443e6f770b5f10968f0d2fdc63c008307b1f7062b18c",
+          "size3-side0-pfFalse-seed17.json": "1e8230160a2595a4dc2c068b60db28a03f7b31ade0a4a8ffd597a0ea9e636b7e",
+          "size3-side0-pfFalse-seed3.json": "0c1926c042937c9334d18a4b38d6d0313465acd4d3938bb05f58fbff22893356",
+          "size3-side0-pfTrue-seed0.json": "2c9925a74ac78f3788f3dbb85f7ea6b1d9bf40224bfeaace082e007addbfb03e",
+          "size3-side0-pfTrue-seed17.json": "252e85a74ca53d69e8aa93cbf85b29c0e25b42c9fd2b6eaff5e3fc5b7e2ea9ce",
+          "size3-side0-pfTrue-seed3.json": "1d4037bc4b7a91ec16ab63689643b9b79b34ee7d66d929678dcd259f14729048",
+          "size3-side1-pfFalse-seed0.json": "70256882f8c8aeb345b9136b5252ca0a36c694f0f8c22337d447f17e173a38c9",
+          "size3-side1-pfFalse-seed17.json": "777674502b186e584aa64697f4f327507fdb67eec62f850e3aa16a5627f46fda",
+          "size3-side1-pfFalse-seed3.json": "352ec283024f293307db81a3ca9c7988083fbebe779e9418392daa3197b9215a",
+          "size3-side1-pfTrue-seed0.json": "e2b6baeecae245f8ea53824ab02c60a70189d1ec807bba4ff74ee768b9fbd8bd",
+          "size3-side1-pfTrue-seed17.json": "77c9c9df5312589e690f339672ff61c25cf2f30c44c18305a20ad44d3b8c67f0",
+          "size3-side1-pfTrue-seed3.json": "3639c32fd9930cea9932ee7dba61180e377daca09fbe2e6ad87792e9da19fa31"
+        }
+      }
+    },
+    "previous_head": "b1443cc09a4b2477813599942e8d7061857fc466",
+    "prior_fail_packets": {
+      "manifest": {
+        "path": "/tmp/botbowl-issue20-ci-cost/evidence/prior-fail-packets-sha256.json",
+        "sha256": "5bb5810b965795f2aea7595c6f7349e24dfcc223360dd136a5f249e517311750"
+      },
+      "unchanged_files": 18844
+    },
+    "scope": "Investigation instrumentation and test execution only; cyclic garbage collection is deferred only within each bounded matrix case and caller policy is restored on every exit; all nested mutable values are observed afresh; no production, inherited tests, workflow, timeout, matrix, skip policy or DAG change",
+    "source_sha256": "dea8a1fea27dee8cefd2e808ce1a0386a0143f2a004dba640ed57def36516e42",
+    "validation": {
+      "native": {
+        "peak_rss_kib": {
+          "focused": 265320,
+          "full": 923500
+        },
+        "prefix": {
+          "artifact": {
+            "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection/native-prefix-observation.json",
+            "sha256": "fa9d27f4156c08b84ce16a3c8ac17364467dd94a50ce1d105a050b423ba52dc2"
+          },
+          "preceding_passing_calls": 568,
+          "rules_counts": {
+            "improvements": 6,
+            "inducements": 8,
+            "races": 24,
+            "spp_actions": 5,
+            "spp_levels": 7,
+            "star_players": 71
+          },
+          "semantic_seconds": 0.0018913525993411895
+        },
+        "result": "1136 passed, 1 xfailed",
+        "suites": {
+          "focused": {
+            "counts": {
+              "errors": "0",
+              "failures": "0",
+              "hostname": "skynet",
+              "name": "pytest",
+              "skipped": "0",
+              "tests": "41",
+              "time": "93.427",
+              "timestamp": "2026-09-07T15:35:07.941900+02:00"
+            },
+            "junit": {
+              "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection/native-focused.xml",
+              "sha256": "8710b2cdf5f52dc5e37a182d19da1e65f4e78a1175973f628d0511e36b779672"
+            },
+            "log": {
+              "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection/native-focused.log",
+              "sha256": "8962bdeb8d6a181bac345b0bb938b770f75a0a19558bd097806e022fb57ebc6c"
+            }
+          },
+          "full": {
+            "counts": {
+              "errors": "0",
+              "failures": "0",
+              "hostname": "skynet",
+              "name": "pytest",
+              "skipped": "1",
+              "tests": "1137",
+              "time": "428.739",
+              "timestamp": "2026-09-07T15:40:57.725260+02:00"
+            },
+            "junit": {
+              "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection/native-full.xml",
+              "sha256": "4f2fa804aac0e6592c626e8d908f3787c15d55f326221410d857a4c452099567"
+            },
+            "log": {
+              "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection/native-full.log",
+              "sha256": "40277b8f41498100e265bd9cf00bc6d8c4fca8ecdf9053bf4737808bc3df327a"
+            }
+          }
+        }
+      },
+      "python": {
+        "peak_rss_kib": {
+          "focused": 263336,
+          "full": 533112
+        },
+        "prefix": {
+          "artifact": {
+            "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection/python-prefix-observation.json",
+            "sha256": "96f00a902f505ba5c5b9d4f087bb36e1a8fb35b550315f3a3a43697347ca6335"
+          },
+          "preceding_passing_calls": 289,
+          "rules_counts": {
+            "improvements": 6,
+            "inducements": 8,
+            "races": 24,
+            "spp_actions": 5,
+            "spp_levels": 7,
+            "star_players": 71
+          },
+          "semantic_seconds": 0.0019302599997899962
+        },
+        "result": "857 passed, 279 skipped, 1 xfailed",
+        "suites": {
+          "focused": {
+            "counts": {
+              "errors": "0",
+              "failures": "0",
+              "hostname": "skynet",
+              "name": "pytest",
+              "skipped": "0",
+              "tests": "41",
+              "time": "94.916",
+              "timestamp": "2026-09-07T15:28:55.013706+02:00"
+            },
+            "junit": {
+              "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection/python-focused.xml",
+              "sha256": "5a4415cf554476e054ae46f2e32ee21d164ef26638e93b7674b04fdf076ebefa"
+            },
+            "log": {
+              "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection/python-focused.log",
+              "sha256": "6247ffcf54998eebaafff9474607d0c0d683272eec8ae2f9b942a862f6f72fd6"
+            }
+          },
+          "full": {
+            "counts": {
+              "errors": "0",
+              "failures": "0",
+              "hostname": "skynet",
+              "name": "pytest",
+              "skipped": "280",
+              "tests": "1137",
+              "time": "248.411",
+              "timestamp": "2026-09-07T15:36:46.349041+02:00"
+            },
+            "junit": {
+              "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection/python-full.xml",
+              "sha256": "a01578316c8253424707b41dd98efdff4490fbd3ce95bdc284092e235fce32d5"
+            },
+            "log": {
+              "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection/python-full.log",
+              "sha256": "d69e8b53b4c15941ab09f3cfbff7c369a171caf9827e8d10afd54d121fe60290"
+            }
+          }
+        }
+      }
+    },
+    "validation_commands": {
+      "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection/validation-commands.json",
+      "sha256": "e07f24fa1d96072ab7044ae43cf1a6577d80822bbc97b7e4acca363e07c30959"
+    }
+  },
   "ci_cost_correction": {
     "additional_cost_probe": {
       "artifact": {

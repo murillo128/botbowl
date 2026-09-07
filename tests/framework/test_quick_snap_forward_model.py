@@ -4,8 +4,10 @@ Set BOTBOWL_ISSUE20_EVIDENCE to retain decisions and first-divergence snapshots.
 The clean control is independently constructed and never enables trajectory.
 """
 from copy import deepcopy
+from contextlib import contextmanager
 from enum import Enum
 from functools import lru_cache
+import gc
 import hashlib
 import json
 import os
@@ -520,23 +522,42 @@ def test_rules_blueprint_is_bounded_after_ordinary_loader_calls():
             items.update(original)
 
 
+@contextmanager
+def collect_between_matrix_cases():
+    # These bounded cases create many short-lived cyclic games and observers.
+    # Collect once at the boundary instead of repeatedly scanning earlier tests'
+    # retained objects during every observation. Reachable game state is unchanged.
+    enabled = gc.isenabled()
+    if enabled:
+        gc.disable()
+    try:
+        yield
+    finally:
+        if enabled:
+            gc.enable()
+            gc.collect()
+        else:
+            gc.disable()
+
+
 @pytest.mark.parametrize("size", [1, 3])
 @pytest.mark.parametrize("receiving", [0, 1])
 @pytest.mark.parametrize("pathfinding", [False, True])
 @pytest.mark.parametrize("seed", [0, 3, 17])
 def test_quick_snap_advance_revert_forward_clean_equivalence(size, receiving, pathfinding, seed):
-    investigation = Investigation(size, receiving, pathfinding, seed)
-    try:
-        investigation.run()
-    except Exception as error:
-        if investigation.failure is None:
-            investigation.failure = dict(error=repr(error),
-                stack=investigation.game.get_procedure_names(),
-                positions=[decision(bb.ActionType.PLACE_PLAYER, p, p.position)
-                           for team in investigation.game.state.teams for p in team.players])
-        raise
-    finally:
-        investigation.save()
+    with collect_between_matrix_cases():
+        investigation = Investigation(size, receiving, pathfinding, seed)
+        try:
+            investigation.run()
+        except Exception as error:
+            if investigation.failure is None:
+                investigation.failure = dict(error=repr(error),
+                    stack=investigation.game.get_procedure_names(),
+                    positions=[decision(bb.ActionType.PLACE_PLAYER, p, p.position)
+                               for team in investigation.game.state.teams for p in team.players])
+            raise
+        finally:
+            investigation.save()
 
 
 @pytest.mark.parametrize("receiving", [0, 1])
@@ -692,3 +713,21 @@ def test_observer_refreshes_public_fields_and_nested_values_between_observations
 
     custom = CustomLookup()
     assert fields(custom, {}) == fields(custom) == {"virtual": [5]}
+
+
+@pytest.mark.parametrize("enabled", [True, False])
+def test_matrix_collection_boundary_restores_caller_policy(enabled):
+    original = gc.isenabled()
+    try:
+        (gc.enable if enabled else gc.disable)()
+        with collect_between_matrix_cases():
+            assert not gc.isenabled()
+        assert gc.isenabled() == enabled
+        with pytest.raises(RuntimeError, match="fixture failure"):
+            with collect_between_matrix_cases():
+                assert not gc.isenabled()
+                gc.enable()  # Even a failing callee must not leak a policy change.
+                raise RuntimeError("fixture failure")
+        assert gc.isenabled() == enabled
+    finally:
+        (gc.enable if original else gc.disable)()
