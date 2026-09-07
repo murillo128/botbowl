@@ -112,6 +112,7 @@ python tools/ci/run_profile.py suite --backend native --output /tmp/botbowl-ci-n
 python tools/ci/run_profile.py suite --backend python --output /tmp/botbowl-ci-python
 python tools/ci/run_profile.py artifacts --output /tmp/botbowl-ci-artifacts
 python tools/ci/run_profile.py extra --extra web --output /tmp/botbowl-ci-web
+python tools/ci/run_profile.py extra --extra gymnasium --output /tmp/botbowl-ci-gymnasium
 python tools/ci/run_profile.py suite --rl --backend native --output /tmp/botbowl-ci-rl
 ```
 

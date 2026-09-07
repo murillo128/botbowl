@@ -280,3 +280,40 @@ def test_a2c_spawn_worker_with_real_gym():
         envs.close()
     assert all(not p.is_alive() and p.exitcode == 0 for p in envs.ps)
     assert all(r.closed for r in envs.remotes)
+
+
+def test_legacy_scripted_rewards_are_numeric_and_preserve_intermediate_states():
+    root = BotBowlEnv(EnvConf(size=1), seed=17, away_agent='human')
+
+    def script(game):
+        if isinstance(game.get_procedure(), botbowl.CoinTossFlip):
+            return botbowl.Action(botbowl.ActionType.HEADS)
+        if isinstance(game.get_procedure(), botbowl.CoinTossKickReceive):
+            return botbowl.Action(botbowl.ActionType.KICK)
+
+    env = ScriptedActionWrapper(RewardWrapper(root, lambda g: 2., lambda g: -3.), script)
+    env.reset()
+    obs, reward, done, info = env.step(root._compute_action_idx(botbowl.Action(botbowl.ActionType.START_GAME)))
+    assert reward == -9.0 and not done
+    assert [t[1] for t in info['transitions']] == [-3., -3., -3.]
+    assert all(t[0][2] is not None for t in info['transitions'])
+    env.close()
+    env.close()
+
+
+def test_legacy_scripted_reset_retains_reward_until_first_step():
+    root = BotBowlEnv(EnvConf(size=1), seed=17, away_agent='human')
+
+    def script(game):
+        for proc, action_type in ((botbowl.StartGame, botbowl.ActionType.START_GAME),
+                                  (botbowl.CoinTossFlip, botbowl.ActionType.HEADS),
+                                  (botbowl.CoinTossKickReceive, botbowl.ActionType.KICK)):
+            if isinstance(game.get_procedure(), proc):
+                return botbowl.Action(action_type)
+
+    env = ScriptedActionWrapper(RewardWrapper(root, lambda g: 2., lambda g: -3.), script)
+    _, _, mask = env.reset()
+    assert env._reset_reward == -9. and len(env.reset_transitions) == 3
+    _, reward, _, _ = env.step(int(np.flatnonzero(mask)[0]))
+    assert reward == -12. and env._reset_reward == 0.
+    env.close()

@@ -7,6 +7,8 @@ from .proc_bot import *
 from .bots import *
 
 _LAZY_EXPORTS = {
+    "GymnasiumEnv": ".gymnasium_env",
+    "LegacyV4Env": ".env",
     **dict.fromkeys(("BotBowlEnv", "EnvConf", "BotBowlWrapper", "RewardWrapper",
                      "ScriptedActionWrapper", "PPCGWrapper"), ".env"),
     "EnvRenderer": ".env_render",
@@ -30,7 +32,7 @@ def __getattr__(name):
         try:
             value = getattr(_import_module(_LAZY_EXPORTS[name], __name__), name)
         except ModuleNotFoundError as error:
-            extras = {"gym": "rl", "docker": "competition", "tabulate": "competition"}
+            extras = {"gym": "rl", "gymnasium": "gymnasium", "docker": "competition", "tabulate": "competition"}
             if error.name not in extras:
                 raise
             extra = extras[error.name]
@@ -60,6 +62,17 @@ def _make_env(size=11, **kwargs):
 
     kwargs.setdefault("env_conf", EnvConf(size=size))
     return BotBowlEnv(**kwargs)
+
+
+def register_gymnasium_envs():
+    """Explicit registration, also usable through gym.make('botbowl.ai:...')."""
+    from gymnasium.envs.registration import register, registry
+
+    for size in (1, 3, 5, 7, 11):
+        name = f"botbowl-{size}-v5"
+        if name not in registry:
+            register(name, entry_point="botbowl.ai.gymnasium_env:GymnasiumEnv",
+                     kwargs={"size": size})
 
 
 __all__ = [name for name in globals() if not name.startswith("_")] + list(_LAZY_EXPORTS) + ["ruleset"]

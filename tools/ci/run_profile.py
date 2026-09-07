@@ -96,7 +96,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('profile', choices=('suite', 'artifacts', 'extra'))
     parser.add_argument('--backend', choices=('python', 'native'), default='python')
-    parser.add_argument('--extra', choices=('web', 'rl', 'competition', 'dev', 'render'))
+    parser.add_argument('--extra', choices=('web', 'rl', 'gymnasium', 'competition', 'dev', 'render'))
     parser.add_argument('--rl', action='store_true')
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
