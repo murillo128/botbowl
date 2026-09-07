@@ -3578,11 +3578,11 @@ class ClearBoard(Procedure):
         self.game.state.pitch.balls.clear()
         for team in self.game.state.teams:
             for player in team.players:
+                # Recover drive-scoped state, including players who sat out.
+                # Persistent injuries, KO and ejection are owned elsewhere.
+                player.state.reset()
                 # If player not in reserves. move it to it
                 if player.position is not None:
-                    # Set to ready
-                    player.state.reset()
-                    player.state.up = True
                     # Remove from pitch
                     self.game.pitch_to_reserves(player)
                     # Check if heat exhausted
@@ -3677,7 +3677,7 @@ class Setup(Procedure):
             ActionChoice(ActionType.PLACE_PLAYER, team=self.team,
                          players=self.game.get_players_on_pitch(
                              self.team) if self.reorganize else self.game.get_players_on_pitch(
-                             self.team) + self.game.get_reserves(self.team),
+                             self.team) + self.game.get_reserves(self.team, include_heated=False),
                          positions=positions),
             ActionChoice(ActionType.END_SETUP, team=self.team)
         ]
