@@ -1607,7 +1607,7 @@ appControllers.controller('GamePlayCtrl', ['$scope', '$routeParams', '$location'
                         $scope.runTimeLoop(20, data.game_id);
                     }
                 }).error(function (data, status) {
-                    $scope.loading = false;
+                    $scope.loading = !$scope.game.state;
                     $scope.refreshing = false;
                     $scope.error = data && data.error ? data.error.message : 'Game update failed.';
                 });

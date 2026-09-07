@@ -99,5 +99,12 @@ for (const [label, code] of [['source', source], ['bundle', bundle]]) {
     pending.push({data: {steps: {}, actions: {}}});
     scope.reload();
     check(scope.emptyReplay && !scope.loading && !scope.refreshing, 'Empty replay renders without dereferencing frame zero');
-    print(label + ': HTTP verbs, encoding, polling, timer ownership, conflict recovery, internal failure, empty replay PASS');
+
+    const missing = {$apply() {}};
+    controllers.GamePlayCtrl(missing, {id: 'missing'}, {}, {}, gameService, {}, {}, replayService, {});
+    pending.push({error: true, status: 404, data: {error: {message: 'Game not found.'}}});
+    missing.reload();
+    check(missing.error === 'Game not found.' && missing.loading && !missing.refreshing,
+          'Failed initial read must show the error without rendering an absent game');
+    print(label + ': HTTP verbs, encoding, polling, clock expiry, timer ownership, conflict recovery, initial/internal failure, empty replay PASS');
 }
