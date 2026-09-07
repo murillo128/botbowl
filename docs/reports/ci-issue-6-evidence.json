@@ -1,0 +1,305 @@
+{
+  "initial": {
+    "run": "34103857236",
+    "head": "e6d9cee0a3cfb8cc87e4a7c19bb1a554dca462c2",
+    "url": "https://github.com/murillo128/botbowl/actions/runs/34103857236",
+    "jobs": [
+      {
+        "name": "dependency audit / 3.11 / rl",
+        "id": 101684256062,
+        "conclusion": "success",
+        "seconds": 27,
+        "audited_packages": 61,
+        "advisory_records": 0
+      },
+      {
+        "name": "legacy RL / 3.11",
+        "id": 101684256190,
+        "conclusion": "success",
+        "seconds": 614,
+        "python": "3.11.16",
+        "counts": {
+          "passed": 1016,
+          "failed": 0,
+          "errors": 0,
+          "skipped": 0,
+          "xfailed": 1
+        }
+      },
+      {
+        "name": "legacy RL / 3.12",
+        "id": 101684256196,
+        "conclusion": "success",
+        "seconds": 639,
+        "python": "3.12.14",
+        "counts": {
+          "passed": 1016,
+          "failed": 0,
+          "errors": 0,
+          "skipped": 0,
+          "xfailed": 1
+        }
+      },
+      {
+        "name": "dependency audit / 3.14 / core",
+        "id": 101684256230,
+        "conclusion": "success",
+        "seconds": 29,
+        "audited_packages": 57,
+        "advisory_records": 0
+      },
+      {
+        "name": "artifacts / windows-2025",
+        "id": 101684256295,
+        "conclusion": "success",
+        "seconds": 115,
+        "python": "3.11.9"
+      },
+      {
+        "name": "lint",
+        "id": 101684256323,
+        "conclusion": "success",
+        "seconds": 6
+      },
+      {
+        "name": "artifacts / ubuntu-24.04",
+        "id": 101684256325,
+        "conclusion": "success",
+        "seconds": 55,
+        "python": "3.11.16"
+      },
+      {
+        "name": "extra / competition / 3.11",
+        "id": 101684256350,
+        "conclusion": "success",
+        "seconds": 22,
+        "python": "3.11.16"
+      },
+      {
+        "name": "core / 3.12 / native",
+        "id": 101684256358,
+        "conclusion": "failure",
+        "seconds": 586,
+        "python": "3.12.14",
+        "counts": {
+          "passed": 989,
+          "failed": 2,
+          "errors": 0,
+          "skipped": 7,
+          "xfailed": 1
+        },
+        "failures": [
+          "tests.framework.test_action_validation::test_disabled_block_choice_and_gym_mask_wait_for_reroll[False]",
+          "tests.framework.test_action_validation::test_disabled_block_choice_and_gym_mask_wait_for_reroll[True]"
+        ]
+      },
+      {
+        "name": "dependency audit / 3.11 / core",
+        "id": 101684256381,
+        "conclusion": "success",
+        "seconds": 29,
+        "audited_packages": 58,
+        "advisory_records": 0
+      },
+      {
+        "name": "core / 3.11 / python",
+        "id": 101684256408,
+        "conclusion": "failure",
+        "seconds": 230,
+        "python": "3.11.16",
+        "counts": {
+          "passed": 710,
+          "failed": 2,
+          "errors": 0,
+          "skipped": 286,
+          "xfailed": 1
+        },
+        "failures": [
+          "tests.framework.test_action_validation::test_disabled_block_choice_and_gym_mask_wait_for_reroll[False]",
+          "tests.framework.test_action_validation::test_disabled_block_choice_and_gym_mask_wait_for_reroll[True]"
+        ]
+      },
+      {
+        "name": "extra / rl / 3.11",
+        "id": 101684256422,
+        "conclusion": "success",
+        "seconds": 24,
+        "python": "3.11.16"
+      },
+      {
+        "name": "extra / render / 3.11",
+        "id": 101684256437,
+        "conclusion": "success",
+        "seconds": 21,
+        "python": "3.11.16"
+      },
+      {
+        "name": "extra / dev / 3.11",
+        "id": 101684256501,
+        "conclusion": "success",
+        "seconds": 22,
+        "python": "3.11.16"
+      },
+      {
+        "name": "core / 3.12 / python",
+        "id": 101684256502,
+        "conclusion": "failure",
+        "seconds": 257,
+        "python": "3.12.14",
+        "counts": {
+          "passed": 710,
+          "failed": 2,
+          "errors": 0,
+          "skipped": 286,
+          "xfailed": 1
+        },
+        "failures": [
+          "tests.framework.test_action_validation::test_disabled_block_choice_and_gym_mask_wait_for_reroll[False]",
+          "tests.framework.test_action_validation::test_disabled_block_choice_and_gym_mask_wait_for_reroll[True]"
+        ]
+      },
+      {
+        "name": "core / 3.13 / native",
+        "id": 101684256518,
+        "conclusion": "failure",
+        "seconds": 509,
+        "python": "3.13.15",
+        "counts": {
+          "passed": 989,
+          "failed": 2,
+          "errors": 0,
+          "skipped": 7,
+          "xfailed": 1
+        },
+        "failures": [
+          "tests.framework.test_action_validation::test_disabled_block_choice_and_gym_mask_wait_for_reroll[False]",
+          "tests.framework.test_action_validation::test_disabled_block_choice_and_gym_mask_wait_for_reroll[True]"
+        ]
+      },
+      {
+        "name": "extra / web / 3.11",
+        "id": 101684256555,
+        "conclusion": "success",
+        "seconds": 25,
+        "python": "3.11.16"
+      },
+      {
+        "name": "artifacts / macos-15",
+        "id": 101684256560,
+        "conclusion": "success",
+        "seconds": 37,
+        "python": "3.11.9"
+      },
+      {
+        "name": "core / 3.13 / python",
+        "id": 101684256592,
+        "conclusion": "failure",
+        "seconds": 274,
+        "python": "3.13.15",
+        "counts": {
+          "passed": 710,
+          "failed": 2,
+          "errors": 0,
+          "skipped": 286,
+          "xfailed": 1
+        },
+        "failures": [
+          "tests.framework.test_action_validation::test_disabled_block_choice_and_gym_mask_wait_for_reroll[False]",
+          "tests.framework.test_action_validation::test_disabled_block_choice_and_gym_mask_wait_for_reroll[True]"
+        ]
+      },
+      {
+        "name": "extra / rl / 3.12",
+        "id": 101684256624,
+        "conclusion": "success",
+        "seconds": 24,
+        "python": "3.12.14"
+      },
+      {
+        "name": "core / 3.14 / python",
+        "id": 101684256701,
+        "conclusion": "failure",
+        "seconds": 259,
+        "python": "3.14.7",
+        "counts": {
+          "passed": 710,
+          "failed": 2,
+          "errors": 0,
+          "skipped": 286,
+          "xfailed": 1
+        },
+        "failures": [
+          "tests.framework.test_action_validation::test_disabled_block_choice_and_gym_mask_wait_for_reroll[False]",
+          "tests.framework.test_action_validation::test_disabled_block_choice_and_gym_mask_wait_for_reroll[True]"
+        ]
+      },
+      {
+        "name": "core / 3.14 / native",
+        "id": 101684256741,
+        "conclusion": "failure",
+        "seconds": 542,
+        "python": "3.14.7",
+        "counts": {
+          "passed": 989,
+          "failed": 2,
+          "errors": 0,
+          "skipped": 7,
+          "xfailed": 1
+        },
+        "failures": [
+          "tests.framework.test_action_validation::test_disabled_block_choice_and_gym_mask_wait_for_reroll[False]",
+          "tests.framework.test_action_validation::test_disabled_block_choice_and_gym_mask_wait_for_reroll[True]"
+        ]
+      },
+      {
+        "name": "core / 3.11 / native",
+        "id": 101684256839,
+        "conclusion": "failure",
+        "seconds": 514,
+        "python": "3.11.16",
+        "counts": {
+          "passed": 989,
+          "failed": 2,
+          "errors": 0,
+          "skipped": 7,
+          "xfailed": 1
+        },
+        "failures": [
+          "tests.framework.test_action_validation::test_disabled_block_choice_and_gym_mask_wait_for_reroll[False]",
+          "tests.framework.test_action_validation::test_disabled_block_choice_and_gym_mask_wait_for_reroll[True]"
+        ]
+      }
+    ]
+  },
+  "negative_controls": {
+    "run": "34104931293",
+    "head": "00f4aa1e8a7407f5001b149135275d2cf99cfda8",
+    "url": "https://github.com/murillo128/botbowl/actions/runs/34104931293",
+    "scope": "Completed red lint/pytest proofs. Other negative-run jobs may cancel when the additive restore is pushed; the restored head requires a complete new matrix.",
+    "jobs": [
+      {
+        "id": 101687667157,
+        "name": "lint",
+        "conclusion": "failure",
+        "seconds": 12,
+        "diagnostic": "Ruff F821: issue6_deliberately_undefined_name; exit 1"
+      },
+      {
+        "id": 101687667794,
+        "name": "core / 3.14 / python",
+        "conclusion": "failure",
+        "seconds": 206,
+        "counts": {
+          "passed": 712,
+          "failed": 1,
+          "skipped": 288,
+          "xfailed": 1,
+          "errors": 0
+        },
+        "failure": "tests/test_ci_negative_control.py::test_issue6_deliberate_failure",
+        "diagnostic": "AssertionError: issue6 hosted pytest negative control",
+        "python": "3.14.7"
+      }
+    ]
+  }
+}
