@@ -135,9 +135,12 @@ python -m pytest --require-pathfinding=native
 PEP 660/setuptools manages the extension for editable installs; the project has
 no post-install binary-copy hook. A previous native editable build can leave an
 untracked extension in the source tree: use a fresh checkout for a Python-only
-comparison. The legacy `requirements.txt` is an inherited environment snapshot,
-not the dependency declaration for this packaging line; its modernization and CI
-constraints belong to issue #6.
+comparison. `requirements.txt` is a constrained development install for CPython 3.11/3.12
+with all extras, including legacy RL. Library compatibility ranges live in
+`pyproject.toml`; dated CI pins live in `requirements/`. For core development on
+3.13/3.14, use `python -m pip install -c requirements/core.txt -e
+'.[dev,web,competition]'` and omit the unsupported RL extra. See
+[CI profiles and dependency maintenance](ci.md) for the exact test commands.
 
 ## Compatibility evidence
 

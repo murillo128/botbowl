@@ -2,10 +2,8 @@ name: Tests
 
 on:
   pull_request:
-    paths-ignore:
-      - "**/*.md"
-      - "docs/**"
-      - "README*"
+  push:
+    branches: [main]
 
 permissions:
   contents: read
@@ -14,24 +12,178 @@ concurrency:
   group: tests-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+# PR code runs exclusively on GitHub-hosted machines. The separate issue-label
+# Skillforge launcher is unchanged and is never called by this workflow.
 jobs:
-  test:
+  lint:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
-
     steps:
-      - uses: actions/checkout@v5
-
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          python-version: "3.11"
-          cache: pip
-          cache-dependency-path: requirements.txt
-
-      - name: Install dependencies
-        run: python -m pip install -r requirements.txt
-
-      - name: Test
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.11'
+      - run: python -m pip install -c requirements/core.txt ruff
+      - name: Python errors
+        run: python -m ruff check --select E9,F63,F7,F82 botbowl tests examples tools setup.py
+      - name: Validate Actions YAML and expressions
         run: |
-          python -m compileall -q botbowl tests
-          python -m pytest -q
+          curl -fsSL https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz -o "$RUNNER_TEMP/actionlint.tar.gz"
+          echo "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8  $RUNNER_TEMP/actionlint.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/actionlint.tar.gz" -C "$RUNNER_TEMP" actionlint
+          "$RUNNER_TEMP/actionlint" -shellcheck='' -pyflakes=''
+
+  core:
+    name: core / ${{ matrix.python }} / ${{ matrix.backend }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.11', '3.12', '3.13', '3.14']
+        backend: [python, native]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python -m pip install -c requirements/core.txt pip build
+      - name: Installed unit and integration tests
+        run: python tools/ci/run_profile.py suite --backend '${{ matrix.backend }}' --output '${{ runner.temp }}/evidence'
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: core-${{ matrix.python }}-${{ matrix.backend }}
+          path: |
+            ${{ runner.temp }}/evidence/*.json
+            ${{ runner.temp }}/evidence/*.xml
+            ${{ runner.temp }}/evidence/*.log
+          retention-days: 14
+
+  rl:
+    name: legacy RL / ${{ matrix.python }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.11', '3.12']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python -m pip install -c requirements/rl.txt pip build
+      - name: Complete suite including real Gym checker tests
+        run: python tools/ci/run_profile.py suite --rl --backend native --output '${{ runner.temp }}/evidence'
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: rl-${{ matrix.python }}
+          path: |
+            ${{ runner.temp }}/evidence/*.json
+            ${{ runner.temp }}/evidence/*.xml
+            ${{ runner.temp }}/evidence/*.log
+          retention-days: 14
+
+  packaging:
+    name: artifacts / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025, macos-15]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.11'
+      - run: python -m pip install -c requirements/core.txt pip build
+      - name: Fresh sdist regression and clean minimal artifact installs
+        run: python tools/ci/run_profile.py artifacts --output '${{ runner.temp }}/evidence'
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: artifacts-${{ matrix.os }}
+          path: |
+            ${{ runner.temp }}/evidence/*.json
+            ${{ runner.temp }}/evidence/*.log
+            ${{ runner.temp }}/evidence/sdist/*.json
+            ${{ runner.temp }}/evidence/sdist/*.log
+          retention-days: 14
+
+  extras:
+    name: extra / ${{ matrix.extra }} / ${{ matrix.python }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.11']
+        extra: [web, competition, dev, render, rl]
+        include:
+          - python: '3.12'
+            extra: rl
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python -m pip install -c requirements/core.txt pip build
+      - name: Independent installed extra smoke and pip check
+        run: python tools/ci/run_profile.py extra --extra '${{ matrix.extra }}' --output '${{ runner.temp }}/evidence'
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: extra-${{ matrix.extra }}-${{ matrix.python }}
+          path: |
+            ${{ runner.temp }}/evidence/*.json
+            ${{ runner.temp }}/evidence/*.log
+          retention-days: 14
+
+  audit:
+    name: dependency audit / ${{ matrix.python }} / ${{ matrix.profile }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {python: '3.11', profile: rl}
+          - {python: '3.11', profile: core}
+          - {python: '3.14', profile: core}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Audit resolved third-party dependency set
+        env:
+          PIP_CONSTRAINT: ${{ github.workspace }}/requirements/${{ matrix.profile }}.txt
+          PIP_BUILD_CONSTRAINT: ${{ github.workspace }}/requirements/${{ matrix.profile }}.txt
+        run: python tools/ci/audit.py --profile '${{ matrix.profile }}' --output '${{ runner.temp }}/audit'
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: audit-${{ matrix.python }}-${{ matrix.profile }}
+          path: ${{ runner.temp }}/audit/*
+          retention-days: 14
