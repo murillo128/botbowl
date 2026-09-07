@@ -108,3 +108,47 @@ The browser source and shipped concatenated bundle use the same endpoints.
 The interaction regression harness runs with
 `gjs tests/web/frontend_contract.js` from the repository root. Flask tests use
 isolated temporary host directories and need no listening network server.
+
+## Local practice pause and browser feedback
+
+Creation accepts the optional boolean `game.local` (default `false`). Selecting
+**Local practice** in the browser sets it to `true`, using the existing
+noncompetitive engine mode: elapsed clocks are displayed but do not force
+player decisions on timeout. Existing competition presets retain their behavior.
+
+Live game responses include `competition_mode`, `pause_allowed`, and `paused`.
+`POST /games/<id>/pause` and `POST /games/<id>/resume` accept an empty body or
+`{}` and return the observed game. Both operations are idempotent. Competition
+games reject either operation with 409 `pause_not_allowed`; ended/closed games
+return 409 `game_ended`. This is a local session control, not a game action or
+an interruption of an already executing request. The host lock orders it with
+other requests.
+
+While paused, `/update` only observes and `/act` rejects with 409 `game_paused`
+before engine validation/execution. No automatic driver steps, RNG consumption,
+or clock charging occur. Resume restarts only clocks that ran at pause time;
+a primary clock suspended for a secondary decision stays suspended. Elapsed
+time uses #16's injectable monotonic source, and browser interpolation uses the
+returned duration rather than audit wall timestamps. A save made during a
+session pause loads paused and requires an explicit resume; the existing trusted
+local save format and routes are unchanged.
+
+The browser announces new live `TOUCHDOWN` reports in a polite text status for
+four seconds, without taking focus or disabling decisions. Repeated observations
+of the same cumulative report history do not restart the notice. Initial page
+loads and replay navigation show historical events only in the game log, so
+refresh/seek cannot reannounce old touchdowns. The notice never changes score.
+No audio/artwork is required; reduced-motion preferences disable game CSS motion.
+
+Player attributes are text in a labelled definition list, with flexible columns
+and space separate from the sprite. Player squares retain pointer selection and
+support Enter/Space selection with full attribute labels and selected state.
+
+The additional browser checks run with `pytest tests/web/test_browser.py` after
+installing the optional test tool `playwright==1.57.0` and running
+`python -m playwright install chromium`. They exercise the shipped Angular bundle
+and DOM against a temporary listening Flask server, suppress artwork requests,
+and control the injected clock in the test process. No test endpoints or browser
+tooling are added to the runtime. These are extra web checks beyond ordinary
+lint and Python/native core CI. `tests/framework/test_web_pause.py` covers the
+same pause boundary with the Flask client, including saved paused clocks.

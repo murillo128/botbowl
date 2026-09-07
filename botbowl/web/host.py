@@ -79,6 +79,44 @@ class InMemoryHost:
         with self.lock:
             return list(self.games.values())
 
+    @staticmethod
+    def is_paused(game):
+        return getattr(game, '_web_paused_clocks', None) is not None
+
+    def require_running(self, game):
+        if self.is_paused(game):
+            raise WebError("Game is paused. Resume before playing.", 409, 'game_paused')
+
+    def pause_game(self, game_id):
+        with self.lock:
+            game = self.get_game(game_id)
+            self._require_pause_allowed(game)
+            if not self.is_paused(game):
+                # Store clock references on the Game so trusted-local save/copy
+                # preserves the session pause and primary/secondary identities.
+                game._web_paused_clocks = [clock for clock in game.state.clocks if clock.is_running()]
+                for clock in game._web_paused_clocks:
+                    clock.pause()
+            return game
+
+    def resume_game(self, game_id):
+        with self.lock:
+            game = self.get_game(game_id)
+            self._require_pause_allowed(game)
+            if self.is_paused(game):
+                for clock in game._web_paused_clocks:
+                    if clock in game.state.clocks:
+                        clock.resume()
+                del game._web_paused_clocks
+            return game
+
+    @staticmethod
+    def _require_pause_allowed(game):
+        if game.config.competition_mode:
+            raise WebError("Competition games cannot be paused.", 409, 'pause_not_allowed')
+        if game.state.game_over or game.closed:
+            raise WebError("This game has ended.", 409, 'game_ended')
+
     def _files(self, directory, suffix):
         try:
             # Path.glob can suppress directory read errors. A storage failure
