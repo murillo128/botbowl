@@ -1971,12 +1971,15 @@ class GFI(Procedure):
             self.reroll = None
             return False
 
-        # Shadowing
-        shadowers = self.game.get_adjacent_opponents(self.player, down=False, skill=Skill.SHADOWING)
+        # A block or stab GFI can fail in place. Only leaving a square can
+        # trigger Shadowing; capture its eligible opponents before moving.
         shadow_position = self.player.position
+        left_square = shadow_position != self.position
+        shadowers = self.game.get_adjacent_opponents(
+            self.player, down=False, skill=Skill.SHADOWING) if left_square else []
 
         # Player trips
-        if not self.player.position == self.position:
+        if left_square:
             self.game.move(self.player, self.position)
 
         KnockDown(self.game, self.player, turnover=True)
