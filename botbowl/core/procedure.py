@@ -3242,8 +3242,18 @@ class Push(Procedure):
             # Stop secondary clocks
             self.game.remove_secondary_clocks()
 
+            # A later player can stop the selected chain with Stand Firm or
+            # Take Root. Its occupied square stops every preceding push too.
+            if self.game.get_player_at(self.push_to) is not None:
+                return self.finish_without_push()
+
             # Move pushed player
             self.game.move(self.player, self.push_to)
+
+            if self.crowd:
+                self.game.report(Outcome(OutcomeType.PUSHED_INTO_CROWD, player=self.player))
+            else:
+                self.game.report(Outcome(OutcomeType.PUSHED, player=self.player, position=self.push_to))
 
             # Ball
             if self.game.has_ball(self.player):
@@ -3273,25 +3283,13 @@ class Push(Procedure):
         # Taken root players cannot be pushed
         if self.player.state.taken_root:
             self.game.report(Outcome(OutcomeType.SKILL_USED, player=self.player, skill=Skill.TAKE_ROOT))
-            if self.knock_down:
-                KnockDown(self.game, self.player, in_crowd=False, armor_roll=True)
-            elif self.strip_ball_condition: 
-                self.game.report(Outcome(OutcomeType.SKILL_USED, player=self.pusher, skill=Skill.STRIP_BALL))
-                self.game.report(Outcome(OutcomeType.FUMBLE, player=self.player, opp_player=self.pusher))
-                Bounce(self.game, self.game.get_ball_at(self.player.position) )
-            return True
+            return self.finish_without_push()
 
         # Use stand firm
         if self.waiting_stand_firm:
             if action.action_type == ActionType.USE_SKILL:
                 self.game.report(Outcome(OutcomeType.SKILL_USED, player=self.player, skill=Skill.STAND_FIRM))
-                if self.knock_down:
-                    KnockDown(self.game, self.player, in_crowd=False, armor_roll=True)
-                elif self.strip_ball_condition: 
-                    self.game.report(Outcome(OutcomeType.SKILL_USED, player=self.pusher, skill=Skill.STRIP_BALL))
-                    self.game.report(Outcome(OutcomeType.FUMBLE, player=self.player, opp_player=self.pusher))
-                    Bounce(self.game, self.game.get_ball_at(self.player.position) )
-                return True
+                return self.finish_without_push()
             else:
                 self.waiting_stand_firm = False
                 self.stand_firm_used = True
@@ -3327,12 +3325,6 @@ class Push(Procedure):
             # Push to crowd?
             self.crowd = self.game.is_out_of_bounds(action.position)
 
-            # Report
-            if self.crowd:
-                self.game.report(Outcome(OutcomeType.PUSHED_INTO_CROWD, player=self.player))
-            else:
-                self.game.report(Outcome(OutcomeType.PUSHED, player=self.player, position=action.position))
-
             # Follow up - wait if push is delayed
             player_at = self.game.get_player_at(action.position)
 
@@ -3354,6 +3346,16 @@ class Push(Procedure):
             return False
 
         raise Exception("Unknown push sequence")
+
+    def finish_without_push(self):
+        # Cancelling displacement does not cancel the original block result.
+        if self.knock_down:
+            KnockDown(self.game, self.player, in_crowd=False, armor_roll=True)
+        elif self.strip_ball_condition:
+            self.game.report(Outcome(OutcomeType.SKILL_USED, player=self.pusher, skill=Skill.STRIP_BALL))
+            self.game.report(Outcome(OutcomeType.FUMBLE, player=self.player, opp_player=self.pusher))
+            Bounce(self.game, self.game.get_ball_at(self.player.position))
+        return True
 
     def available_actions(self):
         actions = []
