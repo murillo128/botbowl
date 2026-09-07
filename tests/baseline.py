@@ -106,7 +106,7 @@ def scenario(size=11, seed=0, turns=8, max_steps=256):
         config = bb.load_config(f"gym-{size}")
         config.kick_off_table = False
         config.pathfinding_enabled = False
-        config.turns = turns
+        config.rounds = turns
         rules = bb.load_rule_set(config.ruleset)
         home = bb.load_team_by_filename("human", rules, board_size=size)
         away = bb.load_team_by_filename("human", rules, board_size=size)

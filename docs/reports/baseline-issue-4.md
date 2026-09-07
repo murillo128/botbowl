@@ -75,8 +75,8 @@ the error. A missing native job cannot silently become a Python job.
 | --- | --- | --- | --- | --- | --- |
 | Inherited native | 217 pass | 14 pass | 102 pass | Not requested | 333 pass, 20.52 s |
 | Inherited Python | 217 pass | 14 pass | 63 pass, 1 fail | Not requested | 294 pass, 1 fail, 22.97 s |
-| Final Python | 279 pass, 1 xfail | 14 pass | 63 pass, 39 skip | Not requested | 356 pass, 39 skip, 1 xfail |
-| Final native, complete suite | 279 pass, 1 xfail | 14 pass | 102 pass | kickoff 41 pass; pregame 112 pass | 548 pass, 1 xfail |
+| Final Python | 280 pass, 1 xfail | 14 pass | 63 pass, 39 skip | Not requested | 357 pass, 39 skip, 1 xfail |
+| Final native, complete suite | 280 pass, 1 xfail | 14 pass | 102 pass | kickoff 41 pass; pregame 112 pass | 549 pass, 1 xfail |
 
 Final run durations and exact commands are recorded in the JSON evidence. All
 runs had zero collection/runtime errors; the inherited reference's one failure
@@ -112,7 +112,9 @@ dice, counts, and skills; generated UUIDs and timestamps are excluded.
 
 Each scenario allows at most 256 explicit actions, including setup; failures
 report size, seed, current procedure and the last 12 actions. A deliberate exhausted
-budget verifies that diagnostic. Global fixed-dice queue objects are saved and
+budget verifies that diagnostic. A separate configuration test verifies that
+one round per half completes at team turns `[1, 1]` after four END_TURN actions;
+the helper configures the engine's `Configuration.rounds` field. Global fixed-dice queue objects are saved and
 restored on exit, including exceptions; a cleanup test verifies this. This is
 serial test isolation, not interleaved per-game RNG isolation (#14).
 

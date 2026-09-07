@@ -142,7 +142,7 @@
     },
     "native-final": {
       "command": "timeout 300 python -m pytest --require-pathfinding=native -q --durations=5 --junitxml=native-final.xml",
-      "seconds": 67.307,
+      "seconds": 44.546,
       "by_set": {
         "ai": {
           "passed": 102
@@ -151,7 +151,7 @@
           "passed": 14
         },
         "game": {
-          "passed": 279,
+          "passed": 280,
           "xfailed": 1
         },
         "kickoff": {
@@ -168,14 +168,14 @@
         }
       ],
       "warnings": 102,
-      "raw_junit_sha256": "fd92f1e96ae23d82e5b56bd0084c84899fba3f90ca5fdfcfd44b03b118ad5f39"
+      "raw_junit_sha256": "4010cf7afa8ff6519ac4221e515a6ba58ee15a5575aa3f6f74df23046459eaab"
     },
     "python-final": {
       "command": "timeout 300 python -m pytest tests/game tests/framework tests/ai --require-pathfinding=python -q --durations=5 --junitxml=python-final.xml",
-      "seconds": 112.711,
+      "seconds": 113.465,
       "by_set": {
         "game": {
-          "passed": 279,
+          "passed": 280,
           "xfailed": 1
         },
         "framework": {
@@ -193,7 +193,7 @@
         }
       ],
       "warnings": 102,
-      "raw_junit_sha256": "d06417850ecb4d004055d5689bfc66cb179af95548a8e348ce2eadb2a59ce712"
+      "raw_junit_sha256": "3dac0a3d2e52491fcc3ec69f67f4bb640dad3bb779f876db8b7c4b63fc9bd622"
     }
   },
   "semantic_scenarios": {
@@ -221,9 +221,19 @@
     "max_explicit_actions_per_game": 256,
     "additional_tests": [
       "step_budget_reports_reproduction_context",
-      "fixed_rolls_restored_after_failure"
+      "fixed_rolls_restored_after_failure",
+      "one_turn_game_configuration"
     ],
     "known_xfail": "test_human_game_records_end_time",
+    "minimal_game": {
+      "configured_rounds": 1,
+      "terminal_team_turns": [
+        1,
+        1
+      ],
+      "end_turn_actions": 4,
+      "unmasked_timestamp_regression_exit_code": 1
+    },
     "limitations": [
       "serial fixed-dice isolation",
       "synthetic micropositions",

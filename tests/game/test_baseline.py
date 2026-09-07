@@ -63,7 +63,7 @@ def run_scenario(kind, size, seed):
             assert kind == "end_game"
             probe.until(lambda g: g.state.game_over)
             assert game.has_report_of_type(bb.OutcomeType.END_OF_GAME_DRAW), probe.diagnostic()
-            assert all(team.state.turn == game.config.turns for team in game.state.teams), probe.diagnostic()
+            assert all(team.state.turn == game.config.rounds for team in game.state.teams), probe.diagnostic()
         return probe.trace()
 
 
@@ -90,6 +90,14 @@ def test_fixed_rolls_restored_after_failure():
             bb.D6.fix(6)
             raise RuntimeError("fixture cleanup")
     assert bb.D6.FixedRolls is saved
+
+
+def test_one_turn_game_configuration():
+    with scenario(size=1, seed=0, turns=1) as probe:
+        probe.until(lambda game: game.state.game_over)
+        assert probe.game.config.rounds == 1, probe.diagnostic()
+        assert [team.state.turn for team in probe.game.state.teams] == [1, 1], probe.diagnostic()
+        assert sum(action[0] == "END_TURN" for action in probe.actions) == 4, probe.diagnostic()
 
 
 @pytest.mark.xfail(strict=True, reason="Issue #16: externally stepped human games leave end_time unset")
