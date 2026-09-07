@@ -3363,7 +3363,8 @@ class Push(Procedure):
 
             # Knock down
             if self.knock_down or self.crowd:
-                KnockDown(self.game, self.player, in_crowd=self.crowd, armor_roll=not self.crowd)
+                KnockDown(self.game, self.player, in_crowd=self.crowd, armor_roll=not self.crowd,
+                          inflictor=self.pusher if not self.crowd else None)
 
             # Follow up
             if not self.chain:
@@ -3441,7 +3442,7 @@ class Push(Procedure):
     def finish_without_push(self):
         # Cancelling displacement does not cancel the original block result.
         if self.knock_down:
-            KnockDown(self.game, self.player, in_crowd=False, armor_roll=True)
+            KnockDown(self.game, self.player, in_crowd=False, armor_roll=True, inflictor=self.pusher)
         elif self.strip_ball_condition:
             self.game.report(Outcome(OutcomeType.SKILL_USED, player=self.pusher, skill=Skill.STRIP_BALL))
             self.game.report(Outcome(OutcomeType.FUMBLE, player=self.player, opp_player=self.pusher))
