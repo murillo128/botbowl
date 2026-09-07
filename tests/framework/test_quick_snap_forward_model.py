@@ -11,6 +11,7 @@ import json
 import os
 from pathlib import Path
 import random
+from types import FunctionType
 
 import numpy as np
 import pytest
@@ -22,8 +23,13 @@ from botbowl.core.procedure import MoveAction, Procedure, Turn
 def fields(value):
     # Enabling trajectory copies public class defaults onto instances. Compare
     # their values in both games, independent of where the attribute is stored.
-    return {key: getattr(value, key) for key in dir(value)
-            if not key.startswith("_") and key != "game" and not callable(getattr(value, key))}
+    result = {}
+    for key in dir(value):
+        if not key.startswith("_") and key != "game":
+            item = getattr(value, key)
+            if not callable(item):
+                result[key] = item
+    return result
 
 
 def semantic(game):
@@ -36,6 +42,8 @@ def semantic(game):
     stack = game.state.stack.items
 
     def encode(value):
+        if value is None or type(value) in (str, int, float, bool):
+            return value
         if isinstance(value, np.ndarray):
             return encode(value.tolist())
         if isinstance(value, np.generic):
@@ -60,7 +68,14 @@ def semantic(game):
             return [type(value).__name__, encode(fields(value))]
         if isinstance(value, dict):
             # Preserve key sets, including same-length dictionaries with different keys.
-            return sorted([[encode(key), encode(item)] for key, item in value.items()], key=repr)
+            # The old repr([key, item]) ordering only needs item repr when encoded
+            # keys tie. Avoid stringifying whole nested states just to sort keys.
+            groups = {}
+            for key, item in value.items():
+                pair = [encode(key), encode(item)]
+                groups.setdefault(repr(pair[0]) + ", ", []).append(pair)
+            return [pair for key in sorted(groups)
+                    for pair in (groups[key] if len(groups[key]) == 1 else sorted(groups[key], key=repr))]
         if isinstance(value, (list, tuple)):
             return [encode(item) for item in value]
         if isinstance(value, set):
@@ -171,7 +186,9 @@ def consistency(game):
                 assert active is not None and active.state.moves == 0
                 assert set(choice.positions) == set(game.get_adjacent_squares(active.position, occupied=False))
                 assert not choice.paths and all(not rolls for rolls in choice.rolls)
-    semantic(game)  # Walk all player/team/procedure references, not just active ones.
+    # Return the complete observation so callers can compare it without walking
+    # the same unchanged state twice. No snapshot survives a game transition.
+    return semantic(game)
 
 
 def decision(action_type, player=None, position=None):
@@ -195,9 +212,18 @@ def play(game, spec):
 
 @lru_cache(maxsize=None)
 def rules_blueprint(name):
-    # Detach one fixed definition from the loader's inherited mutable defaults.
-    # Only copies go into games; repeated construction never reloads shared rules.
-    return deepcopy(bb.load_rule_set(name))
+    # Run the stock XML parser in a private namespace: earlier loader calls must
+    # not contribute accumulated definitions. Do not patch its module or defaults.
+    def empty_ruleset(name):
+        return bb.RuleSet(name, races=[], star_players=[], inducements=[],
+                          spp_actions={}, spp_levels={}, improvements={})
+
+    loader = bb.load_rule_set
+    isolated_loader = FunctionType(loader.__code__, dict(loader.__globals__, RuleSet=empty_ruleset),
+                                   argdefs=loader.__defaults__, closure=loader.__closure__)
+    # Nested model definitions also have mutable defaults. Detach those too;
+    # games receive further copies, never the blueprint or parser-owned objects.
+    return deepcopy(isolated_loader(name))
 
 
 def kickoff_fixture(size=3, receiving=0, pathfinding=False, seed=0, forward=True):
@@ -276,16 +302,15 @@ class Investigation:
         play(self.game, spec)
 
     def check(self, transition, expected=None, rng=None, spec=None):
-        actual = semantic(self.game)
+        actual = consistency(self.game)
+        clean = consistency(self.clean)
         if expected is None:
-            expected = semantic(self.clean)
+            expected = clean
         if rng is None:
             rng = self.clean.capture_rng_state()
         self.events.append(dict(transition=transition, decision=spec, step=self.game.get_step(),
                                 state_sha256=digest(actual)))
         try:
-            consistency(self.game)
-            consistency(self.clean)
             assert actual == expected, transition
             assert self.game.capture_rng_state() == rng, transition + " RNG"
         except Exception:
@@ -398,6 +423,44 @@ class Investigation:
                                                       failure=self.failure), sort_keys=True, indent=2))
 
 
+def test_rules_blueprint_is_bounded_after_ordinary_loader_calls():
+    # Exercise cold construction after ordinary loaders, even if another test
+    # already warmed the cache. Keep the inherited loader's state intact afterward.
+    inherited = bb.RuleSet("loader-defaults")
+    lists = (inherited.races, inherited.star_players, inherited.inducements)
+    lengths = [len(items) for items in lists]
+    dictionaries = (inherited.spp_actions, inherited.spp_levels, inherited.improvements)
+    saved = [dict(items) for items in dictionaries]
+    name = bb.load_config("gym-1").ruleset
+    keys = ("races", "star_players", "inducements", "spp_actions", "spp_levels", "improvements")
+    try:
+        for _ in range(3):
+            bb.load_rule_set(name)
+        # Distinct extra entries also challenge contents, not just repeated counts.
+        for items in dictionaries:
+            items["issue-20-loader-sentinel"] = -1
+        rules_blueprint.cache_clear()
+        first = kickoff_fixture(size=1)
+        assert [len(getattr(first.ruleset, key)) for key in keys] == [24, 71, 8, 5, 7, 6]
+        before, rng = semantic(first), first.capture_rng_state()
+        blueprint = rules_blueprint(name)
+        independent(first, blueprint, inherited)
+        bb.load_rule_set(name)
+        cached = kickoff_fixture(size=1, forward=False)
+        rules_blueprint.cache_clear()
+        cold = kickoff_fixture(size=1, forward=False)
+        assert semantic(first) == semantic(cached) == semantic(cold) == before
+        assert first.capture_rng_state() == rng
+        independent(first, cached, cold, blueprint, rules_blueprint(name), inherited)
+    finally:
+        rules_blueprint.cache_clear()
+        for items, length in zip(lists, lengths):
+            del items[length:]
+        for items, original in zip(dictionaries, saved):
+            items.clear()
+            items.update(original)
+
+
 @pytest.mark.parametrize("size", [1, 3])
 @pytest.mark.parametrize("receiving", [0, 1])
 @pytest.mark.parametrize("pathfinding", [False, True])
@@ -504,3 +567,21 @@ def test_independence_observer_detects_nested_rule_alias():
     assert semantic(first) == semantic(second) == before
     with pytest.raises(AssertionError, match="shared mutable objects"):
         independent(first, second)
+
+
+def test_observer_dictionary_order_preserves_mixed_keys_and_normalized_ties():
+    game = kickoff_fixture(size=1)
+    square = game.get_square(1, 2)
+    # A Square and this tuple are distinct Python keys with the same observation.
+    # Insertion order must not decide the order of their differently valued entries.
+    entries = [(1, "integer"), (10, "prefix"), (1.5, "float"), ("a", "text"),
+               ("a'", "quote"), (None, "none"), (square, "z"), (("square", 1, 2), "a")]
+    game.state.observer_probe = dict(entries)
+    before = semantic(game)
+    observed = dict(before["state"])["observer_probe"]
+    encoded_keys = [1, 10, 1.5, "a", "a'", None, ["square", 1, 2], ["square", 1, 2]]
+    assert observed == sorted([[key, value] for key, (_, value) in zip(encoded_keys, entries)], key=repr)
+    game.state.observer_probe = dict(reversed(entries))
+    assert semantic(game) == before
+    game.state.observer_probe[square] = "changed"
+    assert semantic(game) != before

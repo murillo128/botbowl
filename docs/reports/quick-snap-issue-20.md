@@ -19,8 +19,11 @@ Spread and offensive Wedge formations, and END_SETUP. Both setups are checked
 for legality and exact on-pitch count. Each game loads its own teams/configuration;
 stable roster IDs permit comparison. Following the isolation correction below,
 each game receives a deep copy of a fixed, detached rules blueprint explicitly
-through `Game(ruleset=...)`. The blueprint is copied from the loader once per
-ruleset name; no fixture reloads or retains its inherited mutable containers.
+through `Game(ruleset=...)`. The stock XML loader runs once per ruleset name in
+a private function namespace with an explicit empty-container RuleSet constructor.
+The complete result is detached, including nested model defaults. Ordinary loader
+history cannot contribute definitions; the production loader and its defaults
+are unchanged.
 
 The matrix is the Cartesian product of:
 
@@ -134,13 +137,88 @@ Correction evidence is isolated under
 `evidence/*-regression-after.log`, and `evidence/*-isolation-proof.json` retain the
 failure and correction proof. `evidence/*-matrix/` retains refreshed initial
 snapshots and transition hashes, which now include rules. The accompanying JSON's
-`correction` section attributes current evidence and source hashes separately from
+`correction` section attributes that correction's evidence and source hashes separately from
 its unchanged original-head records. Original files under
 `/tmp/botbowl-issue20-evidence/` and reviewer environments are preserved.
 
 This fixture correction does not resolve the original Quick Snap crash or apply
 any of the distinct production/helper/search proposals below. Fresh independent
 re-review remains required before parent acceptance and integration.
+
+## Ordinary-order fixture correction
+
+The second independent review of `cd248094aae55f0ebbaf2c5083f4da29c0e4e565`
+confirmed that the sharing finding above was resolved, but found a distinct
+ordinary-order failure. After 288 passing tests and 279 capability skips, the
+first fixture copied 7,488 races, 20,418 stars and 2,306 inducements accumulated
+by earlier loader calls. Complete semantic observation rose from 0.00653 seconds
+in a fresh process to 2.714 seconds. Hosted CI run 34114477569 exceeded its
+unchanged ten-minute limit. The [second FAIL](https://github.com/murillo128/botbowl/issues/20#issuecomment-5569881534),
+`/tmp/botbowl-review20-corrected-9cg3_tep/review.md`, `order_probe.py` and its
+original prefix evidence remain preserved; standalone timings did not establish
+normal-order viability at that head.
+
+The fixture now uses the existing parser's code and dependencies in a private
+function namespace, supplying a constructor with six fresh containers. It does
+not replace module globals, modify constructor defaults, duplicate the XML
+parser, or copy previously loaded records. A final deepcopy detaches nested
+model defaults before the blueprint is cached. Each game still deep-copies that
+blueprint and all rules remain included in every complete semantic observation.
+Consistency checks return that observation for immediate comparison, avoiding
+duplicate traversal at the same transition. No observation is cached across a
+transition; public class defaults and dynamically added fields remain observable.
+Dictionary entries are still fully encoded. Ordering uses the encoded key's
+representation and its delimiter, retaining the original full-entry ordering
+when distinct Python keys normalize to the same key. This avoids stringifying
+entire nested values merely to sort entries with distinct keys. A mixed-key
+control checks the original ordering, reversed insertion order, and changed
+values, including a Square/tuple normalization tie. Exact Python scalars take
+a fast path while NumPy values retain their existing conversion.
+
+The new regression runs before the matrix in default order. It clears a warm
+blueprint cache, performs three ordinary loader calls, adds distinct dictionary
+sentinels, and checks the canonical counts 24/71/8 and 5/7/6. It then compares
+cached and cold reconstruction after another loader call, including full semantic
+equality, unchanged RNG, and disjoint graphs against the inherited defaults and
+both blueprints. It restores the inherited containers afterward. Before this
+correction it fails with counts 96/284/32 and 6/8/7; afterward it passes alongside
+the seven original rule isolation/alias controls and the corruption observer.
+
+Current-source evidence is recorded separately under `order_correction` in the
+accompanying JSON and `/tmp/botbowl-issue20-order-correction/`. Earlier evidence
+sections retain their original source attribution. This correction changes only
+the fixture/instrument and its regression; the matrix, production source,
+inherited tests, skip/xfail policy, and hosted CI configuration are unchanged.
+
+Final validation uses `final-python-src` and `final-native-src` in that evidence
+directory, with the same tracked execution source and a native extension freshly
+built from unchanged production sources earlier in this correction:
+
+| Final-source validation | Python | Native |
+| --- | --- | --- |
+| Focused investigation plus existing forward-model tests | 38 + 6 passed | 38 + 6 passed |
+| Normal-order full suite | 854 passed, 279 capability skips, 1 inherited xfail | 1,133 passed, no skips, 1 inherited xfail |
+| First-matrix prefix passing tests | 289 (plus 279 capability skips) | 568 |
+| Complete observation after prefix | 0.00548 s | 0.00608 s |
+
+Both prefixes retain canonical counts and the fresh fixture's snapshot hash.
+Each final matrix covers 24 configurations and 10,208 checked transitions; all
+48 focused files match the previous correction byte-for-byte, as do their final
+normal-order full-suite counterparts. Executor replays of the unchanged prior
+reviewer challenge script pass 244 graph comparisons, 45 first-game stability
+checks, 13 nested semantic faults and 12 deliberate aliases per backend. These
+replays are validation, not a fresh independent review verdict. All ten refreshed
+setup/helper/consumer controls retain their original finding JSON.
+
+Final focused runs took 330.64 s Python and 330.22 s native; full runs took
+618.99 s and 808.75 s respectively. Native spent 384.71 s in preceding inherited
+tests, versus 176.68 s for Python, before the matrix. These local timings do not
+substitute for the required successful exact-head hosted CI run. Logs/XML,
+commands, source/evidence manifests and initial dependency failures are retained.
+The successful pre-optimization full suites (853 Python passes and 1,132 native
+passes, each with the inherited xfail and Python's 279 capability skips) retain
+their separate observer-source hash. The original Quick Snap risk and separate
+follow-up proposals remain unresolved pending parent acceptance and ownership.
 
 ## Reproduced setup defect
 
@@ -249,9 +327,9 @@ Validation totals and configuration counts are recorded in the accompanying
 
 | Validation | Result |
 | --- | --- |
-| Corrected focused Python target | 36 passed |
-| Corrected focused native target | 36 passed |
-| Existing forward-model target on corrected source | 6 passed on each backend |
+| Prior isolation-correction focused Python target | 36 passed |
+| Prior isolation-correction focused native target | 36 passed |
+| Prior isolation-correction existing forward-model target | 6 passed on each backend |
 | Original focused Python target (before isolation correction) | 29 passed |
 | Original focused native target (before isolation correction) | 29 passed |
 | Existing Python suite (focused file excluded) | 816 passed, 279 native-only skips, 1 inherited timestamp xfail |
@@ -266,10 +344,12 @@ transition label and trajectory step, and all previously observed initial gamepl
 fields. All 48 evidence files were refreshed because snapshots and transition
 hashes now include rules. The corrected setup/consumer/helper outputs match the
 original finding JSON on both backends, including legal empty-square/RNG controls
-and mutation-free stale-target rejection. Each corrected focused run took about
-eight minutes locally. The native extension is reused byte-for-byte from the
-original isolated build; all 1,333 tracked execution source/data paths match each
-correction runtime. No new native build or corrected-source full suite is claimed.
+and mutation-free stale-target rejection. For that prior isolation correction,
+each focused run took about eight minutes locally. Its native extension was
+reused byte-for-byte from the original isolated build; all 1,333 tracked execution
+source/data paths matched each correction runtime. That evidence did not include
+a new native build or an exact-source full suite. Current ordinary-order results
+are attributed separately above and in the JSON's `order_correction` section.
 
 The historical native full run used the 29-test observer revision preceding the final
 ball-reference/branch-state identity assertions and expanded evidence capture.
