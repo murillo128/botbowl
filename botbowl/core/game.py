@@ -23,6 +23,38 @@ class InvalidActionError(Exception):
         self.code = code
 
 
+class NoProgressError(RuntimeError):
+    """No legal forced continuation; the game has no manufactured result."""
+
+    def __init__(self, game, reason, code="no_progress"):
+        self.code = code
+        super().__init__(f"Game {game.game_id}: {reason}; "
+                         f"procedures={game.get_procedure_names()}; "
+                         f"choices={[c.action_type.name for c in game.state.available_actions]}")
+
+
+class GameTruncatedError(NoProgressError):
+    """An administrative execution budget expired, not a sporting defeat."""
+
+
+class StepBudget:
+    """Finite engine steps and policy attempts, shareable across driver retries."""
+
+    def __init__(self, steps=100000):
+        if type(steps) is not int or steps < 0:
+            raise ValueError("Step budget must be a nonnegative integer")
+        self.remaining = steps
+
+    def consume(self, game):
+        if self.remaining == 0:
+            raise GameTruncatedError(game, "execution budget exhausted", code="step_budget")
+        self.remaining -= 1
+
+
+def _step_budget(value):
+    return value if isinstance(value, StepBudget) else StepBudget(value)
+
+
 @dataclass(frozen=True)
 class ActionValidationResult:
     """Side-effect-free validation outcome; code and message are stable strings."""
@@ -80,7 +112,8 @@ class Game:
                  state: Optional[GameState] = None,
                  seed=None,
                  record: bool = False,
-                 external_control: bool = False):
+                 external_control: bool = False,
+                 time_source=None):
         assert config is not None
         assert home_team.team_id != away_team.team_id
         self.replay = Replay(replay_id=game_id) if record else None
@@ -101,6 +134,8 @@ class Game:
         self.external_control = external_control
         self._initialized = False
         self._end_notified = False
+        self.finalization_errors = []
+        self.time_source = time_source
         self.trajectory = Trajectory()
         self.square_shortcut = self.state.pitch.squares
 
@@ -243,7 +278,7 @@ class Game:
     def actor(self) -> Optional[Agent]:
         return self.get_team_agent(self.active_team)
 
-    def init(self) -> None:
+    def init(self, *, max_steps=100000) -> None:
         """
         Initialize once. External control always waits for START_GAME, even
         with two bots. Legacy games auto-start when both agents are bots.
@@ -268,21 +303,21 @@ class Game:
             # Record state
             if self.replay is not None:
                 self.replay.record_action(start_action)
-            self.step(start_action)
+            self.step(start_action, max_steps=max_steps)
 
-    def step(self, action=None) -> None:
+    def step(self, action=None, *, max_steps=100000) -> None:
         """
         Legacy policy driver: run until human input (or a slow-mode tick).
         With external_control=True, delegate to advance without querying bots.
         The historical None return value is preserved; use advance for results.
         """
         if self.external_control:
-            self.advance(action)
+            self.advance(action, max_steps=max_steps)
         else:
             from botbowl.core.driver import LegacyPolicyDriver
-            LegacyPolicyDriver(self).run(action)
+            LegacyPolicyDriver(self).run(action, max_steps=max_steps)
 
-    def advance(self, action: Optional[Action] = None) -> DecisionResult:
+    def advance(self, action: Optional[Action] = None, *, max_steps=100000) -> DecisionResult:
         """Apply one decision and resolve automatic consequences, without act().
 
         Stops at every next offered decision, including consecutive decisions
@@ -292,17 +327,19 @@ class Game:
         rejected before changing state, RNG, replay, clocks, or self.action.
         Select external_control at construction for human-independent choices.
         """
-        return self._advance(action)
+        return self._advance(action, budget=_step_budget(max_steps))
 
-    def _advance(self, action, single_step=False) -> DecisionResult:
+    def _advance(self, action, single_step=False, budget=None) -> DecisionResult:
         # Reject public input before changing even self.action. Normalization only
         # writes a new Action, never the object owned by a caller or bot.
         action = self._validated_action(action)
         if self.state.game_over:
             return DecisionResult(None, (), True)
+        budget = _step_budget(100000 if budget is None else budget)
         report_start = len(self.state.reports)
         self.action = action
         while True:
+            budget.consume(self)
             done = self._one_step(self.action)
             if self.state.game_over:
                 self.state.available_actions = []
@@ -314,50 +351,36 @@ class Game:
         return DecisionResult(self.actor if not self.state.game_over else None,
                               tuple(self.state.reports[report_start:]), self.state.game_over)
 
-    def refresh(self) -> None:
+    def refresh(self, *, max_steps=100000) -> None:
         """
         Checks clocks and runs forced actions. Useful in called in human games.
         """
+        if self.state.game_over:
+            return
+        budget = _step_budget(max_steps)
         self.action = None
         if self.config.competition_mode:
-            self._check_clocks()
+            self._check_clocks(max_steps=budget)
         if not self.state.game_over and len(self.state.available_actions) == 0:
-            self.step(None)
+            self.step(None, max_steps=budget)
 
-    def _check_clocks(self) -> None:
+    def _check_clocks(self, *, max_steps=100000) -> bool:
+        """Resolve one expired clock, discarding any stale bot action.
+
+        A paused clock stays paused. Procedure transitions own resumption.
+        Return whether forcing changed the decision boundary.
         """
-        Checks if clocks are done.
-        """
-
-        # No time limit for this action
-        if not self.has_agent_clock(self.actor):
-            return
-
-        # Agent too slow?
+        if self.state.game_over:
+            return False
         clock = self.get_agent_clock(self.actor)
-        if clock is not None and clock.is_done():
-
-            # End the actor's turn
-            done = True
-            clock = self.get_agent_clock(self.actor)
-            while clock in self.state.clocks:
-
-                # Request timout action
-                if done:
-                    action = self._forced_action()
-                else:
-                    action = None
-
-                # Take action if it doesn't end the turn
-                if self.config.debug_mode:
-                    print(f"Forcing action: {self.action.to_json() if self.action is not None else 'None'}")
-                if self.action is None or self.action.action_type not in [ActionType.END_TURN, ActionType.END_SETUP]:
-                    done = self._one_step(action)
-                else:
-                    break
-
-        if clock is not None and not clock.is_running():
-            clock.resume()
+        if clock is None or not clock.is_done():
+            return False
+        budget = _step_budget(max_steps)
+        while clock in self.state.clocks and not self.state.game_over:
+            action = self._forced_action() if self.state.available_actions else None
+            self._advance(action, budget=budget)
+        self.action = None
+        return True
 
     def _end_game(self) -> None:
         """
@@ -366,19 +389,24 @@ class Game:
         if self._end_notified:
             return
         self._end_notified = True
-        # Game ended when the last action was received - to avoid timout during finishing procedures
-        self.end_time = self.last_action_time
+        self.end_time = time.time()
+        self.pause_clocks()
 
-        # Let agents know that the game ended
-        if not self.home_agent.human:
-            self.home_agent.end_game(self)
-        if not self.away_agent.human:
-            self.away_agent.end_game(self)
-
-        # Record state
+        # Attempt every finalizer once, even when an earlier callback fails.
+        for agent in (self.home_agent, self.away_agent):
+            if not agent.human:
+                try:
+                    agent.end_game(self)
+                except Exception as error:
+                    self.finalization_errors.append(error)
         if self.replay is not None:
-            self.replay.record_step(self)
-            self.replay.dump(self)
+            for finalize in (self.replay.record_step, self.replay.dump):
+                try:
+                    finalize(self)
+                except Exception as error:
+                    self.finalization_errors.append(error)
+        if self.finalization_errors:
+            raise self.finalization_errors[0]
 
     def validate_action(self, action: Optional[Action]) -> ActionValidationResult:
         """
@@ -497,10 +525,10 @@ class Game:
         return self._validated_action(self.actor.act(self))
 
     def _forced_action(self) -> Action:
-        """
-        Return action that prioritize to end the player's turn.
-        """
+        """Select a validated continuation in finite time, favoring turn end."""
         available_actions = [choice for choice in self.state.available_actions if not choice.disabled]
+        if self.state.stack.items and isinstance(self.get_procedure(), Setup):
+            return self._forced_setup()
         # Take first negative action
         for action_type in [ActionType.END_TURN, ActionType.END_SETUP, ActionType.END_PLAYER_TURN,
                             ActionType.SELECT_NONE, ActionType.HEADS, ActionType.KICK, ActionType.SELECT_DEFENDER_DOWN,
@@ -509,21 +537,55 @@ class Game:
                             ActionType.DONT_USE_APOTHECARY]:
             for action in available_actions:
                 if action.action_type == action_type:
-                    if action_type == ActionType.END_SETUP:
-                        if self.is_setup_legal(self.get_agent_team(self.actor)): # type: ignore
-                            return Action(action_type)
-                    else:
-                        return Action(action_type)
-        # Take random action
-        while True:
-            action_choice = self.rng.choice(available_actions)
-            # Ignore PLACE_PLAYER actions
-            if action_choice.action_type != botbowl.ActionType.PLACE_PLAYER:
-                break
-        action_choice = self.rng.choice(available_actions)
-        position = self.rng.choice(action_choice.positions) if len(action_choice.positions) > 0 else None
-        player = self.rng.choice(action_choice.players) if len(action_choice.players) > 0 else None
-        return Action(action_choice.action_type, position=position, player=player)
+                    candidate = Action(action_type)
+                    if self.is_action_allowed(candidate):
+                        return candidate
+        # Sample only the finite eligible set, never resample the original list.
+        choices = [c for c in available_actions if c.action_type not in
+                   (ActionType.PLACE_PLAYER, ActionType.END_SETUP)]
+        for index in self.rng.permutation(len(choices)):
+            choice = choices[index]
+            players = choice.players or [None]
+            positions = choice.positions or [None]
+            for p in self.rng.permutation(len(players)):
+                for s in self.rng.permutation(len(positions)):
+                    candidate = Action(choice.action_type, player=players[p], position=positions[s])
+                    if self.is_action_allowed(candidate):
+                        return candidate
+        raise NoProgressError(self, "no legal forced action")
+
+    def _forced_setup(self) -> Action:
+        proc = self.get_procedure()
+        end = Action(ActionType.END_SETUP)
+        if self.is_setup_legal(proc.team) and self.is_action_allowed(end):
+            return end
+        macros = {"Wedge": ActionType.SETUP_FORMATION_WEDGE,
+                  "Line": ActionType.SETUP_FORMATION_LINE,
+                  "Spread": ActionType.SETUP_FORMATION_SPREAD,
+                  "Zone": ActionType.SETUP_FORMATION_ZONE}
+        cause = ValueError("No usable formation or placement is available")
+        for formation in proc.formations:
+            try:
+                plan = formation.actions(self, proc.team)
+            except ValueError as error:
+                cause = error
+                continue
+            targets = [a for a in plan if a.position is not None]
+            selected = {a.player for a in targets}
+            changes = [Action(ActionType.PLACE_PLAYER, player=p) for p in
+                       self.get_players_on_pitch(proc.team) if p not in selected]
+            changes += [a for a in targets if a.player.position != a.position]
+            if not changes:
+                continue
+            macro = macros.get(formation.name)
+            if macro is not None and self.is_action_allowed(Action(macro)):
+                return Action(macro)
+            # Apply an actual difference from the legal plan. Replaying its
+            # remove-all prefix on every call would repeatedly undo placements.
+            for action in changes:
+                if self.is_action_allowed(action):
+                    return action
+        raise NoProgressError(self, f"cannot complete setup: {cause}") from cause
 
     def _squares_moved(self) -> list:
         """
@@ -647,7 +709,8 @@ class Game:
         """
         Returns the clock belonging to the given team.
         """
-        for clock in self.state.clocks:
+        # A secondary clock may belong to the same team as its paused primary.
+        for clock in reversed(self.state.clocks):
             if clock.team == team:
                 return clock
         return None
@@ -656,10 +719,7 @@ class Game:
         """
         Returns the clock belonging to the given agent's team.
         """
-        for clock in self.state.clocks:
-            if clock.team == self.get_agent_team(agent):
-                return clock
-        return None
+        return self.get_clock(self.get_agent_team(agent))
 
     def has_clock(self, team: Team) -> bool:
         """
@@ -701,7 +761,7 @@ class Game:
         """
         self.pause_clocks()
         assert team is not None and type(team) == Team
-        clock = Clock(team, self.config.time_limits.secondary)
+        clock = Clock(team, self.config.time_limits.secondary, time_source=self.time_source)
         self.state.clocks.append(clock)
 
     def add_primary_clock(self, team: Team) -> None:
@@ -710,7 +770,7 @@ class Game:
         """
         self.state.clocks.clear()
         assert team is not None and type(team) == Team
-        clock = Clock(team, self.config.time_limits.turn, is_primary=True)
+        clock = Clock(team, self.config.time_limits.turn, is_primary=True, time_source=self.time_source)
         self.state.clocks.append(clock)
 
     def get_seconds_left(self, team: Optional[Team] = None) -> Optional[float]:
@@ -723,10 +783,8 @@ class Game:
             t = self.get_agent_team(self.actor)
         else:
             t = team
-        for clock in self.state.clocks:
-            if clock.team == t:
-                return clock.get_seconds_left()
-        return None
+        clock = self.get_clock(t)
+        return clock.get_seconds_left() if clock is not None else None
 
     # redefined below
     #def is_started(self):

@@ -22,7 +22,7 @@ finished = result.terminal
 
 `advance(action)` accepts one decision, validates it before mutation, resolves
 automatic consequences and stops at the next offered decision. It never calls
-`Agent.act`, ignores `fast_mode`, and does not enforce competition wall clocks.
+`Agent.act`, ignores `fast_mode`, and does not enforce competition clocks.
 Consequences can include several procedures, dice rolls and reports. Two decisions
 by the same team are separate calls, even when there are no intervening reports.
 The actor owns the offered choices; it can be the defender during the other
@@ -64,8 +64,11 @@ remains 4. No existing enum value is renumbered.
 `new_game` and `end_game` are called once per non-human seat, including in external
 mode; plain human `Agent` instances need no callback implementations. These
 callbacks belong to `Game`, not the policy driver. They and persistent replay
-output are not rolled back by forward-model checkpoints. External control does
-not introduce new wall-clock/end-time semantics.
+output are not rolled back by forward-model checkpoints. Natural completion
+records `end_time` even when every action came from an external caller. Each
+end callback and replay finalizer is attempted once; callback failures are
+retained in `game.finalization_errors` and the first exception is re-raised
+after the other finalizers have been attempted.
 
 ## Explicit policies and traces
 
@@ -81,7 +84,8 @@ trace = driver.trace
 The driver requires external control. It calls only the supplied policies,
 regardless of `human`, and uses `advance()` for each accepted action. A missing
 policy pauses at that team's decision. The optional bound counts accepted
-decisions; without a bound it continues until a missing policy or terminal.
+decisions; without this decision bound it continues until a missing policy,
+terminal state, or execution-budget exhaustion.
 `run()` returns the last advance result, or an empty-events result when it did
 not advance. The trace is cumulative: every entry contains choosing agent/team
 IDs, offered choices, normalized action, new events, next actor and terminal flag
@@ -91,3 +95,30 @@ RNG or clocks, and is not a portable replay format. Rejected input adds no entry
 Legacy `init/step` use the separate compatibility scheduler in `core/driver.py`,
 which preserves human pauses, slow-mode ticks and competition clock handling.
 Existing environment and competition consumers continue using that default path.
+
+## Execution limits and clocks
+
+`init`, `step`, `advance`, `refresh`, and `PolicyDriver.run` accept `max_steps`
+(default 100000). It bounds engine steps and policy attempts, including automatic
+consequences. Pass a `bb.StepBudget(N)` to share a remaining budget across calls;
+`Competition(..., max_steps=N)` shares one budget across each game's retries.
+Exhaustion raises `GameTruncatedError` with code `step_budget`, procedure names
+and offered choices. It does not set `game_over`, assign a winner, or invoke
+end-of-game callbacks. Already executed steps are retained. This administrative
+limit is separate from the normal pause at `max_decisions` and cannot interrupt
+a synchronous bot callback that never returns; remote bots need transport timeouts.
+Bot exceptions propagate with their cause and do not become sporting results.
+
+`Game(..., time_source=callable)` and `Clock(..., time_source=callable)` allow an
+injectable monotonic time source for durations; the default is `time.monotonic`.
+`start_time`, `end_time`, request/action timestamps and `Clock.started_at` remain
+wall-clock audit timestamps. A running clock expires at its exact limit. Paused
+time is excluded, repeated pause/resume calls are harmless, and checking clocks
+does not resume a deliberately paused clock. Procedure transitions still resume
+the primary clock when a secondary decision ends.
+
+Legacy competition timeouts force validated decisions to end the expired turn.
+Setup uses the configured formation planner, including individual placements
+when no formation macro is offered. If no legal forced continuation can be
+selected, `NoProgressError` reports the cause without inventing a match result.
+External `advance` continues to leave timeout enforcement to its caller.

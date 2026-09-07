@@ -145,7 +145,7 @@ def test_rejected_action_preserves_entire_game(client, game, action, status):
 
 def test_repeated_observation_never_refreshes(client, game, monkeypatch):
     game.add_primary_clock(game.active_team)
-    game.state.clocks[0].started_at -= 1000  # Expired; GET must not enforce it.
+    game.state.clocks[0]._started_at -= 1000  # Expired; GET must not enforce it.
     game.config.competition_mode = True
     assert act(client, game, {'action_type': 'START_MOVE', 'position': {'x': 3, 'y': 3}}).status_code == 200
     before = pickle.dumps(game)
@@ -162,7 +162,7 @@ def test_repeated_observation_never_refreshes(client, game, monkeypatch):
 
 def test_explicit_update_enforces_expired_clock(client, game):
     game.add_primary_clock(game.active_team)
-    game.state.clocks[0].started_at -= 1000
+    game.state.clocks[0]._started_at -= 1000
     game.config.competition_mode = True
     before = game.active_team.team_id, len(game.state.reports)
     response = client.post('/games/' + game.game_id + '/update', json={})
@@ -197,7 +197,7 @@ def test_two_clients_serialize_decisions(client, game):
     before = pickle.dumps(game)
     observed = client.get('/games/' + game.game_id).json
     assert pickle.dumps(game) == before
-    # Clock JSON measures elapsed wall time; the underlying clocks stay intact.
+    # Clock JSON measures elapsed monotonic time; the underlying clocks stay intact.
     accepted['state']['clocks'] = observed['state']['clocks'] = None
     assert observed == accepted
     assert game.action.action_type == bb.ActionType.START_MOVE
@@ -216,7 +216,7 @@ def test_internal_error_is_json_failure(client, game, monkeypatch):
 def slow_bot_game(client, host, monkeypatch):
     monkeypatch.setitem(registry.bots, 'web-test-illegal', IllegalActionBot)
     # Keep elapsed clock JSON comparable between the acting and observing clients.
-    monkeypatch.setattr('botbowl.core.model.time.time', lambda: 10000.0)
+    monkeypatch.setattr('botbowl.core.model.time.monotonic', lambda: 10000.0)
 
     def create(bot_side):
         name = client.get('/teams/1v1').json[0]['name']
@@ -342,9 +342,9 @@ def test_save_load_continuation_actions_and_randomness(client, host, monkeypatch
     assert game.capture_rng_state() == loaded.capture_rng_state()
     initial_rng = game.capture_rng_state()
     for tick in range(64):
-        # Equal wall time for both continuations; compare semantic game state,
+        # Equal monotonic time for both continuations; compare semantic game state,
         # reports, all natural/forced RNG and decisions after every HTTP action.
-        monkeypatch.setattr('botbowl.core.model.time.time', lambda: 100000.0 + tick)
+        monkeypatch.setattr('botbowl.core.model.time.monotonic', lambda: 100000.0 + tick)
         action = progress_action(game).to_json()
         left = act(client, game, action)
         right = act(client, loaded, action)
@@ -363,7 +363,7 @@ def test_save_load_continuation_actions_and_randomness(client, host, monkeypatch
 
 def test_save_preserves_running_and_paused_clocks(client, host, game, monkeypatch):
     now = [1000.0]
-    monkeypatch.setattr('botbowl.core.model.time.time', lambda: now[0])
+    monkeypatch.setattr('botbowl.core.model.time.monotonic', lambda: now[0])
     game.add_primary_clock(game.active_team)
     now[0] += 10
     game.add_secondary_clock(game.active_team)

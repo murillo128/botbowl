@@ -6,6 +6,7 @@ Year: 2019
 This module contains a competition class to handle a competition between two bots.
 """
 import tabulate
+import time
 from contextlib import ExitStack
 from itertools import combinations
 from typing import Callable, Optional, Any, List
@@ -18,6 +19,7 @@ from botbowl.core.model import Team
 from botbowl.core import (
     Game,
     InvalidActionError,
+    StepBudget,
     Agent,
     Configuration,
     RuleSet,
@@ -54,6 +56,7 @@ class Competition:
         arena: Optional[TwoPlayerArena],
         n: int = 2,
         record=False,
+        max_steps=100000,
     ):
         if type(n) is not int or n < 0 or n % 2 != 0:
             raise ValueError("Number of games must be a nonnegative even integer")
@@ -69,6 +72,8 @@ class Competition:
         self.results = None
         self.ruleset = ruleset
         self.record = record
+        StepBudget(max_steps)  # Validate before running games or callbacks.
+        self.max_steps = max_steps
 
     def run(self):
         results: List[GameResult] = []
@@ -104,24 +109,32 @@ class Competition:
     def _run_game(self, game: Game):
         if game.is_started():
             raise ValueError("Competition requires an unstarted game")
+        budget = StepBudget(self.max_steps)
         try:
             # game will finish or throw exception
-            game.init()
+            game.init(max_steps=budget)
         except InvalidActionError as e:
             print(e)
 
         while not game.state.game_over:
+            budget.consume(game)
             time_left = game.get_seconds_left()
             if time_left is None or time_left > 0:
                 try:
                     assert game.actor is not None
-                    action = game.actor.act(game)  # Allow actor to try again
-                    game.step(action)
+                    game.last_request_time = time.time()
+                    try:
+                        action = game._safe_act()  # Allow actor to try again.
+                    finally:
+                        game.last_action_time = time.time()
+                    if game._check_clocks(max_steps=budget):
+                        continue  # A late retry belongs to the expired decision.
+                    game.step(action, max_steps=budget)
                 except InvalidActionError as e:
                     print(e)
             else:
                 print("Using forced action")
-                game.step(game._forced_action())
+                game.step(game._forced_action(), max_steps=budget)
 
 
 AgentCreator = Callable[[], Agent]

@@ -1,6 +1,6 @@
 import pytest
 from numpy.random import RandomState
-from multiprocessing import Process, Pipe
+from multiprocessing import get_context
 import itertools
 from random import randint
 from typing import Optional
@@ -205,53 +205,78 @@ def test_observation_ranges(pathfinding):
 
 def worker(remote, parent_remote, env: BotBowlEnv):
     parent_remote.close()
-    seed = env._seed
-    rnd = np.random.RandomState(seed)
-    steps = 0
-    _, _, mask = env.reset()
-    while True:
-        command = remote.recv()
-        if command == 'step':
-            aa = np.where(mask > 0.0)[0]
-            action_idx = rnd.choice(aa, 1)[0]
-            obs, reward, done, info = env.step(action_idx)
-            mask = obs[2]
-            steps += 1
-            if done:
-                obs = env.reset()
-            remote.send((obs, reward, done, info))
-        elif command == 'reset':
-            obs = env.reset()
-            mask = obs[2]
-            done = False
-            remote.send(obs)
-        elif command == 'close':
+    try:
+        rnd = np.random.RandomState(env._seed)
+        _, _, mask = env.reset()
+        while True:
+            try:
+                command = remote.recv()
+            except EOFError:
+                break
+            if command == 'step':
+                aa = np.where(mask > 0.0)[0]
+                action_idx = rnd.choice(aa, 1)[0]
+                obs, reward, done, info = env.step(action_idx)
+                if done:
+                    obs = env.reset()
+                mask = obs[2]
+                remote.send((obs, reward, done, info))
+            elif command == 'close':
+                break
+            else:
+                raise ValueError(command)
+    finally:
+        try:
             env.close()
-            break
+        finally:
+            remote.close()
 
 
 def test_multiple_gyms():
-    nenvs = 2
+    ctx = get_context('spawn')
     ps = []
     remotes = []
-    for _ in range(nenvs):
-        env = BotBowlEnv()
-        remote, work_remote = Pipe()
-        p = Process(target=worker, args=(work_remote, remote, env), daemon=True)
-        p.start()
-        work_remote.close()
-
-        ps.append(p)
-        remotes.append(remote)
-
-    for i in range(20):
+    try:
+        for _ in range(2):
+            env = BotBowlEnv()
+            remote, work_remote = ctx.Pipe()
+            p = ctx.Process(target=worker, args=(work_remote, remote, env))
+            p.start()
+            work_remote.close()
+            ps.append(p)
+            remotes.append(remote)
+        for _ in range(20):
+            for remote in remotes:
+                remote.send('step')
+            for remote in remotes:
+                assert remote.poll(10), 'Gym worker did not respond within its budget'
+                obs, reward, done, info = remote.recv()
+                assert reward is not None and obs is not None
+    finally:
         for remote in remotes:
-            remote.send('step')
+            try:
+                remote.send('close')
+            except (BrokenPipeError, EOFError):
+                pass
+        for p in ps:
+            p.join(timeout=10)
         for remote in remotes:
-            obs, reward, done, info = remote.recv()
-            assert reward is not None
-            assert obs is not None
+            remote.close()
+    assert all(not p.is_alive() and p.exitcode == 0 for p in ps)
 
-    for remote, p in zip(remotes, ps):
-        remote.send('close')
-        p.join()
+
+def test_a2c_spawn_worker_with_real_gym():
+    from botbowl.ai.env import BotBowlWrapper
+    from examples.a2c.vec_env import VecEnv
+
+    envs = VecEnv([BotBowlWrapper(BotBowlEnv(EnvConf(size=1, pathfinding=False), seed=0))],
+                  reset_steps=1, timeout=10)
+    try:
+        _, _, masks, *rest = envs.reset()
+        action = int(np.flatnonzero(masks[0])[0])
+        *obs, terminated, truncated = envs.step([action])
+        assert not terminated[0] and truncated[0]
+    finally:
+        envs.close()
+    assert all(not p.is_alive() and p.exitcode == 0 for p in envs.ps)
+    assert all(r.closed for r in envs.remotes)
