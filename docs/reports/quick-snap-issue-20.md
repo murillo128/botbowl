@@ -1,0 +1,230 @@
+# Quick Snap / forward-model investigation
+
+Source: accepted `a9a931a4618ea4b3cb45e92ccbffdf23e97bcc6b`. The historical
+setup control also runs on accepted baseline #4,
+`26989d87ac95c8354c68dc08e2d39aad4d995e9e`. No production file, inherited test,
+expectation, or xfail is changed by this investigation.
+
+The reported Quick Snap `player.position is None` crash **was not reproduced**
+in the configurations below. Its risk remains unresolved. Three other findings
+are distinguishable: an inherited setup undo defect, an inherited comparison
+helper defect, and a controlled example-search hash collision. None establishes
+the historical crash's cause.
+
+## Bounded Quick Snap experiment
+
+`tests/framework/test_quick_snap_forward_model.py` constructs independent games
+through START_GAME, HEADS, the required KICK/RECEIVE decision, stock defensive
+Spread and offensive Wedge formations, and END_SETUP. Both setups are checked
+for legality and exact on-pitch count. Each game loads its own teams/configuration;
+stable roster IDs permit comparison without sharing mutable game objects.
+
+The matrix is the Cartesian product of:
+
+- Stock `gym-1` and `gym-3`, with human rosters: 1 or 3 players on each side.
+- Home and away receiving Quick Snap.
+- `pathfinding_enabled=False` and `True`.
+- Game seeds 0, 3, 17; a separate `random.Random(seed + 1000)` selects committed
+  decisions. The original seed-3 setup control intentionally retains its original
+  shared game/policy sampling order instead.
+
+This is **24 configurations per backend**, run against Python and compiled native
+pathfinding. The test starts before PLACE_BALL and forces the kickoff event,
+not a synthetic Turn stack. Forced dice are D8=2 for scatter direction; gym-1
+uses D6=[1,4,5], and gym-3 uses D3=[1], D6=[4,5]. Natural randomness resumes
+after those queues are consumed. A central unoccupied receiving-side target is
+chosen deterministically. Actual initial states and every attempted decision
+are retained in the optional evidence files.
+
+At each visited Quick Snap decision, all available player activations, square
+targets, END_PLAYER_TURN, UNDO, and END_TURN alternatives are explored separately.
+Each alternative reconstructs a fresh clean game and replays the committed
+prefix plus that alternative. It is then executed three times, checking each
+advance, legacy revert, forward, and explicit checkpoint restore. Choices are
+regenerated twice at each visited decision. The committed policy prefers movement
+and has a hard 24-decision Quick Snap budget. This is a bounded set of all
+one-action alternatives along each selected prefix, **not exhaustive search of
+all multi-action sequences**.
+
+The sequence covers entry into Quick Snap, movement/activation completion, exit,
+any pending kickoff touchback selection, and the first ordinary START_MOVE.
+Quick Snap itself uses adjacent-move actions with either pathfinding setting;
+the ordinary activation asserts that paths actually exist when pathfinding is
+enabled. Finally the complete multi-decision sequence is reverted, forwarded,
+checkpoint-restored, and replayed against another independent clean execution
+three times, checking each transition.
+
+## Observability and equivalence
+
+The observer compares complete public state fields, full player/team definitions,
+procedure type/order and public fields (including context, flags, paths and
+steps), action choices, reports, board, dugouts, ball state and activation state.
+It normalizes roster references to stable IDs, immutable squares to coordinates,
+NumPy values and reversible/plain container representations. Public class
+defaults are included whether trajectory has copied them onto the instance or
+they still live on the class. Paths are compared through all public result data
+(steps, rolls, probability and terminal metadata), not internal search caches.
+Dictionary keys are compared as well as values, avoiding the inherited helper.
+
+Independent consistency checks require canonical player/team references through
+the object graph; unique board occupants; both directions of the board/position
+mapping; canonical square references for on-pitch players; game references on
+procedures; and a single shared ball object across pitch and pending procedures.
+In Quick Snap they also check the receiving/current/active team, available
+START_MOVE players, active-player/procedure identity, non-None active position,
+and exact adjacent MOVE target set with zero movement used and no roll/path data.
+Undo also checks original player, stack and available-action-list identities.
+
+RNG is checked separately under #14's explicit contract. Legacy `revert/forward`
+must retain the advanced RNG/forced queues. `restore_checkpoint` must restore
+the captured RNG/queues. Clean controls receive the same decisions and their
+final RNG must match. Clocks, Game wall-time fields, policy state, persistent
+replays and trajectory bookkeeping are outside semantic equality, as documented
+in `docs/forward-model.md`. No legacy-RNG restoration assumption is made.
+
+Five extra tests cover four side/pathfinding combinations of stale START_MOVE
+rejection and detached-player canonicalization, plus an observer control that
+deliberately introduces a missing position, a foreign board player reference,
+and equal-length dictionaries with different Square keys. The corruption checks
+must fail; the key change must produce a semantic difference. There is no
+None-position skip and no new expected failure in the default suite.
+
+## Reproduced setup defect
+
+The unchanged `packaging-forward-model-reproduction.py` exits 1 at seed 3,
+zero-based step 167, SETUP_FORMATION_ZONE. Its JSON is byte-identical on the
+accepted investigation base and baseline #4 in isolated CPython 3.11.16 runtimes.
+The earlier #5 controls on CPython 3.14 remain documented in
+`packaging-issue-5.md`; this investigation does not claim a new 3.14 run.
+
+An observer around the unchanged script retains all **335 external decisions**
+(167 advance/revert/advance pairs and the final failing probe). The final Setup
+has `reorganize=True`: Perfect Defence. Its formation performs swaps
+`(6,12),(7,12),(8,12),(1,1),(2,2),(3,3),(4,4),(9,12),(10,12),(11,12),(12,12)`
+and creates **zero MovementSteps**. Away jerseys 6–12 retain the reported rotated
+positions after undo.
+
+The minimal reduction uses legal gym-3 formations and forces Perfect Defence
+(D6=2+2), then issues **one** legal PLACE_PLAYER onto another player's occupied
+square. Both sides reproduce at seed 0:
+
+| Reorganizing side | Placement | Original occupants | After checkpoint restore |
+| --- | --- | --- | --- |
+| Home | jersey 1 to (9,4) | jersey 1=(9,2), jersey 3=(9,4) | jersey 1=(9,4), jersey 3=(9,2) |
+| Away | jersey 1 to (4,4) | jersey 1=(4,2), jersey 3=(4,4) | jersey 1=(4,4), jersey 3=(4,2) |
+
+Each action records two trajectory entries but zero MovementSteps. RNG restores
+exactly, and the board and player positions remain mutually consistent in the
+wrong swapped state. This demonstrates why position/reference consistency alone
+is insufficient: equivalence with the original state is also required. A legal
+placement onto an empty square round-trips on both sides as a negative control.
+
+Cause: `Setup.step(PLACE_PLAYER)` calls `Game.swap` for an occupied square.
+`Game.swap` directly assigns player positions and board cells. `Player.position`
+and `Pitch.board` are explicitly ignored by generic reversibility; the swap does
+not supply the MovementSteps used by `Game.move/remove/put`. The formation
+reduction and the one-action reduction reach this same untracked swap path.
+
+Bounded correction proposal, requiring an explicit ownership/implementation
+decision: make player/player swaps record reversible changes for both original
+occupants and positions, including self-swap behavior. Preserve existing clean
+ball/carrier behavior and validate legacy undo/redo plus checkpoint replay and
+both-side setup formation cases. Affected implementation would be
+`botbowl/core/game.py::Game.swap`, possibly a dedicated step in
+`botbowl/core/forward_model.py`, and focused setup/forward-model tests. The
+probability-query owner also works in game.py, so this proposal is not applied
+incidentally here. It does not propose making position-less players disappear
+from Quick Snap action generation.
+
+## Comparison helper and search-consumer controls
+
+`compare_iterable({Square(1,2): 1}, {Square(10,8): 1})` raises KeyError on the
+accepted source, confirming #13's comment. Equal dictionary lengths do not imply
+equal keys; the helper indexes the second dictionary without checking. This is
+an observability defect and can occur before undo is tested. A separate bounded
+proposal would compare dictionary key sets in `botbowl/core/util.py` and add a
+focused utility regression. No helper correction is included.
+
+The accepted example MCTS caches decisions by `examples/hash_example.py`'s
+approximate `gamestate_hash`. In gym-3 Quick Snap, activating jersey 1, reverting
+the root checkpoint, then activating jersey 3 produces the same example hash
+but different semantic state and legal MOVE targets, on either receiving side.
+The hash includes action types and report count but omits the active player,
+available targets, report content and full procedure state.
+
+A MOVE cached from the first branch to (8,3) for home or (7,2) for away is invalid
+in the second branch. Public `Game.step` rejects it with `invalid_target` while
+state and RNG remain unchanged. Separately, the tests show that a detached player
+with matching IDs is normalized to this game's canonical player; a repeated
+START_MOVE is rejected while an activation is already in progress and becomes
+legal again after root restoration. Therefore action reuse must be evaluated
+against the current decision state, not object age alone.
+
+The hash collision is a concrete consumer-cache risk consistent with the example
+search architecture. It is **not a reproduction of the upstream MCTS crash**:
+that historical run's seed, decisions and exact version are unavailable. No MCTS
+rollout or large game corpus is substituted for them. If adopted separately, a
+consumer correction would concern `examples/hash_example.py`,
+`examples/mcts_example.py` and focused cache-equivalence tests. Neither an engine
+fix nor a new epic dependency is inferred from this finding.
+
+## Reproduction and results
+
+From the repository root with an installed development environment:
+
+```sh
+BOTBOWL_ISSUE20_EVIDENCE=/tmp/botbowl-issue20-evidence/replay \
+  python -m pytest tests/framework/test_quick_snap_forward_model.py -q --require-pathfinding python
+PYTHONPATH=. python docs/reports/quick-snap-diagnosis.py setup --side 0
+PYTHONPATH=. python docs/reports/quick-snap-diagnosis.py setup --side 1
+PYTHONPATH=. python docs/reports/quick-snap-diagnosis.py helper
+PYTHONPATH=. python docs/reports/quick-snap-diagnosis.py consumer --side 0
+PYTHONPATH=. python docs/reports/quick-snap-diagnosis.py consumer --side 1
+PYTHONPATH=. python docs/reports/quick-snap-diagnosis.py original \
+  --trace /tmp/botbowl-issue20-evidence/original-full-trace.json
+```
+
+`setup`, `helper`, and `original` intentionally exit **1** on the observed
+defects. The consumer controls exit **0** after checking the collision and safe
+rejection. For native testing, install a native build and require `native`;
+the backend assertion fails before collection if the expected implementation
+was not loaded. The native runtime/source and historical baseline runtime/source
+are isolated under `/tmp/botbowl-issue20-*`.
+
+Validation totals and configuration counts are recorded in the accompanying
+`quick-snap-issue-20.json`:
+
+| Validation | Result |
+| --- | --- |
+| Final focused Python target | 29 passed |
+| Final focused native target | 29 passed |
+| Existing Python suite (focused file excluded) | 816 passed, 279 native-only skips, 1 inherited timestamp xfail |
+| Native full run | 1,124 passed, 1 inherited timestamp xfail |
+
+Each backend's final matrix checks 10,208 game transitions, 240 repeated queries
+and 24 initial fixtures. It executes 3,026 advances, including 774 one-action
+round-trip probes repeated three times and 72 whole-sequence round trips.
+There are no observed semantic/RNG divergences in those configurations.
+
+The native full run used the 29-test observer revision preceding the final
+ball-reference/branch-state identity assertions and expanded evidence capture.
+Its existing engine and tests are unchanged from the accepted base. The final
+29-test file was separately rerun against both backends; both source hashes are
+retained in the JSON so the full-run and final-focused targets are distinguishable.
+The passing unseeded inherited suite does not negate the preserved seeded setup
+failure. All runs use CPython 3.11.16; focused runtime versions include NumPy
+1.26.4, pytest 9.1.1 and untangle 1.2.1.
+
+Full logs, per-transition hashes, initial states,
+decisions and first-divergence snapshots remain outside Git under
+`/tmp/botbowl-issue20-evidence/`. The two initial observer-development failures
+(NumPy formation arrays and class-default normalization) and the first historical
+control's mixed-version Gym entry-point failure are preserved there. They were
+instrument/runtime failures; their corrections did not change engine behavior or
+weaken equality. The isolated historical rerun preserves the original engine
+failure exactly.
+
+The investigation supports a bounded evidence deliverable with the original
+Quick Snap risk unresolved. Accepting or implementing the separate correction
+proposals requires an explicit subsequent scope/ownership decision; a passing
+matrix is not proof that the reported crash was fixed or cannot occur.

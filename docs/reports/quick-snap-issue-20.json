@@ -1,0 +1,953 @@
+{
+  "accepted_base": "a9a931a4618ea4b3cb45e92ccbffdf23e97bcc6b",
+  "controls": {
+    "consumer-side0": {
+      "cached_move": [
+        "MOVE",
+        null,
+        [
+          8,
+          3
+        ]
+      ],
+      "correction_proposal": "separately scope example search identity/action-cache correction if adopted",
+      "criterion": "cached search decisions require equivalent full decision state, not this approximate hash alone",
+      "different_semantic_state": true,
+      "finding": "example MCTS hash aliases distinct active-player states",
+      "first_activation": [
+        "START_MOVE",
+        "0-1",
+        null
+      ],
+      "pending": "controlled consumer risk only; historical Quick Snap None-position crash not established",
+      "rejection": "invalid_target",
+      "same_example_hash": true,
+      "second_activation": [
+        "START_MOVE",
+        "0-3",
+        null
+      ],
+      "seed": 0,
+      "side": 0
+    },
+    "consumer-side1": {
+      "cached_move": [
+        "MOVE",
+        null,
+        [
+          7,
+          2
+        ]
+      ],
+      "correction_proposal": "separately scope example search identity/action-cache correction if adopted",
+      "criterion": "cached search decisions require equivalent full decision state, not this approximate hash alone",
+      "different_semantic_state": true,
+      "finding": "example MCTS hash aliases distinct active-player states",
+      "first_activation": [
+        "START_MOVE",
+        "1-1",
+        null
+      ],
+      "pending": "controlled consumer risk only; historical Quick Snap None-position crash not established",
+      "rejection": "invalid_target",
+      "same_example_hash": true,
+      "second_activation": [
+        "START_MOVE",
+        "1-3",
+        null
+      ],
+      "seed": 0,
+      "side": 1
+    },
+    "helper": {
+      "correction_proposal": "compare dictionary key sets before indexing",
+      "criterion": "return a nonempty difference list",
+      "exception": "KeyError(Square(1, 2, out=None))",
+      "finding": "comparison helper indexes a missing equal-length dictionary key",
+      "pending": "separate helper scope decision; no correction applied"
+    },
+    "original_setup": {
+      "accepted_and_baseline4_json_byte_identical": true,
+      "decisions": 335,
+      "failure_json_sha256": "77f369d0c7c7e2c2666f94e0db375be8e37aad79e780858a4ee1714ad28c6904",
+      "result": "expected exit 1, seed 3, step 167, Setup(reorganize=True), SETUP_FORMATION_ZONE",
+      "trace_sha256": "bad32f6ec2d7e12e6a5859814eed7edd6890155a3eb5098e2bf16d73c771562f"
+    },
+    "setup-side0": {
+      "after_restore": [
+        [
+          "0-1",
+          [
+            9,
+            4
+          ]
+        ],
+        [
+          "0-3",
+          [
+            9,
+            2
+          ]
+        ],
+        [
+          "0-5",
+          null
+        ],
+        [
+          "0-6",
+          [
+            7,
+            3
+          ]
+        ],
+        [
+          "1-1",
+          [
+            6,
+            2
+          ]
+        ],
+        [
+          "1-3",
+          [
+            3,
+            3
+          ]
+        ],
+        [
+          "1-5",
+          null
+        ],
+        [
+          "1-6",
+          [
+            6,
+            4
+          ]
+        ]
+      ],
+      "before": [
+        [
+          "0-1",
+          [
+            9,
+            2
+          ]
+        ],
+        [
+          "0-3",
+          [
+            9,
+            4
+          ]
+        ],
+        [
+          "0-5",
+          null
+        ],
+        [
+          "0-6",
+          [
+            7,
+            3
+          ]
+        ],
+        [
+          "1-1",
+          [
+            6,
+            2
+          ]
+        ],
+        [
+          "1-3",
+          [
+            3,
+            3
+          ]
+        ],
+        [
+          "1-5",
+          null
+        ],
+        [
+          "1-6",
+          [
+            6,
+            4
+          ]
+        ]
+      ],
+      "correction_proposal": "Log the player/player swap in Game.swap through reversible movement operations",
+      "criterion": "restore_checkpoint returns the original semantic state and original occupants",
+      "decision": [
+        "PLACE_PLAYER",
+        "0-1",
+        [
+          9,
+          4
+        ]
+      ],
+      "empty_square_control": "pass",
+      "finding": "legal occupied-square setup placement is not undone",
+      "fixture": "stock gym-3; legal formations; forced Perfect Defence (2+2)",
+      "movement_steps": 0,
+      "pending": "parent ownership decision and independent diagnostic review; no correction applied",
+      "reproduced": true,
+      "rng_control": "restored exactly",
+      "seed": 0,
+      "side": 0,
+      "trajectory_entries": 2
+    },
+    "setup-side1": {
+      "after_restore": [
+        [
+          "0-1",
+          [
+            7,
+            2
+          ]
+        ],
+        [
+          "0-3",
+          [
+            10,
+            3
+          ]
+        ],
+        [
+          "0-5",
+          null
+        ],
+        [
+          "0-6",
+          [
+            7,
+            4
+          ]
+        ],
+        [
+          "1-1",
+          [
+            4,
+            4
+          ]
+        ],
+        [
+          "1-3",
+          [
+            4,
+            2
+          ]
+        ],
+        [
+          "1-5",
+          null
+        ],
+        [
+          "1-6",
+          [
+            6,
+            3
+          ]
+        ]
+      ],
+      "before": [
+        [
+          "0-1",
+          [
+            7,
+            2
+          ]
+        ],
+        [
+          "0-3",
+          [
+            10,
+            3
+          ]
+        ],
+        [
+          "0-5",
+          null
+        ],
+        [
+          "0-6",
+          [
+            7,
+            4
+          ]
+        ],
+        [
+          "1-1",
+          [
+            4,
+            2
+          ]
+        ],
+        [
+          "1-3",
+          [
+            4,
+            4
+          ]
+        ],
+        [
+          "1-5",
+          null
+        ],
+        [
+          "1-6",
+          [
+            6,
+            3
+          ]
+        ]
+      ],
+      "correction_proposal": "Log the player/player swap in Game.swap through reversible movement operations",
+      "criterion": "restore_checkpoint returns the original semantic state and original occupants",
+      "decision": [
+        "PLACE_PLAYER",
+        "1-1",
+        [
+          4,
+          4
+        ]
+      ],
+      "empty_square_control": "pass",
+      "finding": "legal occupied-square setup placement is not undone",
+      "fixture": "stock gym-3; legal formations; forced Perfect Defence (2+2)",
+      "movement_steps": 0,
+      "pending": "parent ownership decision and independent diagnostic review; no correction applied",
+      "reproduced": true,
+      "rng_control": "restored exactly",
+      "seed": 0,
+      "side": 1,
+      "trajectory_entries": 2
+    }
+  },
+  "historical_control_base": "26989d87ac95c8354c68dc08e2d39aad4d995e9e",
+  "matrix": {
+    "native": {
+      "advance_executions": 3026,
+      "checked_game_transitions": 10208,
+      "configuration_count": 24,
+      "configurations": [
+        {
+          "checked_game_transitions": 233,
+          "committed_decision_count": 5,
+          "configuration": {
+            "pathfinding": false,
+            "receiving": 0,
+            "seed": 0,
+            "size": 1
+          },
+          "event_log_sha256": "ff9a328dfb0809386a47396438278eeebcfa6550286cdb7b4e6ca7ec610fba34"
+        },
+        {
+          "checked_game_transitions": 233,
+          "committed_decision_count": 5,
+          "configuration": {
+            "pathfinding": false,
+            "receiving": 0,
+            "seed": 17,
+            "size": 1
+          },
+          "event_log_sha256": "7980043dec7c1e5152c0cb370f751ddabfe87decf434c6dad03ecbece1cc05e0"
+        },
+        {
+          "checked_game_transitions": 233,
+          "committed_decision_count": 5,
+          "configuration": {
+            "pathfinding": false,
+            "receiving": 0,
+            "seed": 3,
+            "size": 1
+          },
+          "event_log_sha256": "e0b16e57c17287bd5aa7a9af929be416924e7c64be91d2a8e61a5ae7f712833e"
+        },
+        {
+          "checked_game_transitions": 233,
+          "committed_decision_count": 5,
+          "configuration": {
+            "pathfinding": true,
+            "receiving": 0,
+            "seed": 0,
+            "size": 1
+          },
+          "event_log_sha256": "156813c2f4a67d55c3ffd50b7e3244d5903c6d127820308d27a38243be4e0499"
+        },
+        {
+          "checked_game_transitions": 233,
+          "committed_decision_count": 5,
+          "configuration": {
+            "pathfinding": true,
+            "receiving": 0,
+            "seed": 17,
+            "size": 1
+          },
+          "event_log_sha256": "5f0d2e2bc6db9e00eab9fe86a1f46099dad961fb96372f87c3c71d5f46bdf8bf"
+        },
+        {
+          "checked_game_transitions": 233,
+          "committed_decision_count": 5,
+          "configuration": {
+            "pathfinding": true,
+            "receiving": 0,
+            "seed": 3,
+            "size": 1
+          },
+          "event_log_sha256": "b74b86b04a484b5db3a29df2f7351e6c7221e47654c54a539cde05c46bc93f18"
+        },
+        {
+          "checked_game_transitions": 249,
+          "committed_decision_count": 6,
+          "configuration": {
+            "pathfinding": false,
+            "receiving": 1,
+            "seed": 0,
+            "size": 1
+          },
+          "event_log_sha256": "f570b06cf8860b5b70e7e6311e0a6fbabc0fde81b37f9fcf9a41c3e349e56e0f"
+        },
+        {
+          "checked_game_transitions": 233,
+          "committed_decision_count": 5,
+          "configuration": {
+            "pathfinding": false,
+            "receiving": 1,
+            "seed": 17,
+            "size": 1
+          },
+          "event_log_sha256": "91da5cc1c86bea43effbe57ea623c784e27d080c4b6198a8564210211650ddf5"
+        },
+        {
+          "checked_game_transitions": 249,
+          "committed_decision_count": 6,
+          "configuration": {
+            "pathfinding": false,
+            "receiving": 1,
+            "seed": 3,
+            "size": 1
+          },
+          "event_log_sha256": "4e0456130e5f89b81f447ff8ee7b526ab168ca0752593cc1af6b610ef0e781e0"
+        },
+        {
+          "checked_game_transitions": 249,
+          "committed_decision_count": 6,
+          "configuration": {
+            "pathfinding": true,
+            "receiving": 1,
+            "seed": 0,
+            "size": 1
+          },
+          "event_log_sha256": "04e94fcbf533e16fcb2da56fbc3fce398842803a95ed93368187309ac7782f09"
+        },
+        {
+          "checked_game_transitions": 233,
+          "committed_decision_count": 5,
+          "configuration": {
+            "pathfinding": true,
+            "receiving": 1,
+            "seed": 17,
+            "size": 1
+          },
+          "event_log_sha256": "5f44f37fc1a22945b22b5f16d9d03c9f9ccb24c3f87bf35485ee6ea33ba03fe4"
+        },
+        {
+          "checked_game_transitions": 249,
+          "committed_decision_count": 6,
+          "configuration": {
+            "pathfinding": true,
+            "receiving": 1,
+            "seed": 3,
+            "size": 1
+          },
+          "event_log_sha256": "5a154c45c022c4a72cd6b1cd3f429b5480665ed43d5c71fe1ae4b38de378fd77"
+        },
+        {
+          "checked_game_transitions": 613,
+          "committed_decision_count": 10,
+          "configuration": {
+            "pathfinding": false,
+            "receiving": 0,
+            "seed": 0,
+            "size": 3
+          },
+          "event_log_sha256": "c7c8392a189b948a213d9320ec15c02822d45a1b89ebcae2b1c27c45b5678a06"
+        },
+        {
+          "checked_game_transitions": 609,
+          "committed_decision_count": 9,
+          "configuration": {
+            "pathfinding": false,
+            "receiving": 0,
+            "seed": 17,
+            "size": 3
+          },
+          "event_log_sha256": "ca818d9db41b1e1301093972d53d6dc7432e110a8a003065f133516e0193fa8f"
+        },
+        {
+          "checked_game_transitions": 625,
+          "committed_decision_count": 10,
+          "configuration": {
+            "pathfinding": false,
+            "receiving": 0,
+            "seed": 3,
+            "size": 3
+          },
+          "event_log_sha256": "7417515e3fca404fba8a46bd4e49c1fabfd4b848bd62e9da27258e715c54d36c"
+        },
+        {
+          "checked_game_transitions": 613,
+          "committed_decision_count": 10,
+          "configuration": {
+            "pathfinding": true,
+            "receiving": 0,
+            "seed": 0,
+            "size": 3
+          },
+          "event_log_sha256": "ca20283255a02322055341355347f91818c1359dbe6d527267ed947920dd8c09"
+        },
+        {
+          "checked_game_transitions": 609,
+          "committed_decision_count": 9,
+          "configuration": {
+            "pathfinding": true,
+            "receiving": 0,
+            "seed": 17,
+            "size": 3
+          },
+          "event_log_sha256": "b16cdda01c1565e5a1cce955879b5c150565e24028e0860e067f8f1ac0666885"
+        },
+        {
+          "checked_game_transitions": 625,
+          "committed_decision_count": 10,
+          "configuration": {
+            "pathfinding": true,
+            "receiving": 0,
+            "seed": 3,
+            "size": 3
+          },
+          "event_log_sha256": "eb68b48d738e5d176ade350ab095517ff39734a9d217405b204daf0664e917cc"
+        },
+        {
+          "checked_game_transitions": 609,
+          "committed_decision_count": 9,
+          "configuration": {
+            "pathfinding": false,
+            "receiving": 1,
+            "seed": 0,
+            "size": 3
+          },
+          "event_log_sha256": "f928008c397fe4eb9847b781cbaffc131ce9133c295b959990bc9c3382ff3266"
+        },
+        {
+          "checked_game_transitions": 609,
+          "committed_decision_count": 9,
+          "configuration": {
+            "pathfinding": false,
+            "receiving": 1,
+            "seed": 17,
+            "size": 3
+          },
+          "event_log_sha256": "22a5b02187dd3ce2a7929c3be7c8505defb44fbf056702a854a3cb009071f150"
+        },
+        {
+          "checked_game_transitions": 609,
+          "committed_decision_count": 9,
+          "configuration": {
+            "pathfinding": false,
+            "receiving": 1,
+            "seed": 3,
+            "size": 3
+          },
+          "event_log_sha256": "4a5eb69db20889fbf7a6d8f3e3b910bf0d633b341c28ba796b2172255c4acd63"
+        },
+        {
+          "checked_game_transitions": 609,
+          "committed_decision_count": 9,
+          "configuration": {
+            "pathfinding": true,
+            "receiving": 1,
+            "seed": 0,
+            "size": 3
+          },
+          "event_log_sha256": "1c162900bef53dcd83786edf3a41406540d4d442694668278ec440e384512618"
+        },
+        {
+          "checked_game_transitions": 609,
+          "committed_decision_count": 9,
+          "configuration": {
+            "pathfinding": true,
+            "receiving": 1,
+            "seed": 17,
+            "size": 3
+          },
+          "event_log_sha256": "c46962e07f911374e045c300a07cbc52e8f9619c92702ce0d49b0b7367e3f779"
+        },
+        {
+          "checked_game_transitions": 609,
+          "committed_decision_count": 9,
+          "configuration": {
+            "pathfinding": true,
+            "receiving": 1,
+            "seed": 3,
+            "size": 3
+          },
+          "event_log_sha256": "bf0ffa530ba0032faaaf6682fc6cde712d707663fcc934403972410c9b84e49e"
+        }
+      ],
+      "environment": {
+        "backend": "botbowl.core.pathfinding.cython_pathfinding",
+        "extension": "/tmp/botbowl-issue20-native-src/botbowl/core/pathfinding/cython_pathfinding.cpython-311-x86_64-linux-gnu.so",
+        "extension_sha256": "d85e3372bdfcd39dd7cb5be6c4300a39cf2dcaab0edda69d41fae564902c7d56",
+        "package": "/tmp/botbowl-issue20-native-src/botbowl/__init__.py",
+        "platform": "Linux-6.8.0-139-generic-x86_64-with-glibc2.39",
+        "python": "3.11.16 (main, Sep  1 2026, 14:18:37) [Clang 22.1.3 ]",
+        "versions": {
+          "gym": "0.26.2",
+          "numpy": "1.26.4",
+          "pytest": "9.1.1",
+          "untangle": "1.2.1"
+        }
+      },
+      "failures": 0,
+      "repeated_query_checks": 240,
+      "round_trip_probes": 774,
+      "whole_sequence_round_trips": 72
+    },
+    "python": {
+      "advance_executions": 3026,
+      "checked_game_transitions": 10208,
+      "configuration_count": 24,
+      "configurations": [
+        {
+          "checked_game_transitions": 233,
+          "committed_decision_count": 5,
+          "configuration": {
+            "pathfinding": false,
+            "receiving": 0,
+            "seed": 0,
+            "size": 1
+          },
+          "event_log_sha256": "ff9a328dfb0809386a47396438278eeebcfa6550286cdb7b4e6ca7ec610fba34"
+        },
+        {
+          "checked_game_transitions": 233,
+          "committed_decision_count": 5,
+          "configuration": {
+            "pathfinding": false,
+            "receiving": 0,
+            "seed": 17,
+            "size": 1
+          },
+          "event_log_sha256": "7980043dec7c1e5152c0cb370f751ddabfe87decf434c6dad03ecbece1cc05e0"
+        },
+        {
+          "checked_game_transitions": 233,
+          "committed_decision_count": 5,
+          "configuration": {
+            "pathfinding": false,
+            "receiving": 0,
+            "seed": 3,
+            "size": 1
+          },
+          "event_log_sha256": "e0b16e57c17287bd5aa7a9af929be416924e7c64be91d2a8e61a5ae7f712833e"
+        },
+        {
+          "checked_game_transitions": 233,
+          "committed_decision_count": 5,
+          "configuration": {
+            "pathfinding": true,
+            "receiving": 0,
+            "seed": 0,
+            "size": 1
+          },
+          "event_log_sha256": "156813c2f4a67d55c3ffd50b7e3244d5903c6d127820308d27a38243be4e0499"
+        },
+        {
+          "checked_game_transitions": 233,
+          "committed_decision_count": 5,
+          "configuration": {
+            "pathfinding": true,
+            "receiving": 0,
+            "seed": 17,
+            "size": 1
+          },
+          "event_log_sha256": "5f0d2e2bc6db9e00eab9fe86a1f46099dad961fb96372f87c3c71d5f46bdf8bf"
+        },
+        {
+          "checked_game_transitions": 233,
+          "committed_decision_count": 5,
+          "configuration": {
+            "pathfinding": true,
+            "receiving": 0,
+            "seed": 3,
+            "size": 1
+          },
+          "event_log_sha256": "b74b86b04a484b5db3a29df2f7351e6c7221e47654c54a539cde05c46bc93f18"
+        },
+        {
+          "checked_game_transitions": 249,
+          "committed_decision_count": 6,
+          "configuration": {
+            "pathfinding": false,
+            "receiving": 1,
+            "seed": 0,
+            "size": 1
+          },
+          "event_log_sha256": "f570b06cf8860b5b70e7e6311e0a6fbabc0fde81b37f9fcf9a41c3e349e56e0f"
+        },
+        {
+          "checked_game_transitions": 233,
+          "committed_decision_count": 5,
+          "configuration": {
+            "pathfinding": false,
+            "receiving": 1,
+            "seed": 17,
+            "size": 1
+          },
+          "event_log_sha256": "91da5cc1c86bea43effbe57ea623c784e27d080c4b6198a8564210211650ddf5"
+        },
+        {
+          "checked_game_transitions": 249,
+          "committed_decision_count": 6,
+          "configuration": {
+            "pathfinding": false,
+            "receiving": 1,
+            "seed": 3,
+            "size": 1
+          },
+          "event_log_sha256": "4e0456130e5f89b81f447ff8ee7b526ab168ca0752593cc1af6b610ef0e781e0"
+        },
+        {
+          "checked_game_transitions": 249,
+          "committed_decision_count": 6,
+          "configuration": {
+            "pathfinding": true,
+            "receiving": 1,
+            "seed": 0,
+            "size": 1
+          },
+          "event_log_sha256": "920e6b2e63d203ea3633e7e277d800241423a5b16e46f0401149e9ab8a3aa538"
+        },
+        {
+          "checked_game_transitions": 233,
+          "committed_decision_count": 5,
+          "configuration": {
+            "pathfinding": true,
+            "receiving": 1,
+            "seed": 17,
+            "size": 1
+          },
+          "event_log_sha256": "5f80c3337c0c5b06c498fbbb88151de845f8e6be672a7db27909fa858f11dfd1"
+        },
+        {
+          "checked_game_transitions": 249,
+          "committed_decision_count": 6,
+          "configuration": {
+            "pathfinding": true,
+            "receiving": 1,
+            "seed": 3,
+            "size": 1
+          },
+          "event_log_sha256": "36c79d0e2f16b77bd45acd5053cc882cf624a3799148a0636b65d28622297ab4"
+        },
+        {
+          "checked_game_transitions": 613,
+          "committed_decision_count": 10,
+          "configuration": {
+            "pathfinding": false,
+            "receiving": 0,
+            "seed": 0,
+            "size": 3
+          },
+          "event_log_sha256": "c7c8392a189b948a213d9320ec15c02822d45a1b89ebcae2b1c27c45b5678a06"
+        },
+        {
+          "checked_game_transitions": 609,
+          "committed_decision_count": 9,
+          "configuration": {
+            "pathfinding": false,
+            "receiving": 0,
+            "seed": 17,
+            "size": 3
+          },
+          "event_log_sha256": "ca818d9db41b1e1301093972d53d6dc7432e110a8a003065f133516e0193fa8f"
+        },
+        {
+          "checked_game_transitions": 625,
+          "committed_decision_count": 10,
+          "configuration": {
+            "pathfinding": false,
+            "receiving": 0,
+            "seed": 3,
+            "size": 3
+          },
+          "event_log_sha256": "7417515e3fca404fba8a46bd4e49c1fabfd4b848bd62e9da27258e715c54d36c"
+        },
+        {
+          "checked_game_transitions": 613,
+          "committed_decision_count": 10,
+          "configuration": {
+            "pathfinding": true,
+            "receiving": 0,
+            "seed": 0,
+            "size": 3
+          },
+          "event_log_sha256": "efaaef07de9600af1b11d32024421e3fc60443af3e897ebacbaf489ccbf7d053"
+        },
+        {
+          "checked_game_transitions": 609,
+          "committed_decision_count": 9,
+          "configuration": {
+            "pathfinding": true,
+            "receiving": 0,
+            "seed": 17,
+            "size": 3
+          },
+          "event_log_sha256": "8c467de29fdbbbdeffd7fe4ca93f055354b39fb78ac2f2dd243c5c8293f5b6b7"
+        },
+        {
+          "checked_game_transitions": 625,
+          "committed_decision_count": 10,
+          "configuration": {
+            "pathfinding": true,
+            "receiving": 0,
+            "seed": 3,
+            "size": 3
+          },
+          "event_log_sha256": "eb68b48d738e5d176ade350ab095517ff39734a9d217405b204daf0664e917cc"
+        },
+        {
+          "checked_game_transitions": 609,
+          "committed_decision_count": 9,
+          "configuration": {
+            "pathfinding": false,
+            "receiving": 1,
+            "seed": 0,
+            "size": 3
+          },
+          "event_log_sha256": "f928008c397fe4eb9847b781cbaffc131ce9133c295b959990bc9c3382ff3266"
+        },
+        {
+          "checked_game_transitions": 609,
+          "committed_decision_count": 9,
+          "configuration": {
+            "pathfinding": false,
+            "receiving": 1,
+            "seed": 17,
+            "size": 3
+          },
+          "event_log_sha256": "22a5b02187dd3ce2a7929c3be7c8505defb44fbf056702a854a3cb009071f150"
+        },
+        {
+          "checked_game_transitions": 609,
+          "committed_decision_count": 9,
+          "configuration": {
+            "pathfinding": false,
+            "receiving": 1,
+            "seed": 3,
+            "size": 3
+          },
+          "event_log_sha256": "4a5eb69db20889fbf7a6d8f3e3b910bf0d633b341c28ba796b2172255c4acd63"
+        },
+        {
+          "checked_game_transitions": 609,
+          "committed_decision_count": 9,
+          "configuration": {
+            "pathfinding": true,
+            "receiving": 1,
+            "seed": 0,
+            "size": 3
+          },
+          "event_log_sha256": "fa838704f03f19ea269161cc02f6e96cec20b2b87cf4e11a8be143db79399495"
+        },
+        {
+          "checked_game_transitions": 609,
+          "committed_decision_count": 9,
+          "configuration": {
+            "pathfinding": true,
+            "receiving": 1,
+            "seed": 17,
+            "size": 3
+          },
+          "event_log_sha256": "90313bbc5ecec4cd3408a0fffed7e3d2e47adfae897a735fb2af1eaae4e878ad"
+        },
+        {
+          "checked_game_transitions": 609,
+          "committed_decision_count": 9,
+          "configuration": {
+            "pathfinding": true,
+            "receiving": 1,
+            "seed": 3,
+            "size": 3
+          },
+          "event_log_sha256": "f580539b38a69e4faa7fa0adc3449d0d675398e868fcdf96ad4ba2047987e33b"
+        }
+      ],
+      "environment": {
+        "backend": "botbowl.core.pathfinding.python_pathfinding",
+        "package": "/usr/local/src/botbowl-worktrees/issue-20/botbowl/__init__.py",
+        "platform": "Linux-6.8.0-139-generic-x86_64-with-glibc2.39",
+        "python": "3.11.16 (main, Sep  1 2026, 14:18:37) [Clang 22.1.3 ]",
+        "versions": {
+          "gym": "0.26.2",
+          "numpy": "1.26.4",
+          "pytest": "9.1.1",
+          "untangle": "1.2.1"
+        }
+      },
+      "failures": 0,
+      "repeated_query_checks": 240,
+      "round_trip_probes": 774,
+      "whole_sequence_round_trips": 72
+    }
+  },
+  "original_quick_snap_crash": "not reproduced; risk unresolved",
+  "source_sha256": {
+    "botbowl/core/forward_model.py": "8b9a688c5cda7ab7582feb9f0775b90f886b988b94bd1d1c8e33d4864b2ec585",
+    "botbowl/core/game.py": "254d9840c833fb61209bc8121f406580d0ba30464a5dc5f4dfecc671a9eccd33",
+    "botbowl/core/model.py": "2193f32fbceed70df8e934a45693a7a1cf10e1b235388f90a8f4453e4b0e40fa",
+    "botbowl/core/procedure.py": "4c142b4fc35b3aafa8098cd25d4da776fe2fdccb7d450974151285ae380a40f5",
+    "botbowl/core/util.py": "3210d61aa823bfbb8e97789748533463131c25e890b8314521b1a2c43c6e3fbd",
+    "docs/reports/packaging-forward-model-reproduction.py": "fc2fd8ffee724d160f66ad31f0a935cb924ef188f856c6db313a856443466c5b",
+    "docs/reports/quick-snap-diagnosis.py": "f235971ac9f140ada7ce37b40b587d05af948e041e55d287e844d53bb65f2708",
+    "examples/hash_example.py": "4c7a3c74779a189491593e499700cbfda616eb9de7e5aefa5224d437332dd560",
+    "examples/mcts_example.py": "77116f44159735ee0eb719c5a1f5d72286f11c4a0cf3fd0109557f8a607077c6",
+    "tests/framework/test_forward_model.py": "691dd45bd6d643ffc91c24ef460af30cd068efcbe1633f42967fb1a67a66a4ce",
+    "tests/framework/test_quick_snap_forward_model.py": "6434ca546d2bfb04d62e359f797b3ce82f65e66ac7ab8e6228f72a45cf78b925"
+  },
+  "validation": {
+    "native_focused": {
+      "command": "python -m pytest /usr/local/src/botbowl-worktrees/issue-20/tests/framework/test_quick_snap_forward_model.py --import-mode=importlib -q --require-pathfinding native",
+      "cwd": "/tmp/botbowl-issue20-native-src",
+      "log": "quick-snap-native-publish.log",
+      "result": "29 passed",
+      "sha256": "ec383501bf3306e821c92567bbe4a2e308971bac2896cbf816da3c51d8f8edbd"
+    },
+    "native_full_suite": {
+      "command": "python -m pytest -q --require-pathfinding native",
+      "cwd": "/tmp/botbowl-issue20-native-src",
+      "existing_source_and_tests_match_accepted_base": true,
+      "focused_harness_sha256": "9c6faccc51f900360bef910be355340b10f9b9a3976ee8fbbb4968837eee86b5",
+      "log": "full-native.log",
+      "note": "Full run includes 29-test observer precursor. Final observer adds ball/branch-state identity assertions and richer failure records; its exact source separately passes all 29 tests on both backends. Existing 1095 tests and engine match accepted base.",
+      "result": "1124 passed, 1 inherited timestamp xfailed",
+      "sha256": "291166e174c16c83992e72d407f10017c7d0cd474fc952cffed0dd7588566ae4"
+    },
+    "python_existing_suite": {
+      "command": "python -m pytest -q --require-pathfinding python --ignore=tests/framework/test_quick_snap_forward_model.py",
+      "log": "full-python-existing.log",
+      "result": "816 passed, 279 skipped, 1 inherited timestamp xfailed",
+      "sha256": "b6e3b177f0383320cb7f5d66a3c8dc759690fe0f49480564b8cffbf3fc5e8975"
+    },
+    "python_focused": {
+      "command": "python -m pytest tests/framework/test_quick_snap_forward_model.py -q --require-pathfinding python",
+      "log": "quick-snap-python-publish.log",
+      "result": "29 passed",
+      "sha256": "d64edef1deab1267d59c35535c35418e0e4064e5ac8bde080031509aa3f9751e"
+    }
+  }
+}
