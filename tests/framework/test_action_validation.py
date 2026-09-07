@@ -226,8 +226,11 @@ def test_enabled_alternative_remains_available_after_disabled_choice(game):
 
 
 @pytest.mark.parametrize("use_reroll", [False, True])
-def test_disabled_block_choice_and_gym_mask_wait_for_reroll(game, use_reroll, capsys):
-    from botbowl.ai.env import BotBowlEnv, EnvConf
+@pytest.mark.parametrize("with_gym", [False, True], ids=["core", "gym-mask"])
+def test_disabled_block_choice_and_gym_mask_wait_for_reroll(game, use_reroll, with_gym, capsys):
+    if with_gym:
+        pytest.importorskip("gym", reason="Issue #17: legacy Gym is a separate 3.11/3.12 capability")
+        from botbowl.ai.env import BotBowlEnv, EnvConf
 
     attacker = game.active_team.players[1]
     defender = game.get_opp_team(game.active_team).players[0]
@@ -247,11 +250,12 @@ def test_disabled_block_choice_and_gym_mask_wait_for_reroll(game, use_reroll, ca
     assert game.is_action_allowed(forced)
     assert forced.action_type == bb.ActionType.DONT_USE_REROLL
 
-    env = BotBowlEnv(EnvConf(size=3), seed=0, away_agent="human")
-    env.game = game
-    action_index = env._compute_action_idx(action)
-    mask = env.get_state()[2]
-    assert not mask[action_index]
+    if with_gym:
+        env = BotBowlEnv(EnvConf(size=3), seed=0, away_agent="human")
+        env.game = game
+        action_index = env._compute_action_idx(action)
+        mask = env.get_state()[2]
+        assert not mask[action_index]
 
     if use_reroll:
         for result in dice:
@@ -260,7 +264,8 @@ def test_disabled_block_choice_and_gym_mask_wait_for_reroll(game, use_reroll, ca
     assert game.active_team is defender.team
     assert attacker.team.state.rerolls == (0 if use_reroll else 1)
     assert game.is_action_allowed(action)
-    assert env.get_state()[2][action_index]
+    if with_gym:
+        assert env.get_state()[2][action_index]
     game.step(action)
     assert isinstance(game.get_procedure(), bb.Push)
 

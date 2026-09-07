@@ -73,8 +73,12 @@ def main():
                        and name.endswith((".so", ".pyd")) for name in members.namelist())
         run("venv", [sys.executable, "-m", "venv", work / "installed"], work)
         python = work / "installed" / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+        # CI supplies the same constraints as the isolated build. In particular,
+        # do not retain vulnerable setuptools bundled by older ensurepip seeds.
+        run("bootstrap", [python, "-m", "pip", "install", "--upgrade", "pip", "setuptools"], work)
         run("install", [python, "-m", "pip", "install", native_wheel], work)
         run("pip-check", [python, "-m", "pip", "check"], work)
+        run("freeze", [python, "-m", "pip", "freeze", "--all"], work)
         run("native-smoke", [python, exported / "tests/packaging/smoke.py",
                              "--minimal", "--backend", "native"], work)
     artifacts = sorted(output.glob("*/*.whl")) + sorted(output.glob("*/*.tar.gz"))
