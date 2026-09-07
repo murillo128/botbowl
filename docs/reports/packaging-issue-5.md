@@ -62,20 +62,35 @@ The Tk window itself was not exercised without a display. Tk remains an
 interpreter/system component needed when constructing the legacy EnvRenderer.
 
 The [compact JSON evidence](packaging-issue-5.json) records artifact hashes and
-per-cell summaries. After the source-checkout correction described below, final
-artifacts were rebuilt from the final sdist and reinstalled in all eight cells;
-the bounded baseline and focused import/export checks passed again, along with
-registered RL smoke checks on 3.11/3.12. The complete suites above and the final
-checks exercise the same unchanged engine code.
+per-cell summaries. The core and complete suites above exercised package source
+revision `3c1441a46f38ae5092729a688ed2d4816ba445ee`. Independent review then
+identified a fresh-sdist defect in the original build evidence, described below.
+The corrected artifacts come from committed revision
+`9cbfdbaeba0beb882ce34755fc501301d5d4fd9a`; its only package change explicitly
+includes the two existing native C++ source files in the sdist manifest. Engine
+code, native source contents, and runtime dependencies are unchanged.
+
+All eight refreshed artifacts passed installed baseline, pathfinding, and focused
+import/export checks: on 3.11/3.12, Python **119 pass, 39 skip, 1 xfail** and
+native **158 pass, 1 xfail**; on 3.13/3.14, Python **105 pass, 53 skip, 1 xfail**
+and native **144 pass, 14 skip, 1 xfail**. The additional fourteen skips are the
+optional exports in environments without those extras. Core resource/decision
+smokes and `pip check` passed in every cell, with registered RL smokes again on
+3.11/3.12. The refreshed wheel and sdist also passed minimal installation smokes
+outside the checkout. All 99 installed Python package files are byte-identical
+to the previously reviewed wheel; only archive construction changed. Editable
+and VCS checks below were retained from the preceding runtime-code validation.
 
 ## Artifacts, imports, and installation forms
 
-- `python -m build` produced a wheel and sdist with
+- A fresh Git export on each supported interpreter ran `python -m build` with
   `BOTBOWL_BUILD_NATIVE=0`, `CC=/nonexistent`, and `CXX=/nonexistent`.
-  Each artifact installed into a separate clean environment outside the checkout
-  and passed the minimal resource/decision smoke.
-- Native wheels built for all four CPython versions, including from the final
-  sdist, and loaded `botbowl.core.pathfinding.cython_pathfinding` as an extension.
+  The regression then extracted that run's default sdist into another new
+  directory, built a required-native wheel with a working compiler, installed it
+  in a new environment, and passed `pip check` plus the minimal resource/decision
+  smoke outside the checkout. This passed on 3.11.16, 3.12.14, 3.13.15, and 3.14.7.
+- Native wheels built from these fresh sdists loaded
+  `botbowl.core.pathfinding.cython_pathfinding` as an extension.
   Python wheels loaded `botbowl.core.pathfinding.python_pathfinding`.
 - A fresh native source build with both compiler commands set to `/nonexistent`
   failed explicitly. `BOTBOWL_BUILD_NATIVE=auto` also failed, explaining that
@@ -95,7 +110,8 @@ checks exercise the same unchanged engine code.
   web HTML and required JS/CSS source, and preserved source/license notices. It
   found no tests, caches, saves, replays, credentials, graphics, fonts, or accidental
   build output. The native wheel contains its intended extension; Python wheels
-  contain none. The sdist contains the `.pyx`/`.pxd` needed to build natively.
+  contain none. The sdist contains `.pyx`/`.pxd` and the required
+  `pathing_node.cpp`/`pathing_node.h` sources needed to build natively.
   Builds left versioned source files unchanged.
 
 The installed browser source lacks the excluded artwork/fonts. The complete
@@ -104,6 +120,20 @@ project license does not become a universal asset license. Existing source
 notices for AngularJS, jQuery, Bootstrap, and wysihtml5 remain with those files.
 
 ## Failures retained and routed
+
+Independent final review **failed** revision
+`52dd3caf0899fe0dfdf5729b1a6fc5a2870f2f0f`: a default Python sdist built from a
+fresh checkout omitted `pathing_node.cpp` and `pathing_node.h`. A native build
+from that archive failed even with a working compiler. The previously recorded
+archive contained these files, but reused the source-manifest cache after an
+earlier native build; that result did not establish a clean-build guarantee.
+Both files now have explicit manifest entries. The new
+`tests/packaging/verify_sdist.py` regression exports only committed source,
+excluding local build and `SOURCES.txt` caches. It reproduced the missing-file
+failure against `52dd3ca` and passed the complete Python-sdist-to-native sequence
+on all four supported interpreters at `9cbfdba`. The earlier failed review
+remains recorded in PR #78. Hosted CI passed on the correction commit in
+[run 34099205271](https://github.com/murillo128/botbowl/actions/runs/34099205271).
 
 An initial broad exclusion of web resources produced a 500 response at `/` in
 an installed full-suite run. Required HTML/JS/CSS source was restored, the smoke
@@ -145,6 +175,7 @@ smoke has no pytest dependency:
 
 ```bash
 python -m pip install build
+python tests/packaging/verify_sdist.py --revision 9cbfdbaeba0beb882ce34755fc501301d5d4fd9a --output /tmp/botbowl-sdist-check
 CC=/nonexistent CXX=/nonexistent BOTBOWL_BUILD_NATIVE=0 python -m build --outdir /tmp/botbowl-python
 BOTBOWL_BUILD_NATIVE=1 python -m build --outdir /tmp/botbowl-native
 python -m venv /tmp/botbowl-check
@@ -152,6 +183,12 @@ python -m venv /tmp/botbowl-check
 cd /tmp
 env -u DISPLAY /tmp/botbowl-check/bin/python /path/to/checkout/tests/packaging/smoke.py --minimal
 ```
+
+The explicit fresh-sdist regression requires a working C++ compiler for its
+second build and a new output directory. Repeat it with each supported
+interpreter. Its default `--revision HEAD` checks committed files, so commit
+packaging changes before using it as a final gate. Artifacts, per-step logs,
+source revision, and SHA-256 hashes are retained in the output directory.
 
 For independent extras, install `artifact.whl[extra]` into a new environment and
 run `smoke.py --extra extra`. Repeat RL on both 3.11 and 3.12. For native, use the
