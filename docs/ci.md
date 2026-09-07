@@ -1,10 +1,13 @@
 # CI profiles and dependencies
 
-`Tests` runs on pull requests (including drafts) and pushes to `main`, using only
-GitHub-hosted runners with read-only contents permission. Every action is pinned
-to a verified release commit; checkout disables persisted credentials. No workflow
-calls the separate, unchanged Skillforge issue-label launcher. PR code never runs
-via `pull_request_target` or on the self-hosted Codex runner.
+`Tests` runs on pull requests (including drafts) and pushes to `main` and `codex/**`,
+with read-only contents permission. Following the
+[local runner amendment](https://github.com/murillo128/botbowl/issues/3#issuecomment-5574335362),
+lint uses GitHub-hosted runners and core uses `[self-hosted, codex]` only for trusted
+pushes. Pull-request events run hosted lint; core checks attach to the exact pushed
+commit. Every action is pinned to a verified release commit; checkout disables
+persisted credentials. No workflow calls the separate, unchanged Skillforge
+issue-label launcher or executes PR events via `pull_request_target`.
 
 The [September 7 amendment to epic #3](https://github.com/murillo128/botbowl/issues/3#issuecomment-5573357791)
 and the current [issue #6 contract](https://github.com/murillo128/botbowl/issues/6)
@@ -26,9 +29,13 @@ engine failure is waived; known forward-model findings remain failures.
 Each core job first collects all core identities, including the investigation.
 It then runs unit/regression and integration (AI, forward-model, server, full-game)
 portions in two deterministic shards: SHA-256 of the UTF-8 pytest node ID modulo
-two. The four subprocesses run sequentially in fresh processes, preserving order
-within each portion/shard and continuing after a failed subprocess. This bounds
-accumulated test-process state without helper jobs or a new runtime matrix.
+two. The four subprocesses run concurrently in fresh processes without xdist,
+preserving order within each portion/shard and collecting all siblings even after
+a failed subprocess. Logs, JUnit and receipts have distinct shard paths; step
+results retain declared shard order regardless of completion order. Timeout and
+interruption cleanup kills each shard's POSIX process group and waits for every
+direct child. This bounds accumulated test-process state without helper jobs or
+a new runtime matrix; two simultaneous core profiles use up to eight shard processes.
 The job retains its 25-minute limit and each execution subprocess its 20-minute
 limit. Core clears environment/configuration addopts to prevent global filters
 from silently shrinking both reference discovery and execution.
@@ -39,7 +46,9 @@ deterministic selection; successful pytest exit; and exactly one teardown receip
 per selected identity. The disjoint executed union plus the explicitly recorded
 investigation equals full discovery. Missing portions, loss, overlap, duplicates,
 stale receipts and failed execution fail the gate. Lint runs synthetic negative
-controls for this accounting; these controls are not functional execution evidence.
+controls for this accounting and real-process controls for parallel execution,
+failure, timeout, missing/invalid receipts and child cleanup. These controls are
+not functional execution evidence.
 
 Tests and examples are copied outside the checkout; only the built wheel supplies
 `botbowl`. `--require-pathfinding` verifies the actual module and native extension
