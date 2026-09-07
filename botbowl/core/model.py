@@ -82,27 +82,23 @@ class Replay:
         print(" - OK")
 
     def next(self):
-        if len(self.steps) == 0 or self.idx + 1 >= len(self.steps):
+        next_idx = min((idx for idx in self.steps if idx > self.idx), default=None)
+        if next_idx is None:
             return None
-        self.idx += 1
-        while self.idx not in self.steps:
-            # print(self.actions[self.idx])
-            self.idx += 1
+        self.idx = next_idx
         return self.steps[self.idx]
 
     def prev(self):
-        if len(self.steps) == 0 or self.idx - 1 < 0:
+        prev_idx = max((idx for idx in self.steps if idx < self.idx), default=None)
+        if prev_idx is None:
             return None
-        self.idx -= 1
-        while self.idx not in self.steps:
-            # print(self.actions[self.idx])
-            self.idx -= 1
+        self.idx = prev_idx
         return self.steps[self.idx]
 
     def first(self):
         if len(self.steps) == 0:
             return None
-        self.idx = 0
+        self.idx = min(self.steps)
         return self.steps[self.idx]
 
     def last(self):
