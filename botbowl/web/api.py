@@ -37,8 +37,12 @@ def get_config(game_mode):
     return load_config(game_modes[game_mode.lower()])
 
 
-def new_game(away_team_name, home_team_name, away_agent=None, home_agent=None, game_mode='standard'):
+def new_game(away_team_name, home_team_name, away_agent=None, home_agent=None, game_mode='standard', local=False):
     config = get_config(game_mode)
+    if type(local) is not bool:
+        raise WebError("Local practice must be a boolean.")
+    if local:
+        config.competition_mode = False
     if not isinstance(away_agent, Agent) or not isinstance(home_agent, Agent):
         raise WebError("Both game agents are required.")
     if not isinstance(home_team_name, str) or not isinstance(away_team_name, str):
@@ -59,6 +63,7 @@ def new_game(away_team_name, home_team_name, away_agent=None, home_agent=None, g
 def step(game_id, action):
     with host.lock:
         game = host.get_game(game_id)
+        host.require_running(game)
         game.step(action)  # #7 validates before any mutation; no implicit refresh.
         return game
 
@@ -67,13 +72,22 @@ def update_game(game_id):
     """Explicitly check clocks and advance automatic steps in interactive games."""
     with host.lock:
         game = host.get_game(game_id)
-        if game.state.game_over:
+        if game.state.game_over or host.is_paused(game):
             return game
         if not game.is_started() and game.actor is not None and not game.actor.human:
             game.step(Action(ActionType.START_GAME))
         else:
             game.refresh()
         return game
+
+
+def game_to_json(game):
+    """Add local session controls without changing engine/replay snapshots."""
+    result = game.to_json()
+    result['paused'] = host.is_paused(game)
+    result['pause_allowed'] = not (game.config.competition_mode or game.state.game_over or game.closed)
+    result['competition_mode'] = game.config.competition_mode
+    return result
 
 
 def save_game_exists(name):

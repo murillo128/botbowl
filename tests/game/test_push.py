@@ -4,6 +4,70 @@ import pytest
 from tests.util import *
 
 
+@pytest.mark.parametrize('route', ['push', 'stand_firm', 'both_down', 'crowd'])
+def test_block_injury_inflictor(route):
+    crowd = route == 'crowd'
+    game, (attacker, defender) = get_custom_game_turn(
+        [(5, 2 if crowd else 5)], [(5, 1 if crowd else 4)], ball_position=(3, 3))
+    attacker.extra_skills.extend([Skill.BLOCK, Skill.MIGHTY_BLOW])
+    defender.extra_skills.append(Skill.THICK_SKULL)
+    if route == 'stand_firm':
+        defender.extra_skills.append(Skill.STAND_FIRM)
+    for team in game.state.teams:
+        team.state.rerolls = 0
+        team.state.apothecaries = int(team is defender.team)
+    original = attacker.position
+    both_down = route == 'both_down'
+    result = BBDieResult.BOTH_DOWN if both_down else BBDieResult.DEFENDER_DOWN
+    # Armour 12 leaves Mighty Blow for injury: 8 + 1 - Thick Skull 1 = KO.
+    # Crowd injury skips armour and receives no attacker skill modifier.
+    with only_fixed_rolls(game, block_dice=[result], d6=([4, 4] if crowd else [6, 6, 4, 4])):
+        game.step(Action(ActionType.START_BLOCK, player=attacker))
+        game.step(Action(ActionType.BLOCK, position=defender.position))
+        game.step(Action(ActionType.SELECT_BOTH_DOWN if both_down else ActionType.SELECT_DEFENDER_DOWN))
+        if route == 'stand_firm':
+            game.step(Action(ActionType.USE_SKILL, player=defender))
+        elif not both_down:
+            game.step(Action(ActionType.PUSH, position=game.get_square(5, 0 if crowd else 3)))
+            game.step(Action(ActionType.FOLLOW_UP, position=original))
+
+        knockdowns = [r for r in game.state.reports if r.outcome_type == OutcomeType.KNOCKED_DOWN]
+        assert len(knockdowns) == 1
+        assert knockdowns[0].player is defender
+        assert knockdowns[0].opp_player is (None if crowd else attacker)
+        if crowd:
+            assert not game.has_report_of_type(OutcomeType.ARMOR_BROKEN)
+            assert not game.has_report_of_type(OutcomeType.ARMOR_NOT_BROKEN)
+            injury = next(r for r in game.state.reports if r.outcome_type == OutcomeType.STUNNED)
+            assert injury.player is defender
+            assert injury.opp_player is None
+            assert injury.rolls[0].get_result() == 7
+            assert defender.position is None
+            assert defender in game.get_reserves(defender.team)
+        else:
+            armor = next(r for r in game.state.reports if r.outcome_type == OutcomeType.ARMOR_BROKEN)
+            assert armor.player is defender
+            assert armor.opp_player is attacker
+            assert armor.rolls[0].get_result() == 12
+            apothecary = game.get_procedure()
+            assert isinstance(apothecary, Apothecary)
+            assert apothecary.inflictor is attacker
+            assert apothecary.outcome is OutcomeType.KNOCKED_OUT
+            assert apothecary.roll_first.get_result() == 8
+            assert game.actor is game.get_team_agent(defender.team)
+            assert {a.action_type for a in game.get_available_actions()} == {
+                ActionType.USE_APOTHECARY, ActionType.DONT_USE_APOTHECARY}
+            assert not game.has_report_of_type(OutcomeType.STUNNED)
+            game.step(Action(ActionType.DONT_USE_APOTHECARY))
+            injury = next(r for r in game.state.reports if r.outcome_type == OutcomeType.KNOCKED_OUT)
+            assert injury.player is defender
+            assert injury.opp_player is attacker
+            assert defender in game.get_knocked_out(defender.team)
+        assert defender.team.state.apothecaries == 1
+        assert isinstance(game.get_procedure(), Turn)
+        assert_board_references(game)
+
+
 def assert_board_references(game):
     on_board = []
     for y, row in enumerate(game.state.pitch.board):
