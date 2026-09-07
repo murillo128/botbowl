@@ -84,11 +84,13 @@ class Regeneration(Procedure):
 
 class Apothecary(Procedure):
 
-    def __init__(self, game, player, roll, outcome, inflictor, casualty=None, effect=None, decay=False):
+    def __init__(self, game, player, roll, outcome, inflictor, casualty=None, effect=None, decay=False,
+                 decay_roll=False):
         super().__init__(game)
         self.player = player
         self.inflictor = inflictor
         self.decay = decay
+        self.decay_roll = decay_roll
         self.waiting_apothecary = False
         self.roll_first = roll
         self.roll_second = roll
@@ -104,7 +106,11 @@ class Apothecary(Procedure):
 
     def start(self):
         if self.game.state.current_team != self.player.team:
-            self.game.add_opp_clock(self.player.team)
+            self.game.add_secondary_clock(self.player.team)
+
+    def end(self):
+        if self.game.state.current_team != self.player.team:
+            self.game.remove_secondary_clocks()
 
     def step(self, action):
 
@@ -112,25 +118,32 @@ class Apothecary(Procedure):
 
             if action.action_type == ActionType.USE_APOTHECARY:
 
-                # Player is moved to reserves
                 self.player.team.state.apothecaries -= 1
-                self.player.state.stunned = True
-                self.player.place_prone()
+                if self.game.is_out_of_bounds(self.player.position):
+                    # A treated crowd KO recovers in reserves.
+                    self.player.state.stunned = False
+                    self.game.pitch_to_reserves(self.player)
+                else:
+                    # A treated on-pitch KO stays prone and stunned.
+                    self.player.state.stunned = True
+                    self.player.place_prone()
                 self.game.report(Outcome(OutcomeType.APOTHECARY_USED_KO, player=self.player, team=self.player.team))
 
-            else:
+            elif action.action_type == ActionType.DONT_USE_APOTHECARY:
 
                 # Player is KO
                 self.game.pitch_to_kod(self.player)
-                self.game.report(Outcome(OutcomeType.APOTHECARY_USED_KO, player=self.player, team=self.player.team))
+                self.game.report(Outcome(OutcomeType.KNOCKED_OUT, player=self.player,
+                                         opp_player=self.inflictor, team=self.player.team, rolls=[self.roll_first]))
 
             return True
 
         elif self.outcome == OutcomeType.CASUALTY:
 
-            if action.action_type == ActionType.USE_APOTHECARY:
+            if self.roll is None and action.action_type == ActionType.USE_APOTHECARY:
 
-                self.roll_second = DiceRoll([D6(self.game.dice), D8(self.game.dice)], roll_type=RollType.CASUALTY_ROLL)
+                self.roll_second = DiceRoll([D6(self.game.dice), D8(self.game.dice)], d68=True,
+                                            roll_type=RollType.CASUALTY_ROLL)
                 result = self.roll_second.get_sum()
                 n = min(61, max(38, result))
                 self.casualty_second = CasualtyType(n)
@@ -142,27 +155,37 @@ class Apothecary(Procedure):
 
                 return False
 
-            if action.action_type == ActionType.SELECT_FIRST_ROLL or ActionType.SELECT_SECOND_ROLL:
-
-                self.effect = self.effect_first if action.action_type == ActionType.SELECT_FIRST_ROLL else self.effect_second
-                self.casualty = self.casualty_first if action.action_type == ActionType.SELECT_FIRST_ROLL else self.casualty_second
-                self.roll = self.roll_first if action.action_type == ActionType.SELECT_FIRST_ROLL else self.roll_second
+            if self.roll is None:
+                if action.action_type == ActionType.DONT_USE_APOTHECARY:
+                    self.effect, self.casualty, self.roll = self.effect_first, self.casualty_first, self.roll_first
+                elif action.action_type in (ActionType.SELECT_FIRST_ROLL, ActionType.SELECT_SECOND_ROLL):
+                    first = action.action_type == ActionType.SELECT_FIRST_ROLL
+                    self.effect = self.effect_first if first else self.effect_second
+                    self.casualty = self.casualty_first if first else self.casualty_second
+                    self.roll = self.roll_first if first else self.roll_second
+                    self.game.report(Outcome(OutcomeType.APOTHECARY_USED_CASUALTY, player=self.player,
+                                             opp_player=self.inflictor, team=self.player.team,
+                                             n=self.effect.name, rolls=[self.roll]))
+                else:
+                    return False
 
                 # Regeneration
-                if self.player.has_skill(Skill.REGENERATION) and not self.regeneration:
+                if self.player.has_skill(Skill.REGENERATION) and not self.decay_roll:
                     self.regeneration = Regeneration(self.game, self.player)
                     return False
 
-                if self.regeneration and self.regeneration.regenerates:
-                    self.game.pitch_to_reserves(self.player)
-                    return True
+            # Resume automatic resolution with the saved choice after Regeneration.
+            if self.regeneration and self.regeneration.regenerates:
+                self.game.pitch_to_reserves(self.player)
+                return True
 
-                # Apply casualty
-                self.game.apply_casualty(self.player, self.inflictor, self.casualty, self.effect, self.roll)
+            # A treated Badly Hurt result can return to reserves. With Decay,
+            # treating one result does not also heal the other result.
+            self.game.apply_casualty(self.player, self.inflictor, self.casualty, self.effect, self.roll,
+                                     apothecary=self.waiting_apothecary and not self.decay and not self.decay_roll)
 
-                # Decay
-                if self.decay:
-                    Casualty(self.game, self.player)
+            if self.decay:
+                Casualty(self.game, self.player, inflictor=self.inflictor, decay_roll=True)
 
         return True
 
@@ -686,7 +709,8 @@ class Bounce(Procedure):
 
 class Casualty(Procedure):
 
-    def __init__(self, game, player, inflictor=None, decay=False, blood_lust=False, always_hungry=False):
+    def __init__(self, game, player, inflictor=None, decay=False, blood_lust=False, always_hungry=False,
+                 decay_roll=False):
         super().__init__(game)
         self.player = player
         self.inflictor = inflictor
@@ -695,6 +719,7 @@ class Casualty(Procedure):
         self.casualty = None
         self.effect = None
         self.decay = decay
+        self.decay_roll = decay_roll
         self.regeneration = None
         self.blood_lust = blood_lust
         self.always_hungry = always_hungry
@@ -723,19 +748,22 @@ class Casualty(Procedure):
             self.casualty = CasualtyType(n)
             self.effect = Rules.casualty_effect[self.casualty]
 
+            # One injury earns one credit, even if recovery succeeds or Decay
+            # adds another table result. Applied effects are reported separately.
             self.game.report(
-                Outcome(OutcomeType.CASUALTY, player=self.player, opp_player=self.inflictor, team=self.player.team,
-                        n=self.effect.name,
-                        rolls=cas_rolls))
+                Outcome(OutcomeType.DECAYING if self.decay_roll else OutcomeType.CASUALTY,
+                        player=self.player, opp_player=self.inflictor, team=self.player.team,
+                        n=self.effect.name, rolls=cas_rolls))
 
             if not self.always_hungry:
                 if self.player.team.state.apothecaries > 0:
                     Apothecary(self.game, self.player, roll=self.roll, outcome=OutcomeType.CASUALTY,
-                               casualty=self.casualty, effect=self.effect, inflictor=self.inflictor)
+                               casualty=self.casualty, effect=self.effect, inflictor=self.inflictor,
+                               decay=self.decay, decay_roll=self.decay_roll)
                     return True
                 else:
                     # Regeneration
-                    if self.player.has_skill(Skill.REGENERATION) and not self.regeneration:
+                    if self.player.has_skill(Skill.REGENERATION) and not self.decay_roll:
                         self.regeneration = Regeneration(self.game, self.player)
                         return False
 
@@ -744,8 +772,7 @@ class Casualty(Procedure):
 
         # Decay
         if self.decay:
-            self.game.report(Outcome(OutcomeType.DECAYING, player=self.player))
-            Casualty(self.game, self.player)
+            Casualty(self.game, self.player, inflictor=self.inflictor, decay_roll=True)
 
         return True
 
@@ -1190,7 +1217,8 @@ class Injury(Procedure):
         roll.modifiers = stunty + mighty_blow + dirty_player + niggling
         if roll.get_result() >= 10:
             roll.modifiers = stunty + mighty_blow + dirty_player
-            self.game.report(Outcome(OutcomeType.CASUALTY, player=self.player, opp_player=self.inflictor, rolls=[roll]))
+            self.game.report(Outcome(OutcomeType.INJURY_CASUALTY, player=self.player,
+                                     opp_player=self.inflictor, rolls=[roll]))
             Casualty(self.game, self.player, inflictor=self.inflictor, decay=self.player.has_skill(Skill.DECAY),
                      blood_lust=self.blood_lust)
             return True

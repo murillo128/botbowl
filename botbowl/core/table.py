@@ -134,7 +134,7 @@ class OutcomeType(Enum):
     END_OF_FIRST_HALF = 70
     TOUCHDOWN = 71
     TURNOVER = 72
-    CASUALTY = 73
+    CASUALTY = 73  # One casualty credit, before Apothecary/Regeneration; see docs/casualty-events.md.
     APOTHECARY_USED_KO = 74
     APOTHECARY_USED_CASUALTY = 75
     CASUALTY_APOTHECARY = 76
@@ -245,6 +245,7 @@ class OutcomeType(Enum):
     FAILED_ALWAYS_HUNGRY = 184
     PLAYER_SCATTER = 185
     BOMB_SCATTER = 186
+    INJURY_CASUALTY = 187  # Injury-table roll only; does not award another casualty credit.
     THROW_BOMB_ACTION_STARTED = 107
     PLAYER_HIT_PLAYER = 108
     EATEN_DURING_ALWAYS_HUNGRY = 109

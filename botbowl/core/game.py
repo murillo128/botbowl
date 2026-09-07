@@ -2584,7 +2584,8 @@ class Game:
         """
         return self.state.weather
 
-    def apply_casualty(self, player: Player, inflictor: Player, casualty, effect: CasualtyEffect, roll: DiceRoll) \
+    def apply_casualty(self, player: Player, inflictor: Player, casualty, effect: CasualtyEffect, roll: DiceRoll,
+                       apothecary: bool = False) \
             -> None:
         """
         Applies a casualty to a player and moves it to the dugout.
@@ -2593,10 +2594,14 @@ class Game:
         :param casualty: the Casualty to apply.
         :param effect: The CasualtyEffect to apply.
         :param roll: The casualty roll that caused the casualty.
+        :param apothecary: Whether a treated Badly Hurt result may return to reserves.
         """
         # Move to casualty box
         if player.position is not None:
-            self.pitch_to_casualties(player)
+            if apothecary and effect is CasualtyEffect.NONE:
+                self.pitch_to_reserves(player)
+            else:
+                self.pitch_to_casualties(player)
         # Report effect and MNG
         if effect == CasualtyEffect.NONE:
             self.report(Outcome(OutcomeType.BADLY_HURT, player=player, opp_player=inflictor, team=player.team,

@@ -145,6 +145,11 @@ def test_injury_ko_with_stunty(mock_game):
         proc = stack.peek()
         assert isinstance(proc, Casualty)
 
+        # The injury roll is diagnostic; Casualty owns the single credit event.
+        reports = [call.args[0] for call in mock_game.report.call_args_list]
+        assert [report.outcome_type for report in reports] == [OutcomeType.INJURY_CASUALTY]
+        assert reports[0].rolls[0].roll_type is RollType.INJURY_ROLL
+
 
 @patch("botbowl.core.game.Game")
 def test_injury_ko_with_thick_skull(mock_game):
