@@ -263,6 +263,7 @@ class Stab(Procedure):
         self.reroll = None
         self.blitz = blitz
         self.gfi = gfi
+        self.foul_appearance = None
 
     def end(self):
         self.attacker.state.has_blocked = True
@@ -274,15 +275,22 @@ class Stab(Procedure):
             GFI(self.game, self.attacker, self.attacker.position)
             return False
 
+        if self.defender.has_skill(Skill.FOUL_APPEARANCE):
+            if self.foul_appearance is None:
+                self.foul_appearance = FoulAppearance(self.game, self.attacker, self.defender)
+                return False
+            if self.foul_appearance.revolted:
+                return True
+
         # Stab!
         self.roll = DiceRoll([D6(self.game.dice), D6(self.game.dice)], lowest_fail=False, highest_succeed=False)
-        self.roll.target = self.defender.get_av()
+        self.roll.target = self.defender.get_av() + 1
         if self.attacker.has_skill(Skill.STAKES) and self.defender.team.race in \
                 ['Khemri', 'Necromantic', 'Undead', 'Vampire']:
-            self.game.report(Outcome(OutcomeType.SKILL_USED, skill=Skill.STAB, player=self.attacker))
+            self.game.report(Outcome(OutcomeType.SKILL_USED, skill=Skill.STAKES, player=self.attacker))
             self.roll.modifiers += 1
         if self.roll.is_d6_success():
-            KnockDown(self.game, player=self.defender, armor_roll=False, inflictor=self.attacker)
+            KnockDown(self.game, player=self.defender, armor_roll=False, inflictor=self.attacker, stab=True)
         self.game.report(Outcome(OutcomeType.SKILL_USED, skill=Skill.STAB, player=self.attacker, rolls=[self.roll]))
         return True
 
@@ -1138,7 +1146,7 @@ class Half(Procedure):
 
 class Injury(Procedure):
 
-    def __init__(self, game, player, inflictor=None, foul=False, mighty_blow_used=False, dirty_player_used=False, in_crowd=False, blood_lust=False):
+    def __init__(self, game, player, inflictor=None, foul=False, mighty_blow_used=False, dirty_player_used=False, in_crowd=False, blood_lust=False, stab=False):
         super().__init__(game)
         self.player = player
         self.inflictor = inflictor
@@ -1149,6 +1157,7 @@ class Injury(Procedure):
         self.ejected = False
         self.in_crowd = in_crowd
         self.blood_lust = blood_lust
+        self.stab = stab
 
     def step(self, action):
 
@@ -1169,6 +1178,9 @@ class Injury(Procedure):
                                 self.foul else 0
             mighty_blow = 1 if self.inflictor.has_skill(Skill.MIGHTY_BLOW) and not self.mighty_blow_used and not \
                 self.foul else 0
+
+        if self.stab:
+            thick_skull = stunty = mighty_blow = dirty_player = niggling = 0
 
         # EJECTION
         if self.foul and roll.same() and not self.inflictor.has_skill(Skill.SNEAKY_GIT):
@@ -1626,7 +1638,7 @@ class KickoffTable(Procedure):
 class KnockDown(Procedure):
 
     def __init__(self, game, player, armor_roll=True, injury_roll=True, modifiers=0, inflictor=None,
-                 in_crowd=False, modifiers_opp=0, turnover=False, blood_lust=False):
+                 in_crowd=False, modifiers_opp=0, turnover=False, blood_lust=False, stab=False):
         super().__init__(game)
         self.player = player
         self.armor_roll = armor_roll
@@ -1637,6 +1649,7 @@ class KnockDown(Procedure):
         self.in_crowd = in_crowd
         self.turnover = turnover
         self.blood_lust = blood_lust
+        self.stab = stab
 
     def step(self, action):
 
@@ -1661,7 +1674,7 @@ class KnockDown(Procedure):
         # If armor roll should be made. Injury is also nested in armor.
         if self.injury_roll and not self.armor_roll:
             Injury(self.game, self.player, inflictor=self.inflictor if not self.in_crowd else None,
-                   in_crowd=self.in_crowd, blood_lust=self.blood_lust)
+                   in_crowd=self.in_crowd, blood_lust=self.blood_lust, stab=self.stab)
         elif self.armor_roll:
             Armor(self.game, self.player, modifiers=self.modifiers, inflictor=self.inflictor)
 
@@ -2997,11 +3010,9 @@ class BlockAction(Procedure):
         if action.action_type == ActionType.BLOCK:
 
             if self.player.has_skill(Skill.FRENZY):
-                # TODO: Second block can also be a stab?
-                Block(self.game, self.player, defender, frenzy_block=True)
-
-            # Regular block
-            Block(self.game, self.player, defender)
+                Frenzy(self.game, self.player, defender)
+            else:
+                Block(self.game, self.player, defender)
 
         if not self.player.state.up:
             JumpUpToBlock(self.game, self.player)
@@ -3014,6 +3025,59 @@ class BlockAction(Procedure):
         if self.can_undo:
             actions.append(ActionChoice(ActionType.UNDO, team=self.player.team))
         return actions
+
+
+class Frenzy(BlockAction):
+    """Finish the first block before deciding and paying for its second attack."""
+
+    def __init__(self, game, attacker, defender, blitz=False, gfi=False):
+        super().__init__(game, attacker)
+        self.attacker = attacker
+        self.defender = defender
+        self.blitz = blitz
+        self.first_block = Block(game, attacker, defender, blitz=blitz, gfi=gfi)
+
+    def start(self):
+        # This continues the existing activation.
+        pass
+
+    def can_attack(self):
+        return (self.first_block.selected_die in (BBDieResult.PUSH, BBDieResult.DEFENDER_STUMBLES)
+                and self.attacker.position is not None and self.attacker.state.up
+                and self.defender.position is not None and self.defender.state.up
+                and self.attacker.position.distance(self.defender.position) == 1
+                and (not self.blitz or self.attacker.num_moves_left(include_gfi=True) > 0))
+
+    def step(self, action):
+        if not self.can_attack():
+            return True
+        gfi = self.blitz and self.attacker.num_moves_left() == 0
+        if self.blitz:
+            self.attacker.state.moves += 1
+        if action is not None and action.action_type == ActionType.STAB:
+            self.game.report(Outcome(OutcomeType.SKILL_USED, player=self.attacker, skill=Skill.FRENZY))
+            self.attacker.use_skill(Skill.FRENZY)
+            # Stab ends a Blitz as well as a Block activation. This also removes
+            # the pending BlockAction end marker, so activation ends only once.
+            EndPlayerTurn(self.game, self.attacker)
+            Stab(self.game, self.attacker, self.defender, blitz=self.blitz, gfi=gfi)
+        else:
+            Block(self.game, self.attacker, self.defender, blitz=self.blitz, gfi=gfi, frenzy_block=True)
+        return True
+
+    def available_actions(self):
+        if not self.attacker.has_skill(Skill.STAB) or not self.can_attack():
+            return []
+        rolls = [2] if self.blitz and self.attacker.num_moves_left() == 0 else []
+        stab_target = self.defender.get_av() + 1
+        if self.attacker.has_skill(Skill.STAKES) and self.defender.team.race in (
+                'Khemri', 'Necromantic', 'Undead', 'Vampire'):
+            stab_target -= 1
+        return [ActionChoice(ActionType.BLOCK, team=self.attacker.team, positions=[self.defender.position],
+                             block_dice=[self.game.num_block_dice(self.attacker, self.defender, blitz=self.blitz)],
+                             rolls=[rolls]),
+                ActionChoice(ActionType.STAB, team=self.attacker.team, positions=[self.defender.position],
+                             rolls=[rolls + [stab_target]])]
 
 
 class BlitzAction(MoveAction):
@@ -3057,18 +3121,13 @@ class BlitzAction(MoveAction):
                     move_needed += 0 if self.player.has_skill(Skill.JUMP_UP) else 3
 
                 gfi = self.player.num_moves_left() < move_needed
-                gfi_frenzy = self.player.num_moves_left() < move_needed + 1
-                frenzy_allowed = self.player.num_moves_left(include_gfi=True) >= move_needed + 1
-
                 self.player.state.moves += move_needed
 
                 if action.action_type == ActionType.BLOCK:
-                    # Frenzy second block
-                    if self.player.has_skill(Skill.FRENZY) and frenzy_allowed:
-                        # TODO: Option to block or stab: add second block inside block?
-                        Block(self.game, self.player, defender, blitz=True, gfi=gfi_frenzy, frenzy_block=True)
-                    # Regular block
-                    Block(self.game, self.player, defender, blitz=True, gfi=gfi)
+                    if self.player.has_skill(Skill.FRENZY):
+                        Frenzy(self.game, self.player, defender, blitz=True, gfi=gfi)
+                    else:
+                        Block(self.game, self.player, defender, blitz=True, gfi=gfi)
                     if not self.player.state.up:
                         self._stand_up()
                     return False

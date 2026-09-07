@@ -6,7 +6,7 @@ The execution base is `1153797c2346fd2d6360e60e0af4c85bcc218a1b`.
 `botbowl/data/config/gym-11.json` selects `BB2016`; the repository's
 `docs/bot-bowl-iii.md` also identifies that ruleset. The relevant legacy skill
 wording is in Games Workshop's [Competition Rules Pack](https://cdn.steamstatic.com/steam/apps/58520/manuals/Blood_Bowl_Competition_Rules.pdf?t=1678959819),
-Frenzy (printed p. 43 / PDF p. 39), Stab and Stand Firm (printed p. 45 /
+Frenzy (printed p. 65 / PDF p. 39), Stab and Stand Firm (printed p. 67 /
 PDF p. 41), and the block-declaration FAQ (printed p. 77 / PDF p. 51).
 This is the pre-2020 rule text underlying these implemented skills; the later
 2020/Second Season FAQ is not an input to this change.
