@@ -1,14 +1,95 @@
 """Run CI against fresh committed sources and installed artifacts, outside checkout."""
 import argparse
+from contextlib import ExitStack
 import json
 import os
 from pathlib import Path
 import shutil
+import signal
 import subprocess
 import sys
 import tarfile
 import time
 import xml.etree.ElementTree as ET
+
+
+def run_shards(commands, output, cwd, env, steps, timeout=1200):
+    """Run independent shards together, then report in declared order and fail closed."""
+    running = []
+
+    def kill(process):
+        if os.name == 'posix':
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+        elif process.poll() is None:
+            process.kill()
+
+    def terminate(signum, frame):
+        raise SystemExit(128 + signum)
+
+    previous = signal.signal(signal.SIGTERM, terminate)
+    try:
+        with ExitStack() as logs:
+            try:
+                for name, command in commands:
+                    log = logs.enter_context((output / (name + '.log')).open('w'))
+                    before = time.monotonic()
+                    process = subprocess.Popen(list(map(str, command)), cwd=cwd, env=env,
+                                               stdout=log, stderr=subprocess.STDOUT,
+                                               start_new_session=os.name == 'posix')
+                    running.append((process, command, before, {'name': name}))
+                pending = list(running)
+                while pending:
+                    for item in pending[:]:
+                        process, command, before, step = item
+                        code = process.poll()
+                        if code is None and time.monotonic() - before >= timeout:
+                            step['timed_out'] = True
+                            kill(process)
+                            code = process.wait()
+                        if code is not None:
+                            step.update(seconds=round(time.monotonic() - before, 2), exit_code=code)
+                            pending.remove(item)
+                    if pending:
+                        time.sleep(0.05)
+            finally:
+                # Also clean up siblings on launch errors, Ctrl-C or SIGTERM.
+                # Separate POSIX sessions keep timeout cleanup off other profiles.
+                for process, _, _, _ in running:
+                    kill(process)
+                for process, _, before, step in running:
+                    code = process.wait()
+                    if 'exit_code' not in step:
+                        step.update(seconds=round(time.monotonic() - before, 2), exit_code=code)
+                    steps.append(step)
+                    print(step['name'], code, flush=True)
+    finally:
+        signal.signal(signal.SIGTERM, previous)
+    failure = None
+    for _, command, _, step in running:
+        if step.get('timed_out'):
+            failure = subprocess.TimeoutExpired(command, timeout)
+        elif step['exit_code']:
+            print((output / (step['name'] + '.log')).read_text()[-12000:], flush=True)
+            failure = subprocess.CalledProcessError(step['exit_code'], command)
+    if failure:
+        raise failure
+
+
+def run_core_shards(python, helper, plan, output, suite, env, result, timeout=1200):
+    from core_selection import PARTS, verify
+
+    common = ['--backend', result['backend'], '--revision', result['source_revision']]
+    commands = [(part, [python, helper, 'run', *common, '--plan', plan,
+                        '--part', part, '--output', output / (part + '.json')])
+                for part in PARTS]
+    run_shards(commands, output, suite, env, result['steps'], timeout)
+    coverage = verify(json.loads(plan.read_text()),
+                      {part: json.loads((output / (part + '.json')).read_text())
+                       for part in PARTS}, result['source_revision'], result['backend'])
+    (output / 'coverage.json').write_text(json.dumps(coverage, indent=2) + '\n')
 
 
 def main():
@@ -100,25 +181,11 @@ def main():
             'import botbowl; from pathlib import Path; '
             'assert "site-packages" in Path(botbowl.__file__).parts; print(botbowl.__file__)'])
         if not args.rl:
-            from core_selection import PARTS, verify
-
             helper = source / 'tools/ci/core_selection.py'
             common = ['--backend', args.backend, '--revision', result['source_revision']]
             plan = output / 'collection.json'
             run('collection', [python, helper, 'collect', *common, '--output', plan], suite)
-            failure = None
-            for part in PARTS:
-                try:
-                    run(part, [python, helper, 'run', *common, '--plan', plan,
-                               '--part', part, '--output', output / (part + '.json')], suite)
-                except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
-                    failure = exc
-            if failure:
-                raise failure
-            coverage = verify(json.loads(plan.read_text()),
-                              {part: json.loads((output / (part + '.json')).read_text())
-                               for part in PARTS}, result['source_revision'], args.backend)
-            (output / 'coverage.json').write_text(json.dumps(coverage, indent=2) + '\n')
+            run_core_shards(python, helper, plan, output, suite, env, result)
             return
         options = ['--require-pathfinding=' + args.backend, '-q', '-ra']
         # Split fast unit/regression tests and integration without dropping files.
@@ -137,7 +204,7 @@ def main():
     finally:
         result['seconds'] = round(time.monotonic() - start, 2)
         result['tests'] = {}
-        for report in output.glob('*.xml'):
+        for report in sorted(output.glob('*.xml')):
             document = ET.parse(report).getroot()
             counts = dict(passed=0, failed=0, errors=0, skipped=0, xfailed=0)
             reasons = {}
