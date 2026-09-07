@@ -6,23 +6,55 @@ to a verified release commit; checkout disables persisted credentials. No workfl
 calls the separate, unchanged Skillforge issue-label launcher. PR code never runs
 via `pull_request_target` or on the self-hosted Codex runner.
 
-The Linux core matrix is CPython 3.11–3.14 × Python/native pathfinding. Separate
-Linux legacy RL jobs run the complete suite on 3.11/3.12 with Gym 0.26.2 and NumPy
-1.26.4, including real registered environments with the checker enabled. Core
-jobs omit only `tests/ai/test_env.py`; that module runs in both RL jobs. Optional
-Gym export/mask cases explain their absent capability through explicit skips.
-Native-only pathfinding comparisons skip in Python jobs and execute in all four
-native jobs. The strict inherited end-time xfail belongs to #16. No other engine
-failure is waived; known forward-model findings belong to #20 and remain failures.
+The [September 7 amendment to epic #3](https://github.com/murillo128/botbowl/issues/3#issuecomment-5573357791)
+and the current [issue #6 contract](https://github.com/murillo128/botbowl/issues/6)
+define exactly three ordinary mandatory jobs: `lint`, `core / 3.11 / python`, and
+`core / 3.11 / native`. This policy applies to PRs, intermediate integrations and
+the final epic gate. CPython 3.12–3.14, legacy RL, packaging, extras and dependency
+audits are outside the ordinary workflow. Run the relevant additional profiles
+when a change specifically affects those capabilities.
 
-Each suite is split into fast unit/regression tests and integration (AI,
-forward-model, server, full-game). Both portions run even if the first fails. The
-suite and examples are copied outside the checkout; only the built wheel supplies
+Core retains the full functional suite with two explicit boundaries:
+`tests/ai/test_env.py` belongs to the optional legacy RL profile, and
+`tests/framework/test_quick_snap_forward_model.py` is targeted #20 investigation
+evidence. The latter remains normally discoverable by `pytest` and can be run
+directly on either installed backend; ordinary core does not execute it. Optional
+Gym export/mask cases retain their capability skips, native-only comparisons skip
+only in Python, and the inherited strict end-time xfail belongs to #16. No other
+engine failure is waived; known forward-model findings remain failures.
+
+Each core job first collects all core identities, including the investigation.
+It then runs unit/regression and integration (AI, forward-model, server, full-game)
+portions in two deterministic shards: SHA-256 of the UTF-8 pytest node ID modulo
+two. The four subprocesses run sequentially in fresh processes, preserving order
+within each portion/shard and continuing after a failed subprocess. This bounds
+accumulated test-process state without helper jobs or a new runtime matrix.
+The job retains its 25-minute limit and each execution subprocess its 20-minute
+limit. Core clears environment/configuration addopts to prevent global filters
+from silently shrinking both reference discovery and execution.
+
+The named core job verifies receipts for all four portions before succeeding:
+same source head, installed backend, interpreter and complete collection; exact
+deterministic selection; successful pytest exit; and exactly one teardown receipt
+per selected identity. The disjoint executed union plus the explicitly recorded
+investigation equals full discovery. Missing portions, loss, overlap, duplicates,
+stale receipts and failed execution fail the gate. Lint runs synthetic negative
+controls for this accounting; these controls are not functional execution evidence.
+
+Tests and examples are copied outside the checkout; only the built wheel supplies
 `botbowl`. `--require-pathfinding` verifies the actual module and native extension
-suffix. Unit/integration JUnit, logs, resolved packages, step durations, and source
-revision are retained as 14-day Actions artifacts even on failure.
+suffix. JUnit, full collection/selection/execution receipts, package inventories,
+step durations, and source revision are retained as 14-day Actions artifacts even
+on failure. No pytest discovery configuration or investigation assertions change.
 
-Packaging smokes run on Ubuntu 24.04, Windows 2025, and macOS 15, CPython 3.11.
+## Historical and targeted additional profiles
+
+The wider matrix recorded in [issue #6's report](reports/ci-issue-6.md) remains
+valid historical evidence. Its absence from ordinary CI does not invalidate it
+or certify these additional capabilities at a newer head. The profile helpers and
+constraints remain available for targeted validation.
+
+Historical packaging smokes ran on Ubuntu 24.04, Windows 2025, and macOS 15, CPython 3.11.
 They invoke `tests/packaging/verify_sdist.py`: export committed source, build a
 Python wheel/sdist with an unavailable compiler, build a native wheel from that
 fresh sdist, then install and smoke-test it in a clean environment. Additional
@@ -30,7 +62,7 @@ minimal environments install the Python wheel and sdist independently. All run
 outside the checkout, without DISPLAY or optional integrations, with `pip check`.
 These are platform packaging smokes, not full platform suite certification.
 
-Independent extra installs run on Linux 3.11 for web, competition, dev, render,
+Historical independent extra installs ran on Linux 3.11 for web, competition, dev, render,
 and RL; RL additionally runs on 3.12. Each installs just one extra in a new venv,
 runs its installed smoke and `pip check`. This does not certify the Cartesian
 product of all extras, platforms, and Python versions. Render uses Agg; competition
@@ -56,8 +88,8 @@ run the actual matrix and platform/extra profiles, and refresh the dated audit.
 Pins are reproducible version constraints, not a claim that every version in a
 library range has been tested or audited. No package hashes/lockfile are claimed.
 
-Audit jobs install all applicable extras plus build/CI tools, run `pip check`,
-and audit every resolved third-party identity using pip-audit/PyPI in strict mode,
+The targeted audit helper installs all applicable extras plus build/CI tools, runs `pip check`,
+and audits every resolved third-party identity using pip-audit/PyPI in strict mode,
 without ignored advisories. Only the unpublished local Bot Bowl project is omitted
 from the registry lookup; its source is covered by the other CI jobs. Security
 results are dated observations, not a permanent absence-of-vulnerabilities claim.
@@ -68,6 +100,7 @@ commit the source to test, then run from a checkout:
 ```bash
 python -m pip install --upgrade -c requirements/core.txt pip setuptools wheel build
 python tools/ci/run_profile.py suite --backend native --output /tmp/botbowl-ci-native
+python tools/ci/run_profile.py suite --backend python --output /tmp/botbowl-ci-python
 python tools/ci/run_profile.py artifacts --output /tmp/botbowl-ci-artifacts
 python tools/ci/run_profile.py extra --extra web --output /tmp/botbowl-ci-web
 python tools/ci/run_profile.py suite --rl --backend native --output /tmp/botbowl-ci-rl
@@ -76,4 +109,15 @@ python tools/ci/run_profile.py suite --rl --backend native --output /tmp/botbowl
 Output directories must be new. Each profile exports committed `HEAD`; uncommitted
 edits are intentionally absent from its artifact and test input. Hosted jobs
 checkout the exact PR head, so reports identify that head rather than a synthetic
-merge result. Final integration validation remains a separate epic gate.
+merge result. Final integration validation uses the same three ordinary gates,
+plus any functional evidence explicitly required by the integrated changes.
+
+After a core profile has installed its wheel, targeted #20 evidence can use its
+retained test copy and interpreter (repeat with the Python installation as needed):
+
+```bash
+cd /tmp/botbowl-ci-native/suite
+BOTBOWL_ISSUE20_EVIDENCE=/tmp/botbowl-issue20-targeted \
+  ../installed/bin/python -m pytest tests/framework/test_quick_snap_forward_model.py \
+  --require-pathfinding=native -q
+```
