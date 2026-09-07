@@ -1,4 +1,5 @@
-"""Protect the installed core boundary and legacy optional public exports."""
+"""Protect the core import boundary and legacy optional public exports."""
+from pathlib import Path
 import subprocess
 import sys
 
@@ -21,6 +22,12 @@ assert bb.ruleset.name == 'BB2016'
 assert isinstance(bb.make_bot('random'), bb.RandomBot)
 assert bb.load_team_by_filename('human', bb.ruleset, board_size=1).players
 '''
+    import botbowl
+
+    # Exercise the package selected by this test run, including a source checkout.
+    # Installed-artifact isolation is separately checked by smoke.py.
+    package_parent = str(Path(botbowl.__file__).resolve().parent.parent)
+    code = f"import sys; sys.path.insert(0, {package_parent!r})\n" + code
     subprocess.run([sys.executable, "-c", code], cwd=tmp_path, check=True)
 
 

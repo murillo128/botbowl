@@ -592,3 +592,10 @@ class PPCGWrapper(BotBowlWrapper):
                     self.env.step(None, skip_observation=True)  # process the Touchdown-procedure
 
         return self.root_env.get_step_return(skip_observation=skip_observation)
+
+
+# Explicitly importing the RL adapter also supports an uninstalled source
+# checkout. Installed distributions register through Gym's plugin entry point.
+from botbowl.ai import register_envs as _register_envs
+
+_register_envs()
