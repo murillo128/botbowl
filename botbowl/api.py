@@ -4,7 +4,7 @@ from typing import Literal, Optional, Union
 from uuid import uuid4
 
 from botbowl.core.game import Game
-from botbowl.core.load import (load_arena, load_config, load_rule_set,
+from botbowl.core.load import (_TeamNotFoundError, load_arena, load_config, load_rule_set,
                                load_team_by_filename, load_team_by_name)
 from botbowl.core.model import Agent, Configuration, RuleSet, Team
 from botbowl.lab.rules import SUPPORTED_SIZES, describe_rules
@@ -22,12 +22,15 @@ def _team(value: Union[str, Team], rules: RuleSet, size: int, seat: str) -> Team
     if not isinstance(value, str) or not value:
         raise ValueError(f"{seat}_team must be a team name or Team")
     try:
-        return load_team_by_filename(value, rules, board_size=size)
-    except ValueError:
         try:
+            return load_team_by_filename(value, rules, board_size=size)
+        except _TeamNotFoundError:
             return load_team_by_name(value, rules, board_size=size)
-        except ValueError as error:
-            raise ValueError(f"Unknown {seat}_team {value!r} for size {size}") from error
+    except _TeamNotFoundError as error:
+        raise ValueError(f"Unknown {seat}_team {value!r} for size {size}") from error
+    except ValueError as error:
+        raise ValueError(f"Invalid {seat}_team {value!r} for size {size} "
+                         f"with ruleset {rules.name!r}: {error}") from error
 
 
 def create_game(

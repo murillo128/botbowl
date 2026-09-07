@@ -1533,8 +1533,8 @@ class RuleSet:
                 for p in r.roles:
                     if p.name == role:
                         return p
-                raise Exception("Role not found in race: " + race + " -> " + role)
-        raise Exception("Race not found: " + race)
+                raise ValueError(f"Role not found in race: {race} -> {role} (ruleset {self.name!r})")
+        raise ValueError(f"Race not found: {race} (ruleset {self.name!r})")
 
 
 class Formation(Immutable):

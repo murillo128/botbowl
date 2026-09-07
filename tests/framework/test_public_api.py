@@ -261,6 +261,51 @@ def test_invalid_factory_never_initializes_policies():
     assert home.calls == away.calls == []
 
 
+@pytest.mark.parametrize("name", ["elven-union", "Elven Union Team"])
+@pytest.mark.parametrize("seat", ["home", "away"])
+@pytest.mark.parametrize("control", ["external", "policy"])
+def test_incompatible_named_roster_fails_before_callbacks(name, seat, control):
+    config = bb.load_config("gym-11")
+    config.ruleset = "LRB5-Experimental"
+    home, away = Spy("home"), Spy("away")
+    agents = {"home_agent": home, "away_agent": away} if control == "policy" else {}
+    with pytest.raises(ValueError) as error:
+        bb.create_game(config, **{seat + "_team": name}, control=control, **agents)
+    message = str(error.value)
+    assert seat + "_team" in message and name in message
+    assert "LRB5-Experimental" in message and "Race not found: Elven Union" in message
+    assert home.calls == away.calls == []
+
+
+@pytest.mark.parametrize("name", ["human", "Human Team"])
+def test_compatible_named_roster_with_ruleset_override(name):
+    config = bb.load_config("gym-11")
+    config.ruleset = "LRB5-Experimental"
+    game = bb.create_game(config, home_team=name, away_team=name, control="external")
+    try:
+        assert game.ruleset.name == "LRB5-Experimental"
+        assert game.state.home_team.race == game.state.away_team.race == "Human"
+        game.advance(bb.Action(bb.ActionType.START_GAME), max_steps=100)
+    finally:
+        game.close()
+
+
+@pytest.mark.parametrize("exception_type", [Exception, ValueError, RuntimeError])
+@pytest.mark.parametrize("seat", ["home", "away"])
+def test_policy_callback_exception_propagates_unchanged(exception_type, seat):
+    failure = exception_type("policy initialization failed")
+
+    class FailingPolicy(Spy):
+        def new_game(self, game, team):
+            raise failure
+
+    agents = {"home_agent": Spy("home"), "away_agent": Spy("away")}
+    agents[seat + "_agent"] = FailingPolicy(seat)
+    with pytest.raises(exception_type) as error:
+        bb.create_game(size=1, control="policy", **agents)
+    assert error.value is failure
+
+
 def test_close_and_invalid_action_preserve_boundary():
     game = bb.create_game(size=1, seed=17, control="external")
     before = game.to_json()

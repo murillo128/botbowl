@@ -152,12 +152,16 @@ def load_all_teams(ruleset: RuleSet, board_size: int = 11) -> List[Team]:
     return teams
 
 
+class _TeamNotFoundError(ValueError):
+    """No roster matches the lookup, as distinct from an incompatible roster."""
+
+
 def load_team_by_filename(name: str, ruleset: RuleSet, board_size: int = 11) -> Team:
     path = get_data_path('teams/')
     for filepath in list(glob.glob(f'{path}/{board_size}/*json')):
         if os.path.split(filepath)[1].split(".json")[0] == name:
             return load_team(filepath, ruleset)
-    raise ValueError(f"Team file {name!r} not found for size {board_size}.")
+    raise _TeamNotFoundError(f"Team file {name!r} not found for size {board_size}.")
 
 
 def load_team_by_name(name: str, ruleset: RuleSet, board_size: int = 11) -> Team:
@@ -168,7 +172,7 @@ def load_team_by_name(name: str, ruleset: RuleSet, board_size: int = 11) -> Team
         with open(filepath) as stream:
             if json.load(stream)['name'] == name:
                 return load_team(filepath, ruleset)
-    raise ValueError(f"Team with name {name!r} not found for size {board_size}.")
+    raise _TeamNotFoundError(f"Team with name {name!r} not found for size {board_size}.")
 
 
 def load_team(path: str, ruleset: RuleSet) -> Team:
