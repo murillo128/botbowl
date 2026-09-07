@@ -28,6 +28,7 @@ def test_strip_ball(sure_hands):
     
     game.step(Action(ActionType.START_BLOCK, player=blocker))
     game.step(Action(ActionType.BLOCK, position=victim.position ))
+    game.step(Action(ActionType.DONT_USE_REROLL))
     game.step(Action(ActionType.SELECT_PUSH ))
     game.step(Action(ActionType.PUSH, position=Square(5,4)))
     game.step(Action(ActionType.FOLLOW_UP, position=Square(5,6))) 
@@ -67,6 +68,7 @@ def test_strip_ball_taken_root():
     
     game.step(Action(ActionType.START_BLOCK, player=blocker))
     game.step(Action(ActionType.BLOCK, position=victim.position ))
+    game.step(Action(ActionType.DONT_USE_REROLL))
     game.step(Action(ActionType.SELECT_PUSH ))
     #game.step(Action(ActionType.PUSH, position=Square(5,4)))
     #game.step(Action(ActionType.FOLLOW_UP, position=Square(5,6))) 
@@ -102,6 +104,7 @@ def test_strip_ball_stand_firm():
     
     game.step(Action(ActionType.START_BLOCK, player=blocker))
     game.step(Action(ActionType.BLOCK, position=victim.position ))
+    game.step(Action(ActionType.DONT_USE_REROLL))
     game.step(Action(ActionType.SELECT_PUSH ))
     game.step(Action(ActionType.USE_SKILL ))
     #game.step(Action(ActionType.PUSH, position=Square(5,4)))
@@ -143,6 +146,7 @@ def test_strip_ball_chain_push_sequence():
     
     game.step(Action(ActionType.START_BLOCK, player=blocker))
     game.step(Action(ActionType.BLOCK, position=victim.position ))
+    game.step(Action(ActionType.DONT_USE_REROLL))
     game.step(Action(ActionType.SELECT_PUSH ))
     game.step(Action(ActionType.PUSH, position=Square(5,4)))
     game.step(Action(ActionType.PUSH, position=Square(5,3)))

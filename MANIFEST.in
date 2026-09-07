@@ -1,3 +1,28 @@
-include LICENSE
-recursive-include botbowl/data *
-recursive-include botbowl/web *
+include LICENSE README.md pyproject.toml setup.py
+recursive-include botbowl *.py
+recursive-include botbowl/data/arenas *.txt
+recursive-include botbowl/data/config *.json
+recursive-include botbowl/data/formations *.txt
+recursive-include botbowl/data/rules *.xml
+recursive-include botbowl/data/teams *.json
+include botbowl/core/pathfinding/*.pyx
+include botbowl/core/pathfinding/*.pxd
+include botbowl/core/pathfinding/pathing_node.cpp
+include botbowl/core/pathfinding/pathing_node.h
+prune tests
+recursive-include botbowl/web/templates *.html
+recursive-include botbowl/web/static/partials *.html
+recursive-include botbowl/web/static/dist *.js *.css
+recursive-include botbowl/web/static/lib/angular *.js
+recursive-include botbowl/web/static/lib/jquery *.js
+include botbowl/web/static/lib/wysiwyg/css/bootstrap.min.css
+include botbowl/web/static/lib/wysiwyg/js/bootstrap.min.js
+include botbowl/web/static/lib/wysiwyg/js/wysihtml5-0.3.0.min.js
+include botbowl/web/static/lib/wysiwyg/LICENCE
+prune botbowl/web/static/img
+prune botbowl/web/static/lib/wysiwyg/img
+prune botbowl/web/static/lib/wysiwyg/fonts
+prune build
+prune .git
+prune .github
+global-exclude __pycache__ *.py[cod] *.so *.pyd *.dll *.bb *.rep *.png *.jpg *.jpeg *.gif *.svg *.eot *.ttf *.woff *.woff2 .env

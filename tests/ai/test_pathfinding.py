@@ -2,6 +2,7 @@ from more_itertools import first
 from pytest import approx
 
 from tests.util import Square, get_game_turn, Skill, Action, ActionType, get_custom_game_turn
+from tests.baseline import scenario, SIZES
 import pytest
 import unittest.mock
 import numpy as np
@@ -24,6 +25,144 @@ pathfinding_modules_to_test = [
 ]
 
 PROP_PRECISION = 0.000000001
+
+
+def assert_path(path, steps, rolls, probability, handoff_roll=None):
+    assert path is not None
+    assert tuple((square.x, square.y) for square in path.steps) == tuple(steps)
+    assert path.get_last_step() == Square(*steps[-1])
+    assert path.rolls == tuple(rolls)
+    assert path.handoff_roll == handoff_roll
+    assert path.block_dice is None
+    assert path.foul_roll is None
+    assert path.prob == pytest.approx(probability, rel=0, abs=PROP_PRECISION)
+
+
+@pytest.mark.parametrize("pf", pathfinding_modules_to_test)
+@pytest.mark.parametrize("action_state", ["available", "unavailable", "started"])
+@pytest.mark.parametrize("rain", [False, True])
+@pytest.mark.parametrize("catch", [False, True])
+def test_handoff_query(pf, action_state, rain, catch):
+    # Upstream #234 (Mattias Bermell / mrbermell), expanded to check semantics.
+    game, (carrier, receiver) = get_custom_game_turn(
+        player_positions=[(2, 2), (5, 2)], ball_position=(2, 2),
+        weather=botbowl.WeatherType.POURING_RAIN if rain else botbowl.WeatherType.NICE)
+    if catch:
+        receiver.extra_skills.append(Skill.CATCH)
+    if action_state == "started":
+        game.step(Action(ActionType.START_HANDOFF, player=carrier))
+        assert not game.is_handoff_available()
+        assert game.get_player_action_type() == botbowl.PlayerActionType.HANDOFF
+    elif action_state == "unavailable":
+        game.use_handoff_action()
+    before = pickle.dumps(game)
+    path = pf.get_safest_path(game, carrier, receiver.position)
+    if action_state == "unavailable":
+        assert path is None
+    else:
+        target = 4 if rain else 3
+        assert_path(path, [(3, 2), (4, 2), (5, 2)], [[], [], []], 1.0, target)
+        assert game.get_player_at(path.get_last_step()) is receiver
+        # Path.prob excludes the terminal catch, as in docs/bots-ii.md.
+        p_catch = (7 - target) / 6
+        if catch:
+            p_catch += (1 - p_catch) * p_catch
+        assert game.get_catch_prob(receiver, handoff=True) == pytest.approx(
+            p_catch, rel=0, abs=PROP_PRECISION)
+    assert pickle.dumps(game) == before
+
+
+@pytest.mark.parametrize("pf", pathfinding_modules_to_test)
+@pytest.mark.parametrize("invalid", ["opponent", "prone", "no_ball", "absent_ball", "loose_ball", "out_of_bounds"])
+@pytest.mark.parametrize("started", [False, True])
+def test_invalid_handoff_query(pf, invalid, started):
+    game, (carrier, receiver, opponent) = get_custom_game_turn(
+        player_positions=[(2, 2), (4, 2)], opp_player_positions=[(4, 4)],
+        ball_position=(2, 2))
+    if started:
+        game.step(Action(ActionType.START_HANDOFF, player=carrier))
+    target = receiver.position
+    if invalid == "opponent":
+        target = opponent.position
+    elif invalid == "prone":
+        receiver.state.up = False
+    elif invalid == "no_ball":
+        game.get_ball().move_to(Square(10, 10))
+        game.get_ball().is_carried = False
+    elif invalid == "loose_ball":
+        game.get_ball().is_carried = False
+    elif invalid == "absent_ball":
+        game.state.pitch.balls.clear()
+    else:
+        target = Square(0, 2)
+    before = pickle.dumps(game)
+    assert pf.get_safest_path(game, carrier, target) is None
+    paths = pf.Pathfinder(game, carrier, can_handoff=True).get_paths()
+    assert all(path.get_last_step() != target for path in paths)
+    assert pickle.dumps(game) == before
+
+
+@pytest.mark.parametrize("pf", pathfinding_modules_to_test)
+@pytest.mark.parametrize("query", ["get_safest_path", "get_safest_path_to_endzone", "get_all_paths"])
+@pytest.mark.parametrize("forward_model", [False, True])
+@pytest.mark.parametrize("overrides", ["position", "moves", "both", "zero", "same", "default"])
+def test_hypothetical_query_restores_state(pf, query, forward_model, overrides):
+    game, (player,) = get_custom_game_turn(
+        player_positions=[(5, 1)], ball_position=(5, 1),
+        forward_model_enabled=forward_model)
+    player.role.ma = 6
+    player.state.moves = 2
+    kwargs = {}
+    if overrides in ("position", "both", "zero"):
+        kwargs["from_position"] = Square(3, 1)
+    elif overrides == "same":
+        kwargs["from_position"] = player.position
+    if overrides in ("moves", "both", "same"):
+        kwargs["num_moves_used"] = 6
+    elif overrides == "zero":
+        kwargs["num_moves_used"] = 0
+    origin_x = kwargs.get("from_position", player.position).x
+    moves = kwargs.get("num_moves_used", 2)
+    target = Square(1, 1) if query == "get_safest_path_to_endzone" else Square(origin_x - 1, 1)
+    args = (target,) if query == "get_safest_path" else ()
+    state = player.state
+    ball = game.get_ball()
+    log = game.trajectory.action_log
+    before = pickle.dumps(game)
+    result = getattr(pf, query)(game, player, *args, **kwargs)
+    assert pickle.dumps(game) == before
+    assert player.state is state and game.get_ball() is ball
+    assert game.trajectory.action_log is log
+    path = first(p for p in result if p.get_last_step() == target) if query == "get_all_paths" else result
+    steps = [(x, 1) for x in range(origin_x - 1, target.x - 1, -1)]
+    gfis = max(0, len(steps) - (6 - moves))
+    if gfis > 2:
+        assert path is None
+        return
+    rolls = [[]] * (len(steps) - gfis) + [[2]] * gfis
+    assert_path(path, steps, rolls, (5 / 6) ** gfis)
+
+
+@pytest.mark.parametrize("pf", pathfinding_modules_to_test)
+@pytest.mark.parametrize("query", ["get_safest_path", "get_safest_path_to_endzone", "get_all_paths"])
+@pytest.mark.parametrize("forward_model", [False, True])
+def test_hypothetical_query_restores_after_exception(pf, query, forward_model, monkeypatch):
+    game, (player,) = get_custom_game_turn(
+        player_positions=[(5, 2)], ball_position=(5, 2),
+        forward_model_enabled=forward_model)
+    def fail(*args, **kwargs):
+        assert player.position == Square(3, 2)
+        assert player.state.moves == 1
+        raise RuntimeError("injected pathfinding failure")
+    before = pickle.dumps(game)
+    state, ball = player.state, game.get_ball()
+    args = (Square(2, 2),) if query == "get_safest_path" else ()
+    with monkeypatch.context() as patch:
+        patch.setattr(type(game), "get_players_on_pitch", fail)
+        with pytest.raises(RuntimeError, match="injected pathfinding failure"):
+            getattr(pf, query)(game, player, *args, from_position=Square(3, 2), num_moves_used=1)
+    assert pickle.dumps(game) == before
+    assert player.state is state and game.get_ball() is ball
 
 
 @pytest.mark.parametrize("pf", pathfinding_modules_to_test)
@@ -451,22 +590,11 @@ def test_compare_cython_python_paths():
     cython_paths = cython_pathfinding.Pathfinder(game, player, trr=True).get_paths()
     python_paths = python_pathfinding.Pathfinder(game, player, directly_to_adjacent=True, trr=True).get_paths()
 
-    def create_path_str_to_compare(path):
-        return f"({path.get_last_step() .x}, {path.get_last_step() .y}) p={path.prob:.5f} len={len(path.steps)}"
-
-    def create_path_str_to_debug(path):
-        """ Only used for debugging, see below """
-        return "->".join([f"({step.x}, {step.y})" for step in path.steps]) + f"rolls={path.rolls}"
-
+    assert len(python_paths) == len(cython_paths)
     for python_path, cython_path in zip(python_paths, cython_paths):
-        python_str = create_path_str_to_compare(python_path)
-        cython_str = create_path_str_to_compare(cython_path)
-        assert python_str == cython_str
-
-        # Uncomment this when debugging. And comment the assertion above
-        # if python_str != cython_str:
-        #    print(f"slow = {python_str} \n {create_path_string(python_str)}")
-        #    print(f"fast = {cython_str} \n {create_path_string(cython_str)}")
+        assert python_path.get_last_step() == cython_path.get_last_step()
+        assert len(python_path.steps) == len(cython_path.steps)
+        assert python_path.prob == pytest.approx(cython_path.prob, rel=0, abs=PROP_PRECISION)
 
 @pytest.mark.parametrize("pf", pathfinding_modules_to_test)
 def test_straight_paths(pf):
@@ -542,10 +670,11 @@ def test_forced_pickup_path(pf):
     paths = pf.get_all_paths(game, player1)
     assert len(paths) == 1
     assert paths[0].get_last_step() == game.get_ball_position()
+    assert_path(paths[0], [(2, 1)], [[3]], 4 / 6)
 
 
 @pytest.mark.parametrize("pf", pathfinding_modules_to_test)
-def test_forced_pickup_path(pf):
+def test_airborne_ball_does_not_force_pickup(pf):
     game, (player,) = get_custom_game_turn(player_positions=[(1, 1)],
                                            ball_position=(3, 3),
                                            pathfinding_enabled=True)
@@ -609,3 +738,131 @@ def test_pouring_rain_handoff(pf):
     path = first(filter(lambda p: p.get_last_step() == catcher.position, paths))
     assert path.rolls == ([], [])
     assert path.handoff_roll == 4
+
+
+@pytest.fixture(params=[(size, home, snow, reroll, sure_feet)
+                       for size in SIZES for home in (False, True)
+                       for snow in (False, True) for reroll in (False, True)
+                       for sure_feet in (False, True)])
+def fixed_pathfinding_corpus(request):
+    size, home, snow, reroll, sure_feet = request.param
+    with scenario(size=size, seed=17) as probe:
+        game = probe.game
+        team = game.state.home_team if home else game.state.away_team
+        probe.until(lambda g: g.active_team is team)
+        game.clear_board()
+        player = team.players[0]
+        player.role.ma = 1
+        player.extra_skills = [Skill.SURE_FEET] if sure_feet else []
+        player.role.skills = []
+        player.state.moves = 0
+        direction = -1 if home else 1
+        origin = game.get_square(game.arena.width - 2 if home else 1, 1)
+        game.put(player, origin)
+        ball = game.get_ball()
+        ball.move_to(origin)
+        ball.is_carried = True
+        game.state.weather = botbowl.WeatherType.BLIZZARD if snow else botbowl.WeatherType.NICE
+        team.state.rerolls = int(reroll)
+        game.enable_forward_model()
+        yield game, player, direction, snow, reroll, sure_feet
+
+
+def gfi_probability(gfis, snow, reroll, sure_feet):
+    p = 4 / 6 if snow else 5 / 6
+    if gfis == 0:
+        return 1.0
+    if not (reroll or sure_feet):
+        return p ** gfis
+    if gfis == 1:
+        return p + (1 - p) * p
+    # Two rolls: one retry resource can recover either failure; two can recover both.
+    return p * p + 2 * p * (1 - p) * p + (int(reroll and sure_feet) * ((1 - p) * p) ** 2)
+
+
+@pytest.mark.parametrize("pf", pathfinding_modules_to_test)
+def test_fixed_corpus_reference(pf, fixed_pathfinding_corpus):
+    game, player, direction, snow, reroll, sure_feet = fixed_pathfinding_corpus
+    origin = player.position
+    before = pickle.dumps(game)
+    for gfis in (0, 1, 2):
+        steps = [(origin.x + direction * n, 1) for n in range(1, gfis + 2)]
+        path = pf.get_safest_path(game, player, Square(*steps[-1]), allow_team_reroll=reroll)
+        assert_path(path, steps, [[]] + [[3 if snow else 2]] * gfis,
+                    gfi_probability(gfis, snow, reroll, sure_feet))
+        assert pickle.dumps(game) == before
+
+
+@requires_native
+def test_fixed_corpus_differential(fixed_pathfinding_corpus):
+    game, player, _, _, reroll, _ = fixed_pathfinding_corpus
+    before = pickle.dumps(game)
+    python_paths = python_pathfinding.get_all_paths(game, player, allow_team_reroll=reroll)
+    assert pickle.dumps(game) == before
+    native_paths = cython_pathfinding.get_all_paths(game, player, allow_team_reroll=reroll)
+    assert pickle.dumps(game) == before
+    assert len(python_paths) == len(native_paths)
+    expected = {(p.get_last_step().x, p.get_last_step().y): p for p in python_paths}
+    actual = {(p.get_last_step().x, p.get_last_step().y): p for p in native_paths}
+    assert len(expected) == len(python_paths)
+    assert len(actual) == len(native_paths)
+    assert actual.keys() == expected.keys()
+    for destination, reference in expected.items():
+        assert_path(actual[destination], [(sq.x, sq.y) for sq in reference.steps],
+                    reference.rolls, reference.prob, reference.handoff_roll)
+
+
+@pytest.mark.parametrize("pf", pathfinding_modules_to_test)
+@pytest.mark.parametrize("moves_used", [6, 7, 8])
+def test_handoff_query_at_movement_limit(pf, moves_used):
+    distance = 9 - moves_used
+    game, (player, receiver) = get_custom_game_turn(
+        player_positions=[(2, 2), (2 + distance, 2)], ball_position=(2, 2))
+    player.role.ma = 6
+    game.step(Action(ActionType.START_HANDOFF, player=player))
+    player.state.moves = moves_used
+    path = pf.get_safest_path(game, player, receiver.position)
+    assert_path(path, [(x, 2) for x in range(3, 3 + distance)],
+                [[2]] * (distance - 1) + [[]], (5 / 6) ** (distance - 1), 3)
+
+
+@pytest.mark.parametrize("pf", pathfinding_modules_to_test)
+@pytest.mark.parametrize("forward_model", [False, True])
+@pytest.mark.parametrize("bad_input", ["occupied", "negative_moves", "out_of_bounds"])
+def test_invalid_hypothetical_query_is_unchanged(pf, forward_model, bad_input):
+    game, (player, other) = get_custom_game_turn(
+        player_positions=[(5, 2), (4, 2)], ball_position=(5, 2),
+        forward_model_enabled=forward_model)
+    from_position = other.position if bad_input == "occupied" else Square(3, 2)
+    if bad_input == "out_of_bounds":
+        from_position = Square(0, 2)
+    moves = -1 if bad_input == "negative_moves" else 1
+    before = pickle.dumps(game)
+    with pytest.raises(AssertionError):
+        pf.get_all_paths(game, player, from_position=from_position, num_moves_used=moves)
+    assert pickle.dumps(game) == before
+
+
+@pytest.mark.parametrize("pf", pathfinding_modules_to_test)
+@pytest.mark.parametrize("forward_model", [False, True])
+def test_hypothetical_pickup_restores_ball(pf, forward_model):
+    game, (player,) = get_custom_game_turn(
+        player_positions=[(5, 1)], ball_position=(3, 1),
+        forward_model_enabled=forward_model)
+    before = pickle.dumps(game)
+    path = pf.get_safest_path_to_endzone(game, player, from_position=Square(3, 1), num_moves_used=2)
+    assert_path(path, [(2, 1), (1, 1)], [[], []], 1.0)
+    assert pickle.dumps(game) == before
+
+
+@pytest.mark.parametrize("pf", pathfinding_modules_to_test)
+@pytest.mark.parametrize("forward_model", [False, True])
+def test_hypothetical_movement_restores_prone_player(pf, forward_model):
+    game, (player,) = get_custom_game_turn(
+        player_positions=[(5, 1)], ball_position=(5, 1),
+        forward_model_enabled=forward_model)
+    player.state.up = False
+    before = pickle.dumps(game)
+    path = pf.get_safest_path(game, player, Square(2, 1), from_position=Square(3, 1), num_moves_used=1)
+    assert_path(path, [(2, 1)], [[]], 1.0)
+    assert pickle.dumps(game) == before
