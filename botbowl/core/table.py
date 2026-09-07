@@ -66,6 +66,7 @@ class RollType(Enum):
     BLOOD_LUST_ROLL = 32
     BOMB_ROLL = 33
     LAND_ROLL = 34
+    PRO_ROLL = 35
 
 
 class OutcomeType(Enum):

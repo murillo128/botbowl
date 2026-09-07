@@ -32,6 +32,19 @@ class ActionValidationResult:
 
 
 @dataclass(frozen=True)
+class DecisionResult:
+    """One advance's new reports and the next decision owner (None at terminal).
+
+    Events are ordered Outcome objects, as in Game.state.reports. The tuple
+    captures this call's report interval, not a copy of the whole game.
+    """
+
+    actor: Optional[Agent]
+    events: Tuple[Outcome, ...]
+    terminal: bool
+
+
+@dataclass(frozen=True)
 class GameCheckpoint:
     """In-memory ancestor checkpoint for one game's enabled trajectory."""
 
@@ -66,7 +79,8 @@ class Game:
                  ruleset: Optional[RuleSet] = None,
                  state: Optional[GameState] = None,
                  seed=None,
-                 record: bool = False):
+                 record: bool = False,
+                 external_control: bool = False):
         assert config is not None
         assert home_team.team_id != away_team.team_id
         self.replay = Replay(replay_id=game_id) if record else None
@@ -84,6 +98,9 @@ class Game:
         self.last_request_time = None
         self.last_action_time = None
         self.action = None
+        self.external_control = external_control
+        self._initialized = False
+        self._end_notified = False
         self.trajectory = Trajectory()
         self.square_shortcut = self.state.pitch.squares
 
@@ -228,8 +245,13 @@ class Game:
 
     def init(self) -> None:
         """
-        Initialized the Game. The START_GAME action must still be called after this if humans are in the game.
+        Initialize once. External control always waits for START_GAME, even
+        with two bots. Legacy games auto-start when both agents are bots.
+        Lifecycle callbacks retain the legacy non-human-agent convention.
         """
+        if self._initialized:
+            return
+        self._initialized = True
         EndGame(self)
         Pregame(self)
         if not self.away_agent.human:
@@ -241,7 +263,7 @@ class Game:
         if self.replay is not None:
             self.replay.record_step(self)
         # Start game if no humans
-        if not self.away_agent.human and not self.home_agent.human:
+        if not self.external_control and not self.away_agent.human and not self.home_agent.human:
             start_action = Action(ActionType.START_GAME)
             # Record state
             if self.replay is not None:
@@ -250,62 +272,47 @@ class Game:
 
     def step(self, action=None) -> None:
         """
-        Runs until an action from a human is required. If game requires an action to continue one must be given.
-        :param action: Action to perform, can be None if game does not require any.
-        :return:
+        Legacy policy driver: run until human input (or a slow-mode tick).
+        With external_control=True, delegate to advance without querying bots.
+        The historical None return value is preserved; use advance for results.
         """
+        if self.external_control:
+            self.advance(action)
+        else:
+            from botbowl.core.driver import LegacyPolicyDriver
+            LegacyPolicyDriver(self).run(action)
 
+    def advance(self, action: Optional[Action] = None) -> DecisionResult:
+        """Apply one decision and resolve automatic consequences, without act().
+
+        Stops at every next offered decision, including consecutive decisions
+        by the same actor. Ignores fast_mode and does not enforce wall clocks.
+        Call init first. None/CONTINUE is legal only without a pending decision;
+        after terminal, None returns an empty terminal result. Invalid input is
+        rejected before changing state, RNG, replay, clocks, or self.action.
+        Select external_control at construction for human-independent choices.
+        """
+        return self._advance(action)
+
+    def _advance(self, action, single_step=False) -> DecisionResult:
         # Reject public input before changing even self.action. Normalization only
         # writes a new Action, never the object owned by a caller or bot.
         action = self._validated_action(action)
-
-        # Set action as a property so other methods can access it
+        if self.state.game_over:
+            return DecisionResult(None, (), True)
+        report_start = len(self.state.reports)
         self.action = action
-
-        # Update game
         while True:
-
-            # Perform game step
             done = self._one_step(self.action)
-
-            # Game over
             if self.state.game_over:
+                self.state.available_actions = []
                 self._end_game()
                 break
-
-            if self.state.stack.is_empty():
-                print("Somethings wrong")
-
-            # if procedure is ready for input
-            if done:
-
-                # If human player - wait for input
-                if self.actor is None or self.actor.human:
-                    break
-
-                # Query agent for action
-                self.last_request_time = time.time()
-                self.action = self._safe_act()
-
-                # Check if time limit was violated
-                self.last_action_time = time.time()
-
-                # Check clocks if competition mode
-                if self.config.competition_mode:
-                    self._check_clocks()  # Might override the action if clock was violated
-
-                # Did the game terminate?
-                if self.state.game_over:
-                    self._end_game()
-                    break
-            else:
-
-                # If not in fast mode - wait for input before continuing
-                if not self.config.fast_mode:
-                    break
-
-                # Else continue procedure with no action
-                self.action = None
+            if done or single_step:
+                break
+            self.action = None
+        return DecisionResult(self.actor if not self.state.game_over else None,
+                              tuple(self.state.reports[report_start:]), self.state.game_over)
 
     def refresh(self) -> None:
         """
@@ -356,6 +363,9 @@ class Game:
         """
         End the game
         """
+        if self._end_notified:
+            return
+        self._end_notified = True
         # Game ended when the last action was received - to avoid timout during finishing procedures
         self.end_time = self.last_action_time
 
@@ -400,6 +410,10 @@ class Game:
             return ActionValidationResult(False, code, message), None
 
         allowed = ActionValidationResult(True, "ok", "Action is allowed.")
+        if self.state.game_over:
+            if action is None:
+                return allowed, None
+            return reject("game_over", "No decisions are accepted after the game is over.")
         if action is None:
             if self.state.available_actions:
                 return reject("action_required", "An action is required while a decision is pending.")
@@ -603,7 +617,7 @@ class Game:
             return False  # Can continue without user input
 
         # End player turn if only action available
-        if len(self.state.available_actions) == 1 and \
+        if not self.external_control and len(self.state.available_actions) == 1 and \
                 self.state.available_actions[0].action_type == ActionType.END_PLAYER_TURN:
             return self._one_step(Action(ActionType.END_PLAYER_TURN))
 
