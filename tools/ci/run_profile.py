@@ -119,8 +119,25 @@ def main():
         result['seconds'] = round(time.monotonic() - start, 2)
         result['tests'] = {}
         for report in output.glob('*.xml'):
-            suites = ET.parse(report).getroot().iter('testsuite')
-            result['tests'][report.stem] = [node.attrib for node in suites]
+            document = ET.parse(report).getroot()
+            counts = dict(passed=0, failed=0, errors=0, skipped=0, xfailed=0)
+            reasons = {}
+            for case in document.iter('testcase'):
+                skipped = case.find('skipped')
+                if skipped is not None:
+                    outcome = 'xfailed' if skipped.get('type') == 'pytest.xfail' else 'skipped'
+                    reason = skipped.get('message', '')
+                    reasons[reason] = reasons.get(reason, 0) + 1
+                elif case.find('failure') is not None:
+                    outcome = 'failed'
+                elif case.find('error') is not None:
+                    outcome = 'errors'
+                else:
+                    outcome = 'passed'
+                counts[outcome] += 1
+            result['tests'][report.stem] = {
+                **counts, 'skip_reasons': reasons,
+                'junit_suites': [node.attrib for node in document.iter('testsuite')]}
         (output / 'result.json').write_text(json.dumps(result, indent=2) + '\n')
         print(json.dumps(result, sort_keys=True), flush=True)
 
