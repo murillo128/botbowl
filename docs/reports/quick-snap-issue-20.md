@@ -17,7 +17,10 @@ the historical crash's cause.
 through START_GAME, HEADS, the required KICK/RECEIVE decision, stock defensive
 Spread and offensive Wedge formations, and END_SETUP. Both setups are checked
 for legality and exact on-pitch count. Each game loads its own teams/configuration;
-stable roster IDs permit comparison without sharing mutable game objects.
+stable roster IDs permit comparison. Following the isolation correction below,
+each game receives a deep copy of a fixed, detached rules blueprint explicitly
+through `Game(ruleset=...)`. The blueprint is copied from the loader once per
+ruleset name; no fixture reloads or retains its inherited mutable containers.
 
 The matrix is the Cartesian product of:
 
@@ -56,7 +59,7 @@ three times, checking each transition.
 
 ## Observability and equivalence
 
-The observer compares complete public state fields, full player/team definitions,
+The observer compares complete public state fields, full rules/player/team definitions,
 procedure type/order and public fields (including context, flags, paths and
 steps), action choices, reports, board, dugouts, ball state and activation state.
 It normalizes roster references to stable IDs, immutable squares to coordinates,
@@ -88,6 +91,56 @@ deliberately introduces a missing position, a foreign board player reference,
 and equal-length dictionaries with different Square keys. The corruption checks
 must fail; the key change must produce a semantic difference. There is no
 None-position skip and no new expected failure in the default suite.
+
+## Fixture-isolation correction after failed review
+
+The original head `47593b6af2afc8ae3a014faf79c8401a55443efc` failed the
+issue's explicit criterion, “Repetir consultas y ramificaciones sin compartir
+objetos mutables.” The published [issue FAIL](https://github.com/murillo128/botbowl/issues/20#issuecomment-5569428623)
+and [PR FAIL](https://github.com/murillo128/botbowl/pull/86#issuecomment-5569429606)
+remain authoritative evidence of that head's acceptance gap. Full review and
+original reproduction are preserved at `/tmp/botbowl-review20-tvGvPV/review.md`
+and `/tmp/botbowl-review20-tvGvPV/shared_ruleset_repro.py`.
+
+All six RuleSet containers (`races`, `star_players`, `inducements`, `spp_actions`,
+`spp_levels`, `improvements`) were shared. Constructing a second fixture grew the
+first game's race/star/inducement counts from 48/142/16 to 96/284/32 while the
+original semantic observer remained unchanged. This was independently reproduced
+on both backends, and reproduced again before this correction in isolated runtimes.
+
+The correction is confined to the test harness. Every fixture copies the detached
+blueprint, including nested rule definitions, and supplies it to Game explicitly.
+Rules now participate in semantic equality. A separate identity traversal covers
+instance attributes, containers, arrays, rules and trajectory history, and checks
+the primary, committed-control and alternative-control games before and after
+branch activity. Reconstructed whole-sequence controls receive the same checks.
+The traversal does not exclude rules or other Game fields. Scalars, enum values
+and callable code are leaves; tuple/frozenset contents are traversed. Native
+objects without an instance dictionary are checked by identity as opaque leaves.
+
+Six new regression cases check each RuleSet container: constructing and advancing
+a second game leaves the first game's full semantics and RNG unchanged; clearing
+the second container is observable only there; a third game remains equivalent
+to the first. A seventh control deliberately shares a nested roles list while
+semantic values remain equal and requires the identity observer to reject it.
+The six isolation cases **fail before** the fixture correction and pass afterward
+on both backends. Fresh-process rule counts now stay at 24/71/8 (with 5/7/6 entries
+in the three dictionaries), with no shared containers. The original semantic,
+reference, legal-setup, empty-square and stale-action controls remain in place.
+
+Correction evidence is isolated under
+`/tmp/botbowl-issue20-correction-9kfhevsv/`: `evidence/*-original-sharing.json`,
+`evidence/*-regression-before.log`, `evidence/test_with_regression_before_fix.py`,
+`evidence/*-regression-after.log`, and `evidence/*-isolation-proof.json` retain the
+failure and correction proof. `evidence/*-matrix/` retains refreshed initial
+snapshots and transition hashes, which now include rules. The accompanying JSON's
+`correction` section attributes current evidence and source hashes separately from
+its unchanged original-head records. Original files under
+`/tmp/botbowl-issue20-evidence/` and reviewer environments are preserved.
+
+This fixture correction does not resolve the original Quick Snap crash or apply
+any of the distinct production/helper/search proposals below. Fresh independent
+re-review remains required before parent acceptance and integration.
 
 ## Reproduced setup defect
 
@@ -173,7 +226,7 @@ fix nor a new epic dependency is inferred from this finding.
 From the repository root with an installed development environment:
 
 ```sh
-BOTBOWL_ISSUE20_EVIDENCE=/tmp/botbowl-issue20-evidence/replay \
+BOTBOWL_ISSUE20_EVIDENCE=/tmp/botbowl-issue20-correction-replay/python \
   python -m pytest tests/framework/test_quick_snap_forward_model.py -q --require-pathfinding python
 PYTHONPATH=. python docs/reports/quick-snap-diagnosis.py setup --side 0
 PYTHONPATH=. python docs/reports/quick-snap-diagnosis.py setup --side 1
@@ -181,7 +234,7 @@ PYTHONPATH=. python docs/reports/quick-snap-diagnosis.py helper
 PYTHONPATH=. python docs/reports/quick-snap-diagnosis.py consumer --side 0
 PYTHONPATH=. python docs/reports/quick-snap-diagnosis.py consumer --side 1
 PYTHONPATH=. python docs/reports/quick-snap-diagnosis.py original \
-  --trace /tmp/botbowl-issue20-evidence/original-full-trace.json
+  --trace /tmp/botbowl-issue20-correction-replay/original-full-trace.json
 ```
 
 `setup`, `helper`, and `original` intentionally exit **1** on the observed
@@ -196,8 +249,11 @@ Validation totals and configuration counts are recorded in the accompanying
 
 | Validation | Result |
 | --- | --- |
-| Final focused Python target | 29 passed |
-| Final focused native target | 29 passed |
+| Corrected focused Python target | 36 passed |
+| Corrected focused native target | 36 passed |
+| Existing forward-model target on corrected source | 6 passed on each backend |
+| Original focused Python target (before isolation correction) | 29 passed |
+| Original focused native target (before isolation correction) | 29 passed |
 | Existing Python suite (focused file excluded) | 816 passed, 279 native-only skips, 1 inherited timestamp xfail |
 | Native full run | 1,124 passed, 1 inherited timestamp xfail |
 
@@ -205,12 +261,22 @@ Each backend's final matrix checks 10,208 game transitions, 240 repeated queries
 and 24 initial fixtures. It executes 3,026 advances, including 774 one-action
 round-trip probes repeated three times and 72 whole-sequence round trips.
 There are no observed semantic/RNG divergences in those configurations.
+The corrected matrices retain every original committed/attempted decision,
+transition label and trajectory step, and all previously observed initial gameplay
+fields. All 48 evidence files were refreshed because snapshots and transition
+hashes now include rules. The corrected setup/consumer/helper outputs match the
+original finding JSON on both backends, including legal empty-square/RNG controls
+and mutation-free stale-target rejection. Each corrected focused run took about
+eight minutes locally. The native extension is reused byte-for-byte from the
+original isolated build; all 1,333 tracked execution source/data paths match each
+correction runtime. No new native build or corrected-source full suite is claimed.
 
-The native full run used the 29-test observer revision preceding the final
+The historical native full run used the 29-test observer revision preceding the final
 ball-reference/branch-state identity assertions and expanded evidence capture.
 Its existing engine and tests are unchanged from the accepted base. The final
-29-test file was separately rerun against both backends; both source hashes are
-retained in the JSON so the full-run and final-focused targets are distinguishable.
+29-test file at the original head was separately rerun against both backends;
+both source hashes are retained in the JSON. These full-suite results are reused
+historical evidence, not an exact-source full-suite run of the isolation correction.
 The passing unseeded inherited suite does not negate the preserved seeded setup
 failure. All runs use CPython 3.11.16; focused runtime versions include NumPy
 1.26.4, pytest 9.1.1 and untangle 1.2.1.

@@ -326,6 +326,604 @@
       "trajectory_entries": 2
     }
   },
+  "correction": {
+    "controls": {
+      "native-consumer-side0": {
+        "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/native-consumer-side0.log",
+        "matches_original_json": true,
+        "sha256": "6a0f6d813fa1ed78a2de32180afaed6d6dea3ce9ef564fb9f80ac6bfb25eea49"
+      },
+      "native-consumer-side1": {
+        "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/native-consumer-side1.log",
+        "matches_original_json": true,
+        "sha256": "44b0485abb74182020f4ea6e2291824242b5f0598bb04bb7111a66239f6b2b58"
+      },
+      "native-helper": {
+        "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/native-helper.log",
+        "matches_original_json": true,
+        "sha256": "dc0a34cf8134b3600932d1b09e83daa541f30f9e929ba09e36ea9b8305418e04"
+      },
+      "native-setup-side0": {
+        "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/native-setup-side0.log",
+        "matches_original_json": true,
+        "sha256": "52dc8b83d19b4619aa8d7bbb17d635de93a7e3f6e7b83967bdc654fbc5427d44"
+      },
+      "native-setup-side1": {
+        "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/native-setup-side1.log",
+        "matches_original_json": true,
+        "sha256": "8c8ccc48340ee7cabe3405be3180b170a041d35f5a29fe4a8ebaf94016cc8b5a"
+      },
+      "python-consumer-side0": {
+        "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/python-consumer-side0.log",
+        "matches_original_json": true,
+        "sha256": "6a0f6d813fa1ed78a2de32180afaed6d6dea3ce9ef564fb9f80ac6bfb25eea49"
+      },
+      "python-consumer-side1": {
+        "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/python-consumer-side1.log",
+        "matches_original_json": true,
+        "sha256": "44b0485abb74182020f4ea6e2291824242b5f0598bb04bb7111a66239f6b2b58"
+      },
+      "python-helper": {
+        "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/python-helper.log",
+        "matches_original_json": true,
+        "sha256": "dc0a34cf8134b3600932d1b09e83daa541f30f9e929ba09e36ea9b8305418e04"
+      },
+      "python-setup-side0": {
+        "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/python-setup-side0.log",
+        "matches_original_json": true,
+        "sha256": "52dc8b83d19b4619aa8d7bbb17d635de93a7e3f6e7b83967bdc654fbc5427d44"
+      },
+      "python-setup-side1": {
+        "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/python-setup-side1.log",
+        "matches_original_json": true,
+        "sha256": "8c8ccc48340ee7cabe3405be3180b170a041d35f5a29fe4a8ebaf94016cc8b5a"
+      }
+    },
+    "correction": "Deep-copy a detached fixed rules blueprint per fixture and pass it to Game explicitly; observe rules semantically and check instance/container graph disjointness before and after branches; six mutation-isolation regressions and one nested-alias observer control",
+    "criterion": "Repetir consultas y ramificaciones sin compartir objetos mutables",
+    "evidence_root": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence",
+    "finding": "Independent clean-control fixtures shared all six mutable RuleSet containers",
+    "historical_evidence_reuse": "Original investigation records remain at top level and refer to original_head. Existing-suite and native observer-precursor full-suite evidence is reused, not a corrected-source full-suite run. Historical baseline reproduction and 335-decision trace use unchanged source and are not rerun; original reviewer supplementary probes remain attributed to the failed head, pending fresh independent re-review.",
+    "matrix": {
+      "native": {
+        "advance_executions": 3026,
+        "checked_game_transitions": 10208,
+        "configuration_count": 24,
+        "environment": {
+          "backend": "botbowl.core.pathfinding.cython_pathfinding",
+          "backend_path": "/tmp/botbowl-issue20-correction-9kfhevsv/native-src/botbowl/core/pathfinding/cython_pathfinding.cpython-311-x86_64-linux-gnu.so",
+          "backend_sha256": "d85e3372bdfcd39dd7cb5be6c4300a39cf2dcaab0edda69d41fae564902c7d56",
+          "package": "/tmp/botbowl-issue20-correction-9kfhevsv/native-src/botbowl/__init__.py",
+          "platform": "Linux-6.8.0-139-generic-x86_64-with-glibc2.39",
+          "python": "3.11.16 (main, Sep  1 2026, 14:18:37) [Clang 22.1.3 ]",
+          "versions": {
+            "gym": "0.26.2",
+            "numpy": "1.26.4",
+            "pytest": "9.1.1",
+            "untangle": "1.2.1"
+          }
+        },
+        "evidence_sha256": {
+          "size1-side0-pfFalse-seed0.json": "d99d0b586da353a991e7073c6e41208c5cdc0dbe311ec6bac9a72b8ed855e623",
+          "size1-side0-pfFalse-seed17.json": "c1cb4d5b0d0e594f8d2a717feeec191d42626ca81143445a44aaca0daff54705",
+          "size1-side0-pfFalse-seed3.json": "eee03e3af0fa2f031600a37ead0b6c729461c76b8393f3e320c4c366b9b8514c",
+          "size1-side0-pfTrue-seed0.json": "a401dfb0b84f6d84d6c5728098c9d8becbadc1da271145c69173916d492ca8af",
+          "size1-side0-pfTrue-seed17.json": "89821f5de7888c23f7407a8e89818399c3a0f0b2cc70f21c7dd16df20e402e8a",
+          "size1-side0-pfTrue-seed3.json": "2fc63f56dcd33d0fad60bbce6baa18b336b8a19f0d7f374cfd13ff1980fc7960",
+          "size1-side1-pfFalse-seed0.json": "ae99f9202ab12a78421c07dd17f3d4acf1f88a03207d45a67048e2f67b1d627b",
+          "size1-side1-pfFalse-seed17.json": "88ecacf3b313d33817a59f60cae387d9818e572a1f37ee4c1610b248a48c3714",
+          "size1-side1-pfFalse-seed3.json": "8eb8b2d79d35c90d8dde5ada7541c5b20f734c39a0f830c3c2fbb83925c75ac3",
+          "size1-side1-pfTrue-seed0.json": "931e15dcdc929f8ec1cc61b631a2e9e80e3f1052868d15c7795442826c284ec7",
+          "size1-side1-pfTrue-seed17.json": "43ff2b9f1c08ac1fd1e8456df6896c3a8620ef5eda64cfd88bf5028185afd63c",
+          "size1-side1-pfTrue-seed3.json": "3005ce21c6fbdf874d864cbed056939d41f264005aba7efa61b527f5af696cc4",
+          "size3-side0-pfFalse-seed0.json": "19968287107ba5e44256443e6f770b5f10968f0d2fdc63c008307b1f7062b18c",
+          "size3-side0-pfFalse-seed17.json": "1e8230160a2595a4dc2c068b60db28a03f7b31ade0a4a8ffd597a0ea9e636b7e",
+          "size3-side0-pfFalse-seed3.json": "0c1926c042937c9334d18a4b38d6d0313465acd4d3938bb05f58fbff22893356",
+          "size3-side0-pfTrue-seed0.json": "560eaadefed6a153e40e281417bdbe67e557b84196e5fa590eb41f43b1d8c078",
+          "size3-side0-pfTrue-seed17.json": "d86420ec81537e9452dc549c9f6af50784cef4d387642edd5c08f3ac061d5cde",
+          "size3-side0-pfTrue-seed3.json": "1d4037bc4b7a91ec16ab63689643b9b79b34ee7d66d929678dcd259f14729048",
+          "size3-side1-pfFalse-seed0.json": "70256882f8c8aeb345b9136b5252ca0a36c694f0f8c22337d447f17e173a38c9",
+          "size3-side1-pfFalse-seed17.json": "777674502b186e584aa64697f4f327507fdb67eec62f850e3aa16a5627f46fda",
+          "size3-side1-pfFalse-seed3.json": "352ec283024f293307db81a3ca9c7988083fbebe779e9418392daa3197b9215a",
+          "size3-side1-pfTrue-seed0.json": "6d5bcf31d50289d7d21ec6fd113a56d56c7481dfdf7d6ba88cbe3b1c115b08e3",
+          "size3-side1-pfTrue-seed17.json": "d1a5329d4585fda6e8da017a4dec52a8cbbc04bf012332162d8346852c8cbce2",
+          "size3-side1-pfTrue-seed3.json": "9bfdd3f691f1897a1eea044bc5e8ebbefcc1fb23b1a2efef8b28d60a84bc65c1"
+        },
+        "failures": 0,
+        "initial_gameplay_and_decisions_match_original": true,
+        "repeated_query_checks": 240,
+        "round_trip_probes": 774,
+        "whole_sequence_round_trips": 72
+      },
+      "python": {
+        "advance_executions": 3026,
+        "checked_game_transitions": 10208,
+        "configuration_count": 24,
+        "environment": {
+          "backend": "botbowl.core.pathfinding.python_pathfinding",
+          "backend_path": "/tmp/botbowl-issue20-correction-9kfhevsv/python-src/botbowl/core/pathfinding/python_pathfinding.py",
+          "backend_sha256": "fa464899dad38a2bc215b799355f2b44c62c66f3d2e2a1190b6448a138a8e615",
+          "package": "/tmp/botbowl-issue20-correction-9kfhevsv/python-src/botbowl/__init__.py",
+          "platform": "Linux-6.8.0-139-generic-x86_64-with-glibc2.39",
+          "python": "3.11.16 (main, Sep  1 2026, 14:18:37) [Clang 22.1.3 ]",
+          "versions": {
+            "gym": "0.26.2",
+            "numpy": "1.26.4",
+            "pytest": "9.1.1",
+            "untangle": "1.2.1"
+          }
+        },
+        "evidence_sha256": {
+          "size1-side0-pfFalse-seed0.json": "d99d0b586da353a991e7073c6e41208c5cdc0dbe311ec6bac9a72b8ed855e623",
+          "size1-side0-pfFalse-seed17.json": "c1cb4d5b0d0e594f8d2a717feeec191d42626ca81143445a44aaca0daff54705",
+          "size1-side0-pfFalse-seed3.json": "eee03e3af0fa2f031600a37ead0b6c729461c76b8393f3e320c4c366b9b8514c",
+          "size1-side0-pfTrue-seed0.json": "a401dfb0b84f6d84d6c5728098c9d8becbadc1da271145c69173916d492ca8af",
+          "size1-side0-pfTrue-seed17.json": "89821f5de7888c23f7407a8e89818399c3a0f0b2cc70f21c7dd16df20e402e8a",
+          "size1-side0-pfTrue-seed3.json": "2fc63f56dcd33d0fad60bbce6baa18b336b8a19f0d7f374cfd13ff1980fc7960",
+          "size1-side1-pfFalse-seed0.json": "ae99f9202ab12a78421c07dd17f3d4acf1f88a03207d45a67048e2f67b1d627b",
+          "size1-side1-pfFalse-seed17.json": "88ecacf3b313d33817a59f60cae387d9818e572a1f37ee4c1610b248a48c3714",
+          "size1-side1-pfFalse-seed3.json": "8eb8b2d79d35c90d8dde5ada7541c5b20f734c39a0f830c3c2fbb83925c75ac3",
+          "size1-side1-pfTrue-seed0.json": "5ffc161f81864e2d11f917a59f3cfc5609e7d8da884a0aac4a8566a2824fb3ea",
+          "size1-side1-pfTrue-seed17.json": "311d4b921aefbbaf452862c04b383ed36aa113fbd99e0017822e6f98f2a6c6fd",
+          "size1-side1-pfTrue-seed3.json": "1265a9d7641c8385c527aac067d5ab0d83843bd928418086a6b0fee57164f8cf",
+          "size3-side0-pfFalse-seed0.json": "19968287107ba5e44256443e6f770b5f10968f0d2fdc63c008307b1f7062b18c",
+          "size3-side0-pfFalse-seed17.json": "1e8230160a2595a4dc2c068b60db28a03f7b31ade0a4a8ffd597a0ea9e636b7e",
+          "size3-side0-pfFalse-seed3.json": "0c1926c042937c9334d18a4b38d6d0313465acd4d3938bb05f58fbff22893356",
+          "size3-side0-pfTrue-seed0.json": "2c9925a74ac78f3788f3dbb85f7ea6b1d9bf40224bfeaace082e007addbfb03e",
+          "size3-side0-pfTrue-seed17.json": "252e85a74ca53d69e8aa93cbf85b29c0e25b42c9fd2b6eaff5e3fc5b7e2ea9ce",
+          "size3-side0-pfTrue-seed3.json": "1d4037bc4b7a91ec16ab63689643b9b79b34ee7d66d929678dcd259f14729048",
+          "size3-side1-pfFalse-seed0.json": "70256882f8c8aeb345b9136b5252ca0a36c694f0f8c22337d447f17e173a38c9",
+          "size3-side1-pfFalse-seed17.json": "777674502b186e584aa64697f4f327507fdb67eec62f850e3aa16a5627f46fda",
+          "size3-side1-pfFalse-seed3.json": "352ec283024f293307db81a3ca9c7988083fbebe779e9418392daa3197b9215a",
+          "size3-side1-pfTrue-seed0.json": "e2b6baeecae245f8ea53824ab02c60a70189d1ec807bba4ff74ee768b9fbd8bd",
+          "size3-side1-pfTrue-seed17.json": "77c9c9df5312589e690f339672ff61c25cf2f30c44c18305a20ad44d3b8c67f0",
+          "size3-side1-pfTrue-seed3.json": "3639c32fd9930cea9932ee7dba61180e377daca09fbe2e6ad87792e9da19fa31"
+        },
+        "failures": 0,
+        "initial_gameplay_and_decisions_match_original": true,
+        "repeated_query_checks": 240,
+        "round_trip_probes": 774,
+        "whole_sequence_round_trips": 72
+      }
+    },
+    "original_head": "47593b6af2afc8ae3a014faf79c8401a55443efc",
+    "original_reproduction": "/tmp/botbowl-review20-tvGvPV/shared_ruleset_repro.py",
+    "original_reproduction_sha256": "ac307e2f9d20a54db63a2aeac82396af2bc5cfcd73ce19338929bbfe4e66caa2",
+    "original_review": "/tmp/botbowl-review20-tvGvPV/review.md",
+    "production_source_changed": false,
+    "proof": {
+      "native": {
+        "environment": {
+          "backend": "botbowl.core.pathfinding.cython_pathfinding",
+          "backend_path": "/tmp/botbowl-issue20-correction-9kfhevsv/native-src/botbowl/core/pathfinding/cython_pathfinding.cpython-311-x86_64-linux-gnu.so",
+          "backend_sha256": "d85e3372bdfcd39dd7cb5be6c4300a39cf2dcaab0edda69d41fae564902c7d56",
+          "package": "/tmp/botbowl-issue20-correction-9kfhevsv/native-src/botbowl/__init__.py",
+          "platform": "Linux-6.8.0-139-generic-x86_64-with-glibc2.39",
+          "python": "3.11.16 (main, Sep  1 2026, 14:18:37) [Clang 22.1.3 ]",
+          "versions": {
+            "gym": "0.26.2",
+            "numpy": "1.26.4",
+            "pytest": "9.1.1",
+            "untangle": "1.2.1"
+          }
+        },
+        "first_ruleset_after": {
+          "improvements": 6,
+          "inducements": 8,
+          "races": 24,
+          "spp_actions": 5,
+          "spp_levels": 7,
+          "star_players": 71
+        },
+        "first_ruleset_before": {
+          "improvements": 6,
+          "inducements": 8,
+          "races": 24,
+          "spp_actions": 5,
+          "spp_levels": 7,
+          "star_players": 71
+        },
+        "first_unchanged_after_construction_and_mutation": true,
+        "shared": {
+          "improvements": false,
+          "inducements": false,
+          "races": false,
+          "spp_actions": false,
+          "spp_levels": false,
+          "star_players": false
+        },
+        "third_equivalent_and_disjoint": true
+      },
+      "python": {
+        "environment": {
+          "backend": "botbowl.core.pathfinding.python_pathfinding",
+          "backend_path": "/tmp/botbowl-issue20-correction-9kfhevsv/python-src/botbowl/core/pathfinding/python_pathfinding.py",
+          "backend_sha256": "fa464899dad38a2bc215b799355f2b44c62c66f3d2e2a1190b6448a138a8e615",
+          "package": "/tmp/botbowl-issue20-correction-9kfhevsv/python-src/botbowl/__init__.py",
+          "platform": "Linux-6.8.0-139-generic-x86_64-with-glibc2.39",
+          "python": "3.11.16 (main, Sep  1 2026, 14:18:37) [Clang 22.1.3 ]",
+          "versions": {
+            "gym": "0.26.2",
+            "numpy": "1.26.4",
+            "pytest": "9.1.1",
+            "untangle": "1.2.1"
+          }
+        },
+        "first_ruleset_after": {
+          "improvements": 6,
+          "inducements": 8,
+          "races": 24,
+          "spp_actions": 5,
+          "spp_levels": 7,
+          "star_players": 71
+        },
+        "first_ruleset_before": {
+          "improvements": 6,
+          "inducements": 8,
+          "races": 24,
+          "spp_actions": 5,
+          "spp_levels": 7,
+          "star_players": 71
+        },
+        "first_unchanged_after_construction_and_mutation": true,
+        "shared": {
+          "improvements": false,
+          "inducements": false,
+          "races": false,
+          "spp_actions": false,
+          "spp_levels": false,
+          "star_players": false
+        },
+        "third_equivalent_and_disjoint": true
+      }
+    },
+    "regression_before_source_sha256": "35f19bb79e04be2119dee883b1b14e08210b9f327ffc80287ec1c6e10233d448",
+    "runtime_source_audit": {
+      "matched_paths_per_backend": 1333,
+      "native_extension_reused_from": "/tmp/botbowl-issue20-native-src/botbowl/core/pathfinding/cython_pathfinding.cpython-311-x86_64-linux-gnu.so",
+      "native_extension_sha256": "d85e3372bdfcd39dd7cb5be6c4300a39cf2dcaab0edda69d41fae564902c7d56",
+      "report_only_paths_not_required_for_execution": [
+        "docs/reports/quick-snap-issue-20.md",
+        "docs/reports/quick-snap-issue-20.json"
+      ],
+      "tracked_paths_sha256": "b864555d0dcd7417794b7910391212593c7b84fea93ec9f6103a7489f82121ea"
+    },
+    "source_sha256": {
+      "botbowl/core/forward_model.py": "8b9a688c5cda7ab7582feb9f0775b90f886b988b94bd1d1c8e33d4864b2ec585",
+      "botbowl/core/game.py": "254d9840c833fb61209bc8121f406580d0ba30464a5dc5f4dfecc671a9eccd33",
+      "botbowl/core/load.py": "179313ec4df3ae0429a8968376bb1507af6ad3ed224f60519e67cf9dc71436e3",
+      "botbowl/core/model.py": "2193f32fbceed70df8e934a45693a7a1cf10e1b235388f90a8f4453e4b0e40fa",
+      "botbowl/core/pathfinding/cython_pathfinding.pyx": "319271103f09c13434598362d315cca5028f701d2acaccdc65e652bef95787c8",
+      "botbowl/core/pathfinding/python_pathfinding.py": "fa464899dad38a2bc215b799355f2b44c62c66f3d2e2a1190b6448a138a8e615",
+      "botbowl/core/procedure.py": "4c142b4fc35b3aafa8098cd25d4da776fe2fdccb7d450974151285ae380a40f5",
+      "botbowl/core/util.py": "3210d61aa823bfbb8e97789748533463131c25e890b8314521b1a2c43c6e3fbd",
+      "botbowl/data/config/gym-1.json": "8f50fc7f8870e5b2ee8e6b29c25f6a54964d36bea6b96345d4b3f0474110aa6e",
+      "botbowl/data/config/gym-3.json": "845fece1c2e8ff95d37f299bdcb80973979a2cad3233ebbb06259e8679401c9d",
+      "botbowl/data/rules/BB2016.xml": "c1de2e6b6ba60289b28927ee30b424c7cc22d08b5866e8ae000570b95be2df8a",
+      "docs/reports/packaging-forward-model-reproduction.py": "fc2fd8ffee724d160f66ad31f0a935cb924ef188f856c6db313a856443466c5b",
+      "docs/reports/quick-snap-diagnosis.py": "f235971ac9f140ada7ce37b40b587d05af948e041e55d287e844d53bb65f2708",
+      "examples/hash_example.py": "4c7a3c74779a189491593e499700cbfda616eb9de7e5aefa5224d437332dd560",
+      "examples/mcts_example.py": "77116f44159735ee0eb719c5a1f5d72286f11c4a0cf3fd0109557f8a607077c6",
+      "tests/conftest.py": "ed67b2a8e34538f5aee5ea11a6203491d1bb03760aa6a5b47d74c058c72f5db4",
+      "tests/framework/test_forward_model.py": "691dd45bd6d643ffc91c24ef460af30cd068efcbe1633f42967fb1a67a66a4ce",
+      "tests/framework/test_quick_snap_forward_model.py": "c121118e3e8a1094054dfdf61d264a80a3b81d1c15dc19466f29f16de0f8678a"
+    },
+    "validation": {
+      "native": {
+        "commands": [
+          {
+            "command": [
+              "/tmp/botbowl-issue20-correction-9kfhevsv/native-env/bin/python",
+              "-m",
+              "pytest",
+              "tests/framework/test_quick_snap_forward_model.py",
+              "-q",
+              "--require-pathfinding",
+              "native"
+            ],
+            "cwd": "/tmp/botbowl-issue20-correction-9kfhevsv/native-src",
+            "environment": {
+              "BOTBOWL_ISSUE20_EVIDENCE": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/native-matrix",
+              "PYTHONDONTWRITEBYTECODE": "1",
+              "PYTHONPATH": "/tmp/botbowl-issue20-correction-9kfhevsv/native-src"
+            },
+            "exit": 0,
+            "expected_exit": 0,
+            "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/native-focused.log",
+            "sha256": "47971767aa5e27167c52fbdb812ee9c072511c1b462d6e45117f271e33609766"
+          },
+          {
+            "command": [
+              "/tmp/botbowl-issue20-correction-9kfhevsv/native-env/bin/python",
+              "-m",
+              "pytest",
+              "tests/framework/test_forward_model.py",
+              "-q",
+              "--require-pathfinding",
+              "native"
+            ],
+            "cwd": "/tmp/botbowl-issue20-correction-9kfhevsv/native-src",
+            "environment": {
+              "BOTBOWL_ISSUE20_EVIDENCE": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/native-matrix",
+              "PYTHONDONTWRITEBYTECODE": "1",
+              "PYTHONPATH": "/tmp/botbowl-issue20-correction-9kfhevsv/native-src"
+            },
+            "exit": 0,
+            "expected_exit": 0,
+            "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/native-forward-model.log",
+            "sha256": "b40f33c2b2c9d43981a634ef1a4c63d99b448b5e1154328f3fb5d8180f27dcbb"
+          },
+          {
+            "command": [
+              "/tmp/botbowl-issue20-correction-9kfhevsv/native-env/bin/python",
+              "docs/reports/quick-snap-diagnosis.py",
+              "setup",
+              "--side",
+              "0"
+            ],
+            "cwd": "/tmp/botbowl-issue20-correction-9kfhevsv/native-src",
+            "environment": {
+              "BOTBOWL_ISSUE20_EVIDENCE": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/native-matrix",
+              "PYTHONDONTWRITEBYTECODE": "1",
+              "PYTHONPATH": "/tmp/botbowl-issue20-correction-9kfhevsv/native-src"
+            },
+            "exit": 1,
+            "expected_exit": 1,
+            "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/native-setup-side0.log",
+            "sha256": "52dc8b83d19b4619aa8d7bbb17d635de93a7e3f6e7b83967bdc654fbc5427d44"
+          },
+          {
+            "command": [
+              "/tmp/botbowl-issue20-correction-9kfhevsv/native-env/bin/python",
+              "docs/reports/quick-snap-diagnosis.py",
+              "consumer",
+              "--side",
+              "0"
+            ],
+            "cwd": "/tmp/botbowl-issue20-correction-9kfhevsv/native-src",
+            "environment": {
+              "BOTBOWL_ISSUE20_EVIDENCE": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/native-matrix",
+              "PYTHONDONTWRITEBYTECODE": "1",
+              "PYTHONPATH": "/tmp/botbowl-issue20-correction-9kfhevsv/native-src"
+            },
+            "exit": 0,
+            "expected_exit": 0,
+            "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/native-consumer-side0.log",
+            "sha256": "6a0f6d813fa1ed78a2de32180afaed6d6dea3ce9ef564fb9f80ac6bfb25eea49"
+          },
+          {
+            "command": [
+              "/tmp/botbowl-issue20-correction-9kfhevsv/native-env/bin/python",
+              "docs/reports/quick-snap-diagnosis.py",
+              "setup",
+              "--side",
+              "1"
+            ],
+            "cwd": "/tmp/botbowl-issue20-correction-9kfhevsv/native-src",
+            "environment": {
+              "BOTBOWL_ISSUE20_EVIDENCE": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/native-matrix",
+              "PYTHONDONTWRITEBYTECODE": "1",
+              "PYTHONPATH": "/tmp/botbowl-issue20-correction-9kfhevsv/native-src"
+            },
+            "exit": 1,
+            "expected_exit": 1,
+            "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/native-setup-side1.log",
+            "sha256": "8c8ccc48340ee7cabe3405be3180b170a041d35f5a29fe4a8ebaf94016cc8b5a"
+          },
+          {
+            "command": [
+              "/tmp/botbowl-issue20-correction-9kfhevsv/native-env/bin/python",
+              "docs/reports/quick-snap-diagnosis.py",
+              "consumer",
+              "--side",
+              "1"
+            ],
+            "cwd": "/tmp/botbowl-issue20-correction-9kfhevsv/native-src",
+            "environment": {
+              "BOTBOWL_ISSUE20_EVIDENCE": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/native-matrix",
+              "PYTHONDONTWRITEBYTECODE": "1",
+              "PYTHONPATH": "/tmp/botbowl-issue20-correction-9kfhevsv/native-src"
+            },
+            "exit": 0,
+            "expected_exit": 0,
+            "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/native-consumer-side1.log",
+            "sha256": "44b0485abb74182020f4ea6e2291824242b5f0598bb04bb7111a66239f6b2b58"
+          },
+          {
+            "command": [
+              "/tmp/botbowl-issue20-correction-9kfhevsv/native-env/bin/python",
+              "docs/reports/quick-snap-diagnosis.py",
+              "helper"
+            ],
+            "cwd": "/tmp/botbowl-issue20-correction-9kfhevsv/native-src",
+            "environment": {
+              "BOTBOWL_ISSUE20_EVIDENCE": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/native-matrix",
+              "PYTHONDONTWRITEBYTECODE": "1",
+              "PYTHONPATH": "/tmp/botbowl-issue20-correction-9kfhevsv/native-src"
+            },
+            "exit": 1,
+            "expected_exit": 1,
+            "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/native-helper.log",
+            "sha256": "dc0a34cf8134b3600932d1b09e83daa541f30f9e929ba09e36ea9b8305418e04"
+          }
+        ],
+        "focused_result": "36 passed",
+        "forward_model_result": "6 passed",
+        "original_reproduction": {
+          "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/native-original-sharing.json",
+          "result": "original reviewer reproduction passes at original head; confirms all six shared containers and 48/142/16 to 96/284/32 growth",
+          "sha256": "332691be3bde4104ef8a8a251bb29c04fae03d26ec8ddf5ecbc1bd93e2f7454e"
+        },
+        "regression_after": {
+          "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/native-regression-after.log",
+          "result": "7 passed, 29 deselected",
+          "sha256": "1f8b8a1fddc8986718133ab2357127ee0b725537201bb50f12246db0753faab8"
+        },
+        "regression_before": {
+          "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/native-regression-before.log",
+          "result": "6 failed, 30 deselected; all fail on construction of a second fixture",
+          "sha256": "80bc213c361fc9d0997dc525d1037ebae4834a24b77bcb1827effe86d2573f5f"
+        }
+      },
+      "python": {
+        "commands": [
+          {
+            "command": [
+              "/tmp/botbowl-issue20-correction-9kfhevsv/python-env/bin/python",
+              "-m",
+              "pytest",
+              "tests/framework/test_quick_snap_forward_model.py",
+              "-q",
+              "--require-pathfinding",
+              "python"
+            ],
+            "cwd": "/tmp/botbowl-issue20-correction-9kfhevsv/python-src",
+            "environment": {
+              "BOTBOWL_ISSUE20_EVIDENCE": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/python-matrix",
+              "PYTHONDONTWRITEBYTECODE": "1",
+              "PYTHONPATH": "/tmp/botbowl-issue20-correction-9kfhevsv/python-src"
+            },
+            "exit": 0,
+            "expected_exit": 0,
+            "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/python-focused.log",
+            "sha256": "3bdf4b293cd35394fc7671e0897567ec45c32fcd9a179d7e98f2b16b31c462cb"
+          },
+          {
+            "command": [
+              "/tmp/botbowl-issue20-correction-9kfhevsv/python-env/bin/python",
+              "-m",
+              "pytest",
+              "tests/framework/test_forward_model.py",
+              "-q",
+              "--require-pathfinding",
+              "python"
+            ],
+            "cwd": "/tmp/botbowl-issue20-correction-9kfhevsv/python-src",
+            "environment": {
+              "BOTBOWL_ISSUE20_EVIDENCE": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/python-matrix",
+              "PYTHONDONTWRITEBYTECODE": "1",
+              "PYTHONPATH": "/tmp/botbowl-issue20-correction-9kfhevsv/python-src"
+            },
+            "exit": 0,
+            "expected_exit": 0,
+            "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/python-forward-model.log",
+            "sha256": "9e17aa7a8cb027c90c6068d4ec4c6ad11edcb1b2f01429db11ee7ea5dcde2590"
+          },
+          {
+            "command": [
+              "/tmp/botbowl-issue20-correction-9kfhevsv/python-env/bin/python",
+              "docs/reports/quick-snap-diagnosis.py",
+              "setup",
+              "--side",
+              "0"
+            ],
+            "cwd": "/tmp/botbowl-issue20-correction-9kfhevsv/python-src",
+            "environment": {
+              "BOTBOWL_ISSUE20_EVIDENCE": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/python-matrix",
+              "PYTHONDONTWRITEBYTECODE": "1",
+              "PYTHONPATH": "/tmp/botbowl-issue20-correction-9kfhevsv/python-src"
+            },
+            "exit": 1,
+            "expected_exit": 1,
+            "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/python-setup-side0.log",
+            "sha256": "52dc8b83d19b4619aa8d7bbb17d635de93a7e3f6e7b83967bdc654fbc5427d44"
+          },
+          {
+            "command": [
+              "/tmp/botbowl-issue20-correction-9kfhevsv/python-env/bin/python",
+              "docs/reports/quick-snap-diagnosis.py",
+              "consumer",
+              "--side",
+              "0"
+            ],
+            "cwd": "/tmp/botbowl-issue20-correction-9kfhevsv/python-src",
+            "environment": {
+              "BOTBOWL_ISSUE20_EVIDENCE": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/python-matrix",
+              "PYTHONDONTWRITEBYTECODE": "1",
+              "PYTHONPATH": "/tmp/botbowl-issue20-correction-9kfhevsv/python-src"
+            },
+            "exit": 0,
+            "expected_exit": 0,
+            "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/python-consumer-side0.log",
+            "sha256": "6a0f6d813fa1ed78a2de32180afaed6d6dea3ce9ef564fb9f80ac6bfb25eea49"
+          },
+          {
+            "command": [
+              "/tmp/botbowl-issue20-correction-9kfhevsv/python-env/bin/python",
+              "docs/reports/quick-snap-diagnosis.py",
+              "setup",
+              "--side",
+              "1"
+            ],
+            "cwd": "/tmp/botbowl-issue20-correction-9kfhevsv/python-src",
+            "environment": {
+              "BOTBOWL_ISSUE20_EVIDENCE": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/python-matrix",
+              "PYTHONDONTWRITEBYTECODE": "1",
+              "PYTHONPATH": "/tmp/botbowl-issue20-correction-9kfhevsv/python-src"
+            },
+            "exit": 1,
+            "expected_exit": 1,
+            "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/python-setup-side1.log",
+            "sha256": "8c8ccc48340ee7cabe3405be3180b170a041d35f5a29fe4a8ebaf94016cc8b5a"
+          },
+          {
+            "command": [
+              "/tmp/botbowl-issue20-correction-9kfhevsv/python-env/bin/python",
+              "docs/reports/quick-snap-diagnosis.py",
+              "consumer",
+              "--side",
+              "1"
+            ],
+            "cwd": "/tmp/botbowl-issue20-correction-9kfhevsv/python-src",
+            "environment": {
+              "BOTBOWL_ISSUE20_EVIDENCE": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/python-matrix",
+              "PYTHONDONTWRITEBYTECODE": "1",
+              "PYTHONPATH": "/tmp/botbowl-issue20-correction-9kfhevsv/python-src"
+            },
+            "exit": 0,
+            "expected_exit": 0,
+            "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/python-consumer-side1.log",
+            "sha256": "44b0485abb74182020f4ea6e2291824242b5f0598bb04bb7111a66239f6b2b58"
+          },
+          {
+            "command": [
+              "/tmp/botbowl-issue20-correction-9kfhevsv/python-env/bin/python",
+              "docs/reports/quick-snap-diagnosis.py",
+              "helper"
+            ],
+            "cwd": "/tmp/botbowl-issue20-correction-9kfhevsv/python-src",
+            "environment": {
+              "BOTBOWL_ISSUE20_EVIDENCE": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/python-matrix",
+              "PYTHONDONTWRITEBYTECODE": "1",
+              "PYTHONPATH": "/tmp/botbowl-issue20-correction-9kfhevsv/python-src"
+            },
+            "exit": 1,
+            "expected_exit": 1,
+            "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/python-helper.log",
+            "sha256": "dc0a34cf8134b3600932d1b09e83daa541f30f9e929ba09e36ea9b8305418e04"
+          }
+        ],
+        "focused_result": "36 passed",
+        "forward_model_result": "6 passed",
+        "original_reproduction": {
+          "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/python-original-sharing.json",
+          "result": "original reviewer reproduction passes at original head; confirms all six shared containers and 48/142/16 to 96/284/32 growth",
+          "sha256": "3cd82140bd38961215da8c87e5d779ec43f58689704852a030d4d2457747bbdd"
+        },
+        "regression_after": {
+          "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/python-regression-after.log",
+          "result": "7 passed, 29 deselected",
+          "sha256": "07cde73e7e3dc31f8894cbc87139027483d9658fb8af369c6adda514fc4265e0"
+        },
+        "regression_before": {
+          "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/python-regression-before.log",
+          "result": "6 failed, 30 deselected; all fail on construction of a second fixture",
+          "sha256": "5c871358272ec273c449b876db9c53d816e2b2d2faa5d3d6c0f97ebba05d6423"
+        }
+      }
+    }
+  },
+  "evidence_scope": "Original investigation before fixture-isolation correction. These original matrix, source and validation records are retained unchanged; current corrected-source evidence is under correction.",
   "historical_control_base": "26989d87ac95c8354c68dc08e2d39aad4d995e9e",
   "matrix": {
     "native": {
@@ -906,6 +1504,7 @@
     }
   },
   "original_quick_snap_crash": "not reproduced; risk unresolved",
+  "recorded_head": "47593b6af2afc8ae3a014faf79c8401a55443efc",
   "source_sha256": {
     "botbowl/core/forward_model.py": "8b9a688c5cda7ab7582feb9f0775b90f886b988b94bd1d1c8e33d4864b2ec585",
     "botbowl/core/game.py": "254d9840c833fb61209bc8121f406580d0ba30464a5dc5f4dfecc671a9eccd33",

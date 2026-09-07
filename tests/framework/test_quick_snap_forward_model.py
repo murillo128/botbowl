@@ -5,6 +5,7 @@ The clean control is independently constructed and never enables trajectory.
 """
 from copy import deepcopy
 from enum import Enum
+from functools import lru_cache
 import hashlib
 import json
 import os
@@ -75,10 +76,50 @@ def semantic(game):
     # References in state are tokens; include their complete public definitions too.
     return {
         "state": encode(state),
+        "ruleset": encode(game.ruleset),
         "teams": [encode(fields(team)) for team in game.state.teams],
         "players": [encode(fields(player)) for team in game.state.teams for player in team.players],
         "stack": [[type(proc).__name__, encode(fields(proc))] for proc in stack],
     }
+
+
+def mutable_graph(root):
+    """Map reachable mutable identities, including rules and trajectory history."""
+    found, seen = {}, set()
+
+    def visit(value, path):
+        if value is None or isinstance(value, (str, bytes, int, float, bool, Enum, np.generic, type)) or callable(value):
+            return
+        if id(value) in seen:
+            return
+        seen.add(id(value))
+        if isinstance(value, (tuple, frozenset)):
+            for index, item in enumerate(value):
+                visit(item, "{}[{}]".format(path, index))
+            return
+        found[id(value)] = path
+        if isinstance(value, dict):
+            for key, item in value.items():
+                visit(key, path + ".key")
+                visit(item, "{}[{}]".format(path, key))
+        elif isinstance(value, (list, set, np.ndarray)):
+            for index, item in enumerate(value):
+                visit(item, "{}[{}]".format(path, index))
+        else:
+            for key, item in vars(value).items() if hasattr(value, "__dict__") else ():
+                visit(item, path + "." + key)
+
+    visit(root, "game")
+    return found
+
+
+def independent(*games):
+    graphs = [mutable_graph(game) for game in games]
+    for index, left in enumerate(graphs):
+        for right in graphs[index + 1:]:
+            shared = left.keys() & right.keys()
+            assert not shared, "shared mutable objects: {}".format(
+                sorted((left[key], right[key]) for key in shared)[:10])
 
 
 def consistency(game):
@@ -152,18 +193,25 @@ def play(game, spec):
     consistency(game)
 
 
+@lru_cache(maxsize=None)
+def rules_blueprint(name):
+    # Detach one fixed definition from the loader's inherited mutable defaults.
+    # Only copies go into games; repeated construction never reloads shared rules.
+    return deepcopy(bb.load_rule_set(name))
+
+
 def kickoff_fixture(size=3, receiving=0, pathfinding=False, seed=0, forward=True):
     """Reach PlaceBall through legal setup decisions on the stock small arenas."""
     config = bb.load_config("gym-{}".format(size))
     config.pathfinding_enabled = pathfinding
-    rules = bb.load_rule_set(config.ruleset)
+    rules = deepcopy(rules_blueprint(config.ruleset))
     teams = [bb.load_team_by_filename("human", rules, board_size=size) for _ in range(2)]
     for side, team in enumerate(teams):
         team.team_id = "team-{}".format(side)
         for player in team.players:
             player.player_id = "{}-{}".format(side, player.nr)
     game = bb.Game("quick-snap", *teams, bb.Agent("home", human=True, agent_id="home"),
-                   bb.Agent("away", human=True, agent_id="away"), config, seed=seed)
+                   bb.Agent("away", human=True, agent_id="away"), config, seed=seed, ruleset=rules)
     game.init()
     play(game, decision(bb.ActionType.START_GAME))
     play(game, decision(bb.ActionType.HEADS))
@@ -216,11 +264,7 @@ class Investigation:
         self.config = dict(size=size, receiving=receiving, pathfinding=pathfinding, seed=seed)
         self.game = kickoff_fixture(**self.config)
         self.clean = kickoff_fixture(**self.config, forward=False)
-        assert self.game.state is not self.clean.state
-        assert all(self.game.state.player_by_id[key] is not self.clean.state.player_by_id[key]
-                   for key in self.game.state.player_by_id)
-        assert all(self.game.state.player_by_id[key].state is not self.clean.state.player_by_id[key].state
-                   for key in self.game.state.player_by_id)
+        independent(self.game, self.clean)
         self.events = []
         self.failure = None
         self.initial = semantic(self.game)
@@ -256,6 +300,7 @@ class Investigation:
         players = tuple(self.game.state.player_by_id.values())
         # A separate fresh game is used for each alternative, replaying committed decisions.
         control = kickoff_fixture(**self.config, forward=False)
+        independent(self.game, self.clean, control)
         for old in self.committed:
             play(control, old)
         play(control, spec)
@@ -279,6 +324,7 @@ class Investigation:
             play(self.clean, spec)
             self.committed.append(spec)
             self.check("commit", spec=spec)
+        independent(self.game, self.clean, control)
 
     def queries(self):
         before = semantic(self.game)
@@ -334,10 +380,12 @@ class Investigation:
             self.game.restore_checkpoint(root)
             self.check("sequence-restore", root_state, root.rng_state)
             self.clean = kickoff_fixture(**self.config, forward=False)
+            independent(self.game, self.clean)
             for spec in self.committed:
                 self.advance(spec)
                 play(self.clean, spec)
                 self.check("sequence-replay-{}".format(repeat), spec=spec)
+            independent(self.game, self.clean)
 
     def save(self):
         directory = os.environ.get("BOTBOWL_ISSUE20_EVIDENCE")
@@ -418,3 +466,41 @@ def test_observer_detects_corruption_and_equal_length_key_changes():
     first = semantic(game)
     proc.paths = {bb.Square(2, 1): 1}
     assert semantic(game) != first  # No compare_iterable KeyError blind spot.
+
+
+@pytest.mark.parametrize("container", [
+    "races", "star_players", "inducements", "spp_actions", "spp_levels", "improvements",
+])
+def test_fixture_rules_are_equivalent_and_independently_owned(container):
+    first = kickoff_fixture()
+    before = semantic(first)
+    rng = first.capture_rng_state()
+    second = kickoff_fixture(forward=False)
+    assert semantic(first) == before, "constructing another fixture changed the first rules"
+    assert semantic(second) == before
+    independent(first, second)
+
+    play(second, ball_decision(second))
+    play(second, next(spec for spec in choices(second) if spec[0] == "START_MOVE"))
+    independent(first, second)
+    assert semantic(first) == before and first.capture_rng_state() == rng
+    second_before = semantic(second)
+    getattr(second.ruleset, container).clear()
+    assert semantic(second) != second_before  # Rules are observable, not excluded.
+    assert semantic(first) == before and first.capture_rng_state() == rng
+
+    third = kickoff_fixture(forward=False)
+    assert semantic(third) == before  # Mutating a game cannot poison the blueprint.
+    independent(first, second, third)
+
+
+def test_independence_observer_detects_nested_rule_alias():
+    first = kickoff_fixture()
+    second = kickoff_fixture(forward=False)
+    before = semantic(first)
+    independent(first, second)
+    # Distinct outer containers are insufficient: inject an equivalent nested alias.
+    second.ruleset.races[0].roles = first.ruleset.races[0].roles
+    assert semantic(first) == semantic(second) == before
+    with pytest.raises(AssertionError, match="shared mutable objects"):
+        independent(first, second)
