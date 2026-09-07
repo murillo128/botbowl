@@ -33,8 +33,12 @@ def main():
     parser.add_argument('--backend', choices=('python', 'native'), default='python')
     parser.add_argument('--extra', choices=('web', 'rl', 'competition', 'dev', 'render'))
     parser.add_argument('--rl', action='store_true')
+    parser.add_argument('--shard', type=int, choices=(0, 1),
+                        help='Ordinary suite shard; omit to run the complete ordinary suite')
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
+    if args.shard is not None and args.profile != 'suite':
+        parser.error('--shard belongs only to the ordinary suite')
     root = Path(__file__).resolve().parents[2]
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
@@ -47,7 +51,9 @@ def main():
     env['PIP_DISABLE_PIP_VERSION_CHECK'] = '1'
     env['MPLBACKEND'] = 'Agg'
     result = {'profile': args.profile, 'backend': args.backend, 'extra': args.extra,
-              'rl': args.rl, 'python': sys.version, 'steps': []}
+              'rl': args.rl, 'python': sys.version, 'shard': args.shard,
+              'python_version': '.'.join(map(str, sys.version_info[:2])),
+              'complete': False, 'steps': []}
     start = time.monotonic()
 
     def run(name, command, cwd=output, process_env=env):
@@ -126,13 +132,20 @@ def main():
             env['BOTBOWL_ISSUE20_EVIDENCE'] = str(output / 'investigation-traces')
         failure = None
         for name, selection in selections:
+            audited = name + ('-shard-' + str(args.shard) if args.shard is not None else '')
             try:
-                run(name, [python, '-m', 'pytest', *selection, *options,
+                run(name, [python, source / 'tests/packaging/run_ci_tests.py',
+                           '--expected', output / ('collection-' + audited + '.json'),
+                           '--collected', output / ('selected-' + name + '.json'),
+                           '--executed', output / ('executed-' + name + '.json'),
+                           *(['--shard', str(args.shard)] if args.shard is not None else []),
+                           *selection, *options,
                            '--junitxml=' + str(output / (name + '.xml'))], suite)
             except subprocess.CalledProcessError as exc:
                 failure = exc
         if failure:
             raise failure
+        result['complete'] = True
     finally:
         result['seconds'] = round(time.monotonic() - start, 2)
         result['tests'] = {}

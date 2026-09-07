@@ -23,20 +23,42 @@ The dedicated profile executes all 41 cases, including 24 configurations and
 fixture controls. Its 24 per-backend decision/transition traces are retained.
 This routing leaves ordinary `pytest` discovery unchanged.
 
-Each ordinary suite is split into fast unit/regression tests and integration (AI,
-forward-model, server, full-game). Both portions run even if the first fails. The
+Every core interpreter/backend cell and both RL cells run two parallel ordinary
+shards, numbered 0 and 1. A case belongs to `SHA256(UTF-8 pytest node ID) % 2`;
+assignment is independent of collection order, Python hash seed, backend and
+interpreter. Both unit/regression and integration (AI, forward-model, server,
+full-game) identities are distributed across those shards, retaining their
+original order within each portion. Prior complete local JUnit timings project
+468–505 seconds per Python shard and 533–596 seconds per native/RL shard, including
+integration. These are balancing evidence, not hosted timing guarantees. Each job
+retains its 25-minute budget and each subprocess its 1,200-second limit.
+
+Both portions run even if the first reports test failures. The
 suite and examples are copied outside the checkout; only the built wheel supplies
 `botbowl`. `--require-pathfinding` verifies the actual module and native extension
 suffix. Unit/integration JUnit, logs, resolved packages, step durations, and source
 revision are retained as 14-day Actions artifacts even on failure.
 
 Before either test profile executes, `tests/packaging/verify_ci_routing.py`
-collects the full suite and all three portions in separate installed-backend
-processes. It requires disjoint routes whose union equals full collection and
+collects the full suite, all three portions and both ordinary shards in separate
+installed-backend processes. The full reference clears environment/configuration
+`addopts`, so a global filter cannot silently shrink both sides of the audit.
+It requires disjoint routes and shards whose union equals full collection and
 exact dedicated coverage of all 41 investigation cases, including the 24 matrix
 configurations. Missing files, global filters that lose those cases, and collection
-errors fail the profile. Collection node IDs, logs and `selection.json` make this
+errors fail the profile. Execution uses the same CI-only sharding entry point and
+must collect the exact audited identities; selected and completed node IDs are
+retained alongside JUnit. Ordinary `pytest` does not load this entry point.
+Collection node IDs, logs and `selection.json` make this
 audit inspectable; collection does not execute the expensive test bodies.
+
+The always-running `Complete test identity coverage` job downloads these artifacts
+and requires successful receipts for both shards in all ten existing cells and
+both dedicated investigation backends at the exact head. It checks identity union,
+disjointness, assignment, completed execution and JUnit totals. A missing shard,
+entire omitted cell, stale head or partial/failed receipt fails this gate.
+`check_ci_shard_controls.py` exercises these failure paths with synthetic receipts;
+they are audit controls, not evidence that repository test bodies passed.
 
 Packaging smokes run on Ubuntu 24.04, Windows 2025, and macOS 15, CPython 3.11.
 They invoke `tests/packaging/verify_sdist.py`: export committed source, build a
@@ -84,6 +106,8 @@ commit the source to test, then run from a checkout:
 ```bash
 python -m pip install --upgrade -c requirements/core.txt pip setuptools wheel build
 python tools/ci/run_profile.py suite --backend native --output /tmp/botbowl-ci-native
+python tools/ci/run_profile.py suite --backend native --shard 0 --output /tmp/botbowl-ci-native-0
+python tools/ci/run_profile.py suite --backend native --shard 1 --output /tmp/botbowl-ci-native-1
 python tools/ci/run_profile.py investigation --backend python --output /tmp/botbowl-ci-investigation-python
 python tools/ci/run_profile.py investigation --backend native --output /tmp/botbowl-ci-investigation-native
 python tools/ci/run_profile.py artifacts --output /tmp/botbowl-ci-artifacts

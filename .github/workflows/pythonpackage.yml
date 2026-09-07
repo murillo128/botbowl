@@ -37,7 +37,7 @@ jobs:
           "$RUNNER_TEMP/actionlint" -shellcheck='' -pyflakes=''
 
   core:
-    name: core / ${{ matrix.python }} / ${{ matrix.backend }}
+    name: core / ${{ matrix.python }} / ${{ matrix.backend }} / shard ${{ matrix.shard }}
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     strategy:
@@ -45,6 +45,7 @@ jobs:
       matrix:
         python: ['3.11', '3.12', '3.13', '3.14']
         backend: [python, native]
+        shard: [0, 1]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -55,11 +56,11 @@ jobs:
           python-version: ${{ matrix.python }}
       - run: python -m pip install --upgrade -c requirements/core.txt pip setuptools wheel build
       - name: Installed unit and integration tests
-        run: python tools/ci/run_profile.py suite --backend '${{ matrix.backend }}' --output '${{ runner.temp }}/evidence'
+        run: python tools/ci/run_profile.py suite --backend '${{ matrix.backend }}' --shard '${{ matrix.shard }}' --output '${{ runner.temp }}/evidence'
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
-          name: core-${{ matrix.python }}-${{ matrix.backend }}
+          name: core-${{ matrix.python }}-${{ matrix.backend }}-shard-${{ matrix.shard }}
           path: |
             ${{ runner.temp }}/evidence/*.json
             ${{ runner.temp }}/evidence/*.xml
@@ -67,13 +68,14 @@ jobs:
           retention-days: 14
 
   rl:
-    name: legacy RL / ${{ matrix.python }}
+    name: legacy RL / ${{ matrix.python }} / shard ${{ matrix.shard }}
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
         python: ['3.11', '3.12']
+        shard: [0, 1]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -84,11 +86,11 @@ jobs:
           python-version: ${{ matrix.python }}
       - run: python -m pip install --upgrade -c requirements/rl.txt pip setuptools wheel build
       - name: Ordinary suite including real Gym checker tests
-        run: python tools/ci/run_profile.py suite --rl --backend native --output '${{ runner.temp }}/evidence'
+        run: python tools/ci/run_profile.py suite --rl --backend native --shard '${{ matrix.shard }}' --output '${{ runner.temp }}/evidence'
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
-          name: rl-${{ matrix.python }}
+          name: rl-${{ matrix.python }}-shard-${{ matrix.shard }}
           path: |
             ${{ runner.temp }}/evidence/*.json
             ${{ runner.temp }}/evidence/*.xml
@@ -123,6 +125,34 @@ jobs:
             ${{ runner.temp }}/evidence/*.xml
             ${{ runner.temp }}/evidence/*.log
             ${{ runner.temp }}/evidence/investigation-traces/*.json
+          retention-days: 14
+
+  coverage:
+    name: Complete test identity coverage
+    needs: [core, rl, investigation]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.11'
+      - name: Challenge identity coverage gates
+        run: python tests/packaging/check_ci_shard_controls.py
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          path: ${{ runner.temp }}/test-artifacts
+      - name: Require every shard and dedicated backend at this exact head
+        run: python tests/packaging/verify_ci_shards.py --artifacts '${{ runner.temp }}/test-artifacts' --revision '${{ github.event.pull_request.head.sha || github.sha }}' --output '${{ runner.temp }}/coverage.json'
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: test-identity-coverage
+          path: ${{ runner.temp }}/coverage.json
           retention-days: 14
 
   packaging:

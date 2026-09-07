@@ -5,21 +5,15 @@ file, empty selection, lost case or overlapping route fails before test executio
 """
 import argparse
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
 
+from run_ci_tests import SHARDS, shard_for
+
 
 def main():
-    if sys.argv[1:2] == ['--collect']:
-        import pytest
-
-        class Capture:
-            def pytest_collection_finish(self, session):
-                Path(sys.argv[2]).write_text(json.dumps([item.nodeid for item in session.items]))
-
-        raise SystemExit(pytest.main(sys.argv[3:], plugins=[Capture()]))
-
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--suite', type=Path, required=True)
     parser.add_argument('--backend', choices=('python', 'native'), required=True)
@@ -31,16 +25,25 @@ def main():
     from tools.ci.run_profile import test_selections
 
     output = args.output.resolve()
+    ordinary = test_selections('suite', args.rl)
     selections = [('full', ['tests'] + ([] if args.rl else ['--ignore=tests/ai/test_env.py']))]
-    selections += test_selections('suite', args.rl) + test_selections('investigation', args.rl)
+    selections += ordinary + test_selections('investigation', args.rl)
+    selections += [(name + '-shard-' + str(shard), selection + ['--shard', str(shard)])
+                   for shard in SHARDS for name, selection in ordinary]
     collected = {}
     for name, selection in selections:
         target = output / ('collection-' + name + '.json')
-        command = [sys.executable, str(Path(__file__).resolve()), '--collect', str(target),
+        command = [sys.executable, str(Path(__file__).with_name('run_ci_tests.py').resolve()),
+                   '--collected', str(target),
                    *selection, '--collect-only', '-q', '--require-pathfinding=' + args.backend]
+        env = dict(os.environ)
+        if name == 'full':
+            # The reference must not share a global filter with every route.
+            env.pop('PYTEST_ADDOPTS', None)
+            command += ['-o', 'addopts=']
         with (output / ('collection-' + name + '.log')).open('w') as log:
             subprocess.run(command, cwd=args.suite, stdout=log, stderr=subprocess.STDOUT,
-                           check=True, timeout=120)
+                           env=env, check=True, timeout=120)
         nodes = json.loads(target.read_text())
         assert len(nodes) == len(set(nodes)), 'Duplicate collection in ' + name
         collected[name] = set(nodes)
@@ -57,6 +60,14 @@ def main():
     assert investigation == required, 'Dedicated selection must cover exactly the investigation file'
     assert not (unit & integration or unit & investigation or integration & investigation), 'Overlapping routes'
     assert unit | integration | investigation == full, 'Routes omit or add tests versus full collection'
+    for name, _ in ordinary:
+        shards = [collected[name + '-shard-' + str(shard)] for shard in SHARDS]
+        assert all(shards), 'Empty ordinary shard'
+        assert not shards[0] & shards[1], 'Overlapping ordinary shards'
+        assert shards[0] | shards[1] == collected[name], 'Ordinary shards lose or add identities'
+        for shard, nodes in zip(SHARDS, shards):
+            assert nodes == {node for node in collected[name] if shard_for(node) == shard}, \
+                'Unstable shard assignment'
     report = {'backend': args.backend, 'rl': args.rl, 'selections': dict(selections),
               'counts': {name: len(nodes) for name, nodes in collected.items()},
               'disjoint': True, 'complete': True}
