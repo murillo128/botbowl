@@ -15,7 +15,7 @@ Hungry) use the same owner without requiring an `Injury` procedure.
 | `SUCCESSFUL_REGENERATION` / `FAILED_REGENERATION` | One recovery attempt, after the Apothecary decision when offered. Successful recovery prevents both effects of Decay. |
 | `DECAYING` | An additional table result for the same injury, after failed or unavailable recovery. Contains its table dice and candidate effect in `n`. No additional regeneration attempt or casualty credit. |
 | `BADLY_HURT` / `MISS_NEXT_GAME` / `DEAD` | Effect actually applied by `Game.apply_casualty`, with the selected table dice. Decay can produce two effect reports. |
-| `APOTHECARY_USED_KO` | Apothecary consumed to leave the player prone and stunned on the pitch. |
+| `APOTHECARY_USED_KO` | Apothecary consumed to treat a KO: an on-pitch victim remains prone and stunned; an off-pitch crowd victim returns to reserves, upright and not stunned or knocked out. |
 | `KNOCKED_OUT` | Player actually sent to KO, including when Apothecary was declined. |
 
 Declining Apothecary preserves the original result and the remaining resource;

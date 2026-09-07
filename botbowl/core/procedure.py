@@ -118,10 +118,15 @@ class Apothecary(Procedure):
 
             if action.action_type == ActionType.USE_APOTHECARY:
 
-                # A treated KO stays prone and stunned on the pitch.
                 self.player.team.state.apothecaries -= 1
-                self.player.state.stunned = True
-                self.player.place_prone()
+                if self.game.is_out_of_bounds(self.player.position):
+                    # A treated crowd KO recovers in reserves.
+                    self.player.state.stunned = False
+                    self.game.pitch_to_reserves(self.player)
+                else:
+                    # A treated on-pitch KO stays prone and stunned.
+                    self.player.state.stunned = True
+                    self.player.place_prone()
                 self.game.report(Outcome(OutcomeType.APOTHECARY_USED_KO, player=self.player, team=self.player.team))
 
             elif action.action_type == ActionType.DONT_USE_APOTHECARY:

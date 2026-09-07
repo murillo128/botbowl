@@ -3,8 +3,9 @@ import pytest
 from botbowl.core.game import InvalidActionError
 from botbowl.core.model import Action
 from botbowl.core.procedure import Apothecary, Turn
-from botbowl.core.table import ActionType, CasualtyEffect, OutcomeType, Skill
+from botbowl.core.table import ActionType, BBDieResult, CasualtyEffect, OutcomeType, Skill
 from tests.game.casualty_helpers import assert_location, assert_rewards, injure, injury_game
+from tests.util import get_custom_game_turn
 
 
 @pytest.mark.parametrize('own', [False, True])
@@ -27,6 +28,50 @@ def test_apothecary_ko(use, own):
     assert [r.outcome_type for r in game.state.reports] == [
         OutcomeType.APOTHECARY_USED_KO if use else OutcomeType.KNOCKED_OUT]
     assert_rewards(game, victim, 0.0 if use else 0.2)
+    assert all(clock.is_primary for clock in game.state.clocks)
+
+
+@pytest.mark.parametrize('use', [False, True])
+def test_apothecary_crowd_ko(use):
+    game, (attacker, victim) = get_custom_game_turn([(2, 5)], [(1, 5)])
+    for player in (attacker, victim):
+        game.get_reserves(player.team).remove(player)
+    victim.team.state.apothecaries = 2
+    crowd_square = game.get_square(0, 5)
+    with game.dice.force(block_dice=[BBDieResult.PUSH], d6=[4, 4], strict=True):
+        game.step(Action(ActionType.START_BLOCK, player=attacker))
+        game.step(Action(ActionType.BLOCK, position=victim.position))
+        game.step(Action(ActionType.SELECT_PUSH))
+        game.step(Action(ActionType.PUSH, position=crowd_square))
+        game.step(Action(ActionType.FOLLOW_UP, position=attacker.position))
+        assert isinstance(game.get_procedure(), Apothecary)
+        assert victim.position == crowd_square
+        game.step(Action(ActionType.USE_APOTHECARY if use else ActionType.DONT_USE_APOTHECARY))
+
+    assert isinstance(game.get_procedure(), Turn)
+    assert victim.team.state.apothecaries == 2 - int(use)
+    assert_location(game, victim, 'reserves' if use else 'ko')
+    assert game.get_player_at(crowd_square) is None
+    assert victim not in game.get_players_on_pitch()
+    assert victim.state.injuries_gained == []
+    assert victim.state.knocked_out == (not use)
+    assert not victim.state.stunned
+    assert victim.state.up
+    if use:
+        assert not victim.state.used
+    assert [r.outcome_type for r in game.state.reports] == [
+        OutcomeType.BLOCK_ACTION_STARTED, OutcomeType.BLOCK_ROLL,
+        OutcomeType.ACTION_SELECT_DIE, OutcomeType.PUSHED_INTO_CROWD,
+        OutcomeType.KNOCKED_DOWN,
+        OutcomeType.APOTHECARY_USED_KO if use else OutcomeType.KNOCKED_OUT,
+        OutcomeType.END_PLAYER_TURN]
+    recovery = game.state.reports[-2]
+    assert recovery.player is victim and recovery.team is victim.team
+    assert recovery.opp_player is None  # The crowd inflicts the injury.
+    if not use:
+        assert recovery.rolls[0].get_sum() == 8
+    # The crowd knockdown earns 0.1; only an untreated KO adds 0.2.
+    assert_rewards(game, victim, 0.1 + (0.0 if use else 0.2))
     assert all(clock.is_primary for clock in game.state.clocks)
 
 
