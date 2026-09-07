@@ -105,6 +105,9 @@ def test_block_against_enumerated_oracle(dice, carrier, geometry, monkeypatch):
         expected = oracle(dice, *flags, carrier=carrier, crowd=geometry == 'crowd')
         actual = game.get_block_probs(attacker, defender)
         assert_probabilities(actual, expected)
+        typed = game.get_block_outcome_probs(attacker, defender)
+        assert (typed.attacker_down, typed.defender_down, typed.attacker_ball_loss,
+                typed.defender_ball_loss) == actual
 
 
 def test_hand_counted_three_dice_and_correlated_both_down():
@@ -271,7 +274,14 @@ def observable_snapshot(game):
     return (pickle.dumps(game, protocol=4), game.capture_rng_state(),
             tuple(id(x) for x in (game.state, game.state.pitch, game.state.pitch.board,
                                  game.trajectory, game.trajectory.action_log,
-                                 game.home_agent, game.away_agent)),
+                                 game.home_agent, game.away_agent, game.state.reports,
+                                 game.state.stack, game.state.clocks, game.state.pitch.balls,
+                                 game.rng, game.dice)),
+            tuple(id(row) for row in game.state.pitch.board),
+            tuple(id(p) for row in game.state.pitch.board for p in row),
+            tuple((id(b), id(b.position)) for b in game.state.pitch.balls),
+            tuple((id(t), id(t.state), id(p), id(p.state), id(p.state.used_skills))
+                  for t in game.state.teams for p in t.players),
             tuple(id(p.position) for t in game.state.teams for p in t.players),
             tuple(id(step) for step in game.trajectory.action_log))
 

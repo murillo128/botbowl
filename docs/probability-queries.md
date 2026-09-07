@@ -1,4 +1,232 @@
-# Block, blitz and dodge probability queries
+# Probability queries
+
+## Typed conditional launch and block APIs
+
+The public `botbowl` imports include `PassRerollPolicy`, `BlockRerollPolicy`,
+`RerollProbabilityInfo`, `PassOutcomeProbabilities` and `BlockOutcomeProbabilities`.
+The result types are immutable typed tuples containing copied data only.
+
+```python
+Game.get_pass_outcome_probs(player: Player, piece: Ball, position: Square, *,
+    reroll_policy: PassRerollPolicy = "pass_skill",
+    already_rerolled: bool = False) -> PassOutcomeProbabilities
+Game.get_block_outcome_probs(attacker: Player, defender: Player, *,
+    reroll_policy: BlockRerollPolicy = "never",
+    already_rerolled: bool = False) -> BlockOutcomeProbabilities
+Game.get_blitz_outcome_probs(attacker: Player, attack_position: Square, defender: Player, *,
+    reroll_policy: BlockRerollPolicy = "never",
+    already_rerolled: bool = False) -> BlockOutcomeProbabilities
+```
+
+These queries describe natural dice even inside a strict forced-dice context.
+Forced queue contents do not supply a distribution or indicate reroll history.
+Policy strings are case-sensitive and validated at runtime. Both policy and
+history arguments are keyword-only. No arbitrary modifiers or callbacks are
+accepted. The historical methods described below retain their own defaults and
+domains.
+
+### Ordinary ball launch
+
+`PassOutcomeProbabilities.accurate`, `.inaccurate` and `.fumble` partition a
+normal ball launch **conditional on reaching its D6 roll**. In this engine,
+interception is attempted before that roll: the experiment conditions on no
+successful interception preventing the launch. It does not predict or multiply
+interception survival, movement, activation or blood-lust survival. Catch,
+scatter, bounce, eventual possession and turnover are outside the boundary.
+Accuracy has the same meaning for empty, friendly-occupied and opposing-occupied
+targets. A prospective passer need not currently hold the game's ball.
+
+For raw D6 face `r`, agility target `T = Rules.agility_table[player.get_ag()]`
+and actual pass modifier `M`, classification preserves `PassAttempt` order:
+
+1. Accurate if `r == 6` or (`r != 1` and `r + M >= T`).
+2. Otherwise fumble if `r == 1` or `r + M <= 1`.
+3. Otherwise inaccurate.
+
+Natural one always fumbles; natural six is accurate even under extreme
+penalties. Accuracy is checked before a modified-one fumble. For example,
+AG6/long has `T=1, M=-1`, so raw two is accurate, while AG3/long has `T=4, M=-1`
+and raw two fumbles. Effective AG retains the engine's injury behavior and
+1–10 clamp; the agility **target** is not clamped to two for this classifier.
+This is the implemented BB2016-style agility engine, including its high-AG
+precedence, rather than a claim of complete official-edition conformance.
+
+Modifiers are read from the existing game inputs:
+
+- Quick/short/long/long bomb contribute `+1/0/-1/-2`.
+- Each active opposing tackle zone contributes `-1` unless Nerves of Steel.
+- Very Sunny contributes `-1`; Nice, Sweltering Heat, Pouring Rain and Blizzard
+  contribute zero at this boundary. Blizzard allows only quick/short.
+- Accurate contributes `+1`, Strong Arm `+1` except at quick range, Stunty `-1`.
+- Each opposing on-pitch player with Disturbing Presence at existing square
+  distance at most three contributes `-1`, including prone/non-TZ players.
+  Nerves of Steel does not cancel presence, and duplicate skill entries on one
+  player do not multiply its penalty.
+
+Safe Throw is rejected, even when the selected range/policy happens to mask its
+effect: a failed modified roll may leave the ball held, a fourth physical state.
+Non-Ball pieces, TTM, bombs and Hail Mary range are also rejected. Possessing
+Hail Mary Pass at an ordinary distance is allowed. There is no Dump-Off mode,
+PA characteristic, wildly inaccurate category or catch/interception integration.
+
+| Pass policy | Action after initial inaccurate or fumble |
+| --- | --- |
+| `never` | Retain it, suppressing even automatic Pass. This can be an analytical counterfactual; it does not promise the engine offers “decline Pass.” |
+| `pass_skill` (default) | Replace once using usable Pass; no team fallback. |
+| `pass_skill_then_team` | Prefer usable Pass; use an eligible team reroll only when Pass was unavailable before the original roll. |
+
+An initial accurate launch is retained. A replacement is final even if it fails;
+there is no team fallback after failed Pass, or third attempt. Pro is declined
+throughout, including on a failed Loner check.
+
+The pass record also exposes `ruleset_id="BB2016"`,
+`conditions="normal_ball_launch_reached_v1"`, integer `agility_target` and
+`modifier`, enum `pass_distance` and `weather`, immutable integer coordinate
+tuples `from_position` and `target_position`, and the `reroll` record below.
+The condition identifier names this bounded experiment, not an official rules
+certification or full state snapshot.
+
+### Typed blocks and reroll resources
+
+The typed block and blitz APIs share the historical block evaluator's exact
+selection, correlated direct effects and hypothetical occupancy described below.
+`never` is the default. `avoid_attacker_down` first selects **one face for the
+complete roll** under `issue8_local_v1`. Only a selected face that directly downs
+the attacker triggers an eligible attacker-team reroll. It replaces **all** block
+dice, preserving chooser, effects and selection policy, and accepts the new
+selection even if worse. A bad face merely present in the original tuple does
+not trigger. Negative dice still spend the attacker's resources; the defender's
+team never funds this policy, irrespective of home/away roles or `game.actor`.
+
+The trigger is skull or both down without attacker Block. It is not a general
+turnover estimator or tactical optimum. Defender-down probability can decrease
+while attacker survival improves. Pro and both players' Wrestle are declined;
+Block changes effects rather than supplying a reroll. Dump-Off is declined,
+Foul Appearance/GFI/activation are conditioned on reaching the block, Dauntless
+is conditioned on no strength increase, and Frenzy is the first/single block
+only. Follow-up (including Fend), armour/injury, ball continuation, touchdowns
+and effects on others in a chain push are excluded. A Juggernaut attacker is
+rejected by the typed **blitz** API, regardless of defender skills, because its
+automatic Stand Firm cancellation changes geometry. Non-blitz Juggernaut has
+no modeled effect. Stand Firm is used; taken-root state already applies.
+
+`BlockOutcomeProbabilities` exposes four overlapping float marginals:
+`attacker_down`, `defender_down`, `attacker_ball_loss`, `defender_ball_loss`.
+Its `selected_face_probabilities` is a normalized immutable five-float tuple
+in `(ATTACKER_DOWN, BOTH_DOWN, PUSH, DEFENDER_STUMBLES, DEFENDER_DOWN)` order.
+The two physical push faces are combined only after counting. The four event
+marginals must **not** be summed or renormalized.
+
+Its metadata is `ruleset_id="BB2016"`,
+`conditions="single_block_direct_effects_v1"`,
+`selection_policy="issue8_local_v1"`, integer `signed_dice`,
+`chooser="attacker" | "defender"`, `reroll_team="attacker"`, boolean `blitz`,
+immutable integer `(x,y)` `attack_position`, and `reroll`.
+
+Every typed result's `RerollProbabilityInfo` contains:
+
+| Field | Meaning |
+| --- | --- |
+| `policy` | Requested pass/block policy, retained even if no resource can be used. |
+| `already_rerolled` | Caller-supplied boolean roll history. |
+| `pass_skill_available` | Live `player.can_use_skill(PASS)` before policy/history suppression; always false for blocks. |
+| `team_reroll_available` | Live `game.can_use_reroll(actor.team)` before suppression. Actor means passer or block attacker. |
+| `source` | Effective `none`, `pass` or `team` after policy/history suppression. |
+| `loner_success_probability` | `1/2` only for an effective team source on a Loner; otherwise `1`. |
+| `replacement_probability` | Probability a complete replacement roll is actually made. |
+| `pass_use_probability` | Probability/expected units of Pass opportunities used on this roll. |
+| `team_use_probability` | Probability/expected team rerolls spent, including failed Loner checks. |
+
+Team eligibility requires positive remaining rerolls, no reroll already spent
+this turn, the actor's team as `state.current_team`, a current `Turn`, and no
+Quick Snap. More than one available reroll still permits at most one modeled
+use. Pass availability checks `used_skills`; using Pass here models a roll
+opportunity, not an invented once-per-turn debit. The engine records the
+rerolled procedure rather than marking Pass used.
+
+A team request spends its resource before an unmodified Loner D6 4+ check.
+Failed Loner retains the original outcome and the cost, with Pro declined and
+no further draw. Pass is not Loner-gated. `already_rerolled=True` describes the
+natural result of a replacement roll with no further reroll: both sources are
+suppressed, while live availability and requested policy remain visible. These
+pre-roll helpers do not inspect a live procedure or guess history from
+`rerolled_procs`; callers supply history explicitly. Missing resources and
+suppressed sources are successful base-distribution queries with zero costs.
+
+For example, AG3 short/Nice with no tackle zones starts at `(1/2,1/3,1/6)`.
+Usable Pass or non-Loner team replacement gives `(3/4,1/6,1/12)`, replacement
+probability `1/2`, and source cost `1/2`. A Loner team source gives
+`(5/8,1/4,1/8)`, replacement probability `1/4`, and team cost still `1/2`.
+One unskilled block die with Loner/team gives attacker down `2/9`, defender
+down `1/2`, replacement `1/6`, and team cost `1/3`.
+
+### Validation and arithmetic
+
+The typed methods raise `ValueError` with explanatory categories (`policy`,
+`already_rerolled`, `player`/`players`, `origin`/`target`, `ball`, `ruleset`,
+`weather`, `distance`, `Safe Throw`, `Blizzard`, `Juggernaut`, `dice`,
+`agility target`, `modifier`) for invalid or unsupported inputs:
+
+- Non-string, unknown or wrong-domain policy; non-bool history (including 0/1).
+- Wrong object kinds, foreign/unregistered players or teams, missing/off-pitch
+  origin or target, non-integer coordinates (including bool), or out-of-bounds
+  coordinates. A player's live board position must belong to that player.
+- Same-player/same-team blocks, nonadjacent defenders, occupied hypothetical
+  origins; non-integer dice counts (including bool), zero or magnitude over three.
+- Pass target equal to origin; non-Ball/unowned Ball or missing/multiple pitch
+  balls. Blocks support zero/one pitch Ball; multiple balls are unsupported.
+- The pass/skill/range exclusions above; inconsistent configuration/ruleset
+  references to `BB2016`, unrecognized weather or malformed non-integer/non-finite
+  agility-target/modifier values.
+
+Unchanged shipped `Rules` tables are a precondition. Arbitrary well-typed runtime
+table monkeypatches and custom rules are unsupported; no generic table hashing
+is performed. Unexpected internal helper exceptions propagate unchanged. The
+queries do not refresh actions: standing, activation, action legality and path
+feasibility remain caller responsibilities.
+
+All success and failure paths read state and compute locally. No temporary
+movement, cache writes, trajectory suspension, resource/skill consumption, RNG
+advance, forced-queue consumption, procedure/agent calls, reports or clocks are
+allowed. Results retain no mutable game references and repeated calls compare
+equal. The historical pass helper also retains these purity guarantees.
+
+Production counts six pass faces or uses the existing block order-statistic
+counts. Let `q(s)` be the base pass-event or selected-face probability, `B(s)`
+its trigger, `b=sum(q(s) for triggered s)`, and `L` replacement eligibility
+(`1` or Loner `1/2`). For an effective source:
+
+`q_final(s) = q(s) * (1 - L*B(s)) + L*b*q(s)`.
+
+Replacement probability is `L*b`, source cost is `b`; without a source the base
+distribution is unchanged. Integer numerators/denominators are retained until
+final float conversion. There is no sampling, pair enumeration in queries,
+probability clipping or separate marginal optimization.
+
+`tests/game/probability_oracles.py` contains the pre-implementation rational
+tables and independent symbolic physical-face enumerators. The focused tests
+cover ten pass rows/resources/modifiers, twelve signed block tables, bounded
+skill/ball/geometry pairs, actual forced procedure boundaries, metadata,
+invalid domains, legacy limits, performance and in-query/after-query purity.
+The existing 4,608-configuration block matrix also requires exact typed-`never`
+equivalence. Arithmetic comparisons use absolute tolerance at most `1e-12`
+and zero relative tolerance. Full-suite accounting and backend guards follow
+[the ordinary three-job CI gate](ci.md).
+
+### Historical passing compatibility
+
+`get_pass_prob(player, piece, position, allow_pass_reroll=True,
+allow_team_reroll=False)` remains a float accuracy-threshold estimate. It is
+not catch or whole-pass success. It preserves its positional flags, defaults,
+quick/short TTM approximation and previous unsupported-range behavior. It
+assumes Pass availability from possession of the skill and does not model
+used Pass, Loner or already-rerolled history. Thus used Pass at the P2 boundary
+still gives old default `3/4` versus new default `1/2`; Loner/team still gives
+old team-enabled `3/4` versus new `pass_skill_then_team` `5/8`. Safe Throw/TTM
+are not newly rejected by this historical interface. Dodge, catch, pickup and
+pathfinding policies/defaults are unchanged.
+
+## Historical block and blitz APIs
 
 `Game.get_block_probs(attacker, defender)` and
 `Game.get_blitz_probs(attacker, attack_position, defender)` return four floats
