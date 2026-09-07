@@ -2,9 +2,18 @@
 from copy import deepcopy
 from dataclasses import dataclass
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Optional, Protocol, Tuple, Union
 
 from botbowl.core.model import Action
+
+if TYPE_CHECKING:
+    from botbowl.core.game import DecisionResult, Game, StepBudget
+
+
+class Policy(Protocol):
+    """The existing PolicyDriver callable boundary; lifecycle remains with Game."""
+
+    def __call__(self, game: "Game", /) -> Action: ...
 
 
 @dataclass(frozen=True)
@@ -29,19 +38,23 @@ class PolicyDriver:
     or competition clock enforcement are performed by this driver.
     """
 
-    def __init__(self, game, policies):
+    def __init__(self, game: "Game", policies: Mapping[str, Policy]) -> None:
         if not game.external_control:
             raise ValueError("PolicyDriver requires external_control=True")
         self.game = game
         self.policies = dict(policies)
         self.trace: List[DecisionTrace] = []
 
-    def run(self, max_decisions: Optional[int] = None, *, max_steps=100000):
+    def run(self, max_decisions: Optional[int] = None, *,
+            max_steps: Union[int, "StepBudget"] = 100000) -> "DecisionResult":
         from botbowl.core.game import DecisionResult, _step_budget
 
         if max_decisions is not None and (type(max_decisions) is not int or max_decisions < 0):
             raise ValueError("max_decisions must be a nonnegative integer or None")
         game = self.game
+        if game.closed:
+            from botbowl.core.game import InvalidActionError
+            raise InvalidActionError("Game is closed", code="game_closed")
         budget = _step_budget(max_steps)
         result = DecisionResult(game.actor if not game.state.game_over else None, (), game.state.game_over)
         count = 0

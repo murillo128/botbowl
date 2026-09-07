@@ -40,6 +40,23 @@ def test_team_loader():
     assert human_team_2016.team_id != human_team_exp.team_id
 
 
+@pytest.mark.parametrize("loader,name", [
+    (load_team_by_filename, "elven-union"),
+    (load_team_by_name, "Elven Union Team"),
+])
+@pytest.mark.parametrize("missing", ["race", "role"])
+def test_incompatible_team_loader(loader, name, missing):
+    rules = load_rule_set("LRB5-Experimental" if missing == "race" else "BB2016")
+    if missing == "role":
+        race = next(race for race in rules.races if race.name == "Elven Union")
+        race.roles.clear()
+    with pytest.raises(ValueError) as error:
+        loader(name, rules)
+    assert "Elven Union" in str(error.value)
+    assert rules.name in str(error.value)
+    assert ("Race not found" if missing == "race" else "Role not found") in str(error.value)
+
+
 def test_arena_loader():
     arena = load_arena("ff-pitch-1")
     arena2 = load_arena("ff-pitch-1.txt")

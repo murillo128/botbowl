@@ -19,7 +19,6 @@ import sys
 import tempfile
 import time
 import tracemalloc
-from types import FunctionType
 from unittest.mock import patch
 
 import botbowl
@@ -67,18 +66,8 @@ def fixture(seed):
     config.kick_off_table = False
     config.pathfinding_enabled = True
     config.fast_mode = True
-    # RuleSet's inherited mutable defaults accumulate definitions across stock
-    # loader calls. Use the stock parser with private constructor inputs (the
-    # same isolation pattern as the issue-20 investigation fixture). Neither
-    # patch the loader nor change the engine's defaults during this experiment.
-    def empty_ruleset(name):
-        return botbowl.RuleSet(name, races=[], star_players=[], inducements=[],
-                               spp_actions={}, spp_levels={}, improvements={})
-
-    loader = botbowl.load_rule_set
-    isolated_loader = FunctionType(loader.__code__, dict(loader.__globals__, RuleSet=empty_ruleset),
-                                   argdefs=loader.__defaults__, closure=loader.__closure__)
-    rules = deepcopy(isolated_loader(config.ruleset))
+    # The public loader now provides fresh rule collections on every call.
+    rules = botbowl.load_rule_set(config.ruleset)
     teams = []
     for side, race in [('home', 'human'), ('away', 'orc')]:
         team = botbowl.load_team_by_filename(race, rules)

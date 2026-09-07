@@ -33,13 +33,14 @@ def core_smoke(backend, minimal=False):
         descriptor = describe_rules(config, rules, bb.load_arena(config.arena), home, away)
         assert descriptor.ruleset_id == "BB2016" and descriptor.backend_id == backend
         assert descriptor.engine_version == metadata.version("botbowl")
-        game = bb.Game("installed-smoke", home, away, bb.Agent("home", human=True),
-                       bb.Agent("away", human=True), config, seed=17)
-        game.init()
-        for action in (bb.ActionType.START_GAME, bb.ActionType.HEADS, bb.ActionType.KICK):
-            assert action in [choice.action_type for choice in game.get_available_actions()]
-            game.step(bb.Action(action))
-        assert game.state.reports and game.get_available_actions()
+        game = bb.create_game(config, home, away, seed=17, control="external")
+        try:
+            for action in (bb.ActionType.START_GAME, bb.ActionType.HEADS, bb.ActionType.KICK):
+                assert action in [choice.action_type for choice in game.get_available_actions()]
+                game.advance(bb.Action(action), max_steps=100)
+            assert game.state.reports and game.get_available_actions()
+        finally:
+            game.close()
     assert isinstance(bb.make_bot("random"), bb.RandomBot)
     return {"backend": backend, "package": str(Path(bb.__file__).resolve()),
             "python": sys.version.split()[0], "numpy": metadata.version("numpy"),

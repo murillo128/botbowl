@@ -49,7 +49,7 @@ def parse_sc(sc):
     return parsed
 
 
-def load_rule_set(name, debug=False, all_rules=True):
+def load_rule_set(name: str, debug: bool = False, all_rules: bool = True) -> RuleSet:
     """
     :param name: The name of the ruleset - this should match the filename of the .xml file to load in data/rules/ (without extension)
     :param debug:
@@ -58,12 +58,15 @@ def load_rule_set(name, debug=False, all_rules=True):
     """
 
     path = get_data_path('rules/' + name + '.xml')
+    if not os.path.isfile(path):
+        raise FileNotFoundError(f"Ruleset {name!r} not found")
 
     if debug:
         print("Loading rules at " + path)
     obj = untangle.parse(path)
 
-    ruleset = RuleSet(os.path.split(path)[1].split(".")[0])
+    ruleset = RuleSet(os.path.split(path)[1].split(".")[0], races=[], star_players=[],
+                      inducements=[], spp_actions={}, spp_levels={}, improvements={})
 
     if debug:
         print("Parsing races")
@@ -137,7 +140,7 @@ def load_rule_set(name, debug=False, all_rules=True):
     return ruleset
 
 
-def load_all_teams(ruleset, board_size=11):
+def load_all_teams(ruleset: RuleSet, board_size: int = 11) -> List[Team]:
     """
     :param ruleset:
     :return: All the teams in data/teams/
@@ -149,22 +152,30 @@ def load_all_teams(ruleset, board_size=11):
     return teams
 
 
-def load_team_by_filename(name, ruleset, board_size=11):
+class _TeamNotFoundError(ValueError):
+    """No roster matches the lookup, as distinct from an incompatible roster."""
+
+
+def load_team_by_filename(name: str, ruleset: RuleSet, board_size: int = 11) -> Team:
     path = get_data_path('teams/')
     for filepath in list(glob.glob(f'{path}/{board_size}/*json')):
         if os.path.split(filepath)[1].split(".json")[0] == name:
             return load_team(filepath, ruleset)
-    raise Exception("Team file not found.")
+    raise _TeamNotFoundError(f"Team file {name!r} not found for size {board_size}.")
 
 
-def load_team_by_name(name, ruleset, board_size=11):
-    for team in load_all_teams(ruleset, board_size):
-        if team.name == name:
-            return team
-    raise Exception(f"Team with name '{name}' not found.")
+def load_team_by_name(name: str, ruleset: RuleSet, board_size: int = 11) -> Team:
+    # Look up the requested roster before resolving its roles. Other rosters
+    # may belong to a different edition and must not contaminate this lookup.
+    path = get_data_path('teams/')
+    for filepath in glob.glob(f'{path}/{board_size}/*json'):
+        with open(filepath) as stream:
+            if json.load(stream)['name'] == name:
+                return load_team(filepath, ruleset)
+    raise _TeamNotFoundError(f"Team with name {name!r} not found for size {board_size}.")
 
 
-def load_team(path, ruleset):
+def load_team(path: str, ruleset: RuleSet) -> Team:
     """
     :param path: path to team file name.
     :param ruleset:
@@ -187,7 +198,7 @@ def load_team(path, ruleset):
     return team
 
 
-def load_arena(name):
+def load_arena(name: str) -> TwoPlayerArena:
     """
     :param name: The filename to load.
     :return: The arena at data/arena/<name>
@@ -216,7 +227,7 @@ def load_arena(name):
     return TwoPlayerArena(np.array(board))
 
 
-def load_config(name):
+def load_config(name: str) -> Configuration:
     """
     :param name: the filename to load.
     :return: The configuration in data/config/<name>

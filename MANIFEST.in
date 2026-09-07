@@ -1,4 +1,4 @@
-include LICENSE README.md pyproject.toml setup.py
+include LICENSE README.md pyproject.toml setup.py botbowl/py.typed
 recursive-include botbowl *.py
 recursive-include botbowl/data/arenas *.txt
 recursive-include botbowl/data/config *.json

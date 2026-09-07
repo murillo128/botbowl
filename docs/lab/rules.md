@@ -86,12 +86,10 @@ limitations, rather than silently fixing rule parsing.
 
 Mappings sort by key; named lookup record order is irrelevant. Identical duplicate
 named records are collapsed. Conflicting duplicates fail explicitly rather than
-guessing which resource was intended. This matters because the inherited
-`RuleSet` constructor has shared mutable defaults: repeated loader calls append
-records, and mixing editions can contaminate earlier objects. The descriptor
-does not repair those objects or change constructor defaults. Load independently
-in a fresh process when resource contamination is suspected. Descriptor tests
-isolate and restore those legacy defaults in test setup only.
+guessing which resource was intended. The core rules loader supplies fresh
+collections on every call. Direct use of the inherited `RuleSet` constructor
+can still share its mutable defaults; the descriptor does not repair caller
+objects or change those constructor defaults.
 
 Lists/tuples preserve order and multiplicity, including skills and injuries;
 formation rows and the home/away positions are never sorted. Enums encode their
