@@ -161,11 +161,11 @@ boundary. An observation is not a legal-action catalogue or a validation result.
 | `active_team` | Presence[Side] | Current GameState team, possibly distinct from the choosing defender; present if assigned, including retained terminal values. |
 | `active_player` | Presence[player ID] | GameState active player if assigned; raw retained terminal values are possible. |
 | `subject` | Presence[player ID] | Approved current procedure participant, e.g. mover, attacker, rerolling player, passer or interceptor; absent for unmapped contexts. |
-| `target_player` | Presence[player ID] | Block/follow-up defender, pushed player, pass catcher, or intercept passer; for reroll, selected target of its immediate approved context. |
-| `target_position` | Presence[Position] | Announced GFI/dodge/pass destination or follow-up destination, also in an immediate reroll context. It is not a future path step or computed candidate. |
+| `target_player` | Presence[player ID] | Block/follow-up defender, pushed player, pass catcher (including during its interception choice), or intercept passer; for reroll, selected target of its immediate approved context. Absent when no applicable receiver exists. |
+| `target_position` | Presence[Position] | Announced GFI/dodge/pass destination or follow-up destination, also in an immediate reroll context. The announced pass destination remains present during its interception choice. It is not a future path step or computed candidate. |
 | `player_action` | Presence[PlayerActionType-name string] | Current GameState player action type if assigned. |
 | `reroll_of` | Presence[Phase] | Present only for top-level Reroll, naming its immediate context or `other`. |
-| `turn` | Presence[TurnContext] | Nearest exact Turn's public flags if present, absent at terminal. No stack representation is exported. |
+| `turn` | Presence[TurnContext] | Public flags of the nearest exact Turn that has started, is unfinished, and belongs to GameState's current team. Absent without such a live turn and at terminal. No stack representation is exported. |
 | `options` | list of PromptOption | Cached prompt types/skills/teams in order, duplicates retained; empty at terminal. |
 | `sufficiency` | literal `partial` | Always; explicit declaration that this is not proven sufficient/Markov. |
 
@@ -179,7 +179,13 @@ unmapped skill prompts can be `other`.
 
 Each `TurnContext` field is boolean: `blitz`/`quick_snap` identify kickoff special
 turns; `blitz_available`, `pass_available`, `handoff_available`, `foul_available`
-copy the current turn's public unspent action flags. Each `PromptOption` contains
+copy the current turn's public unspent action flags. Queued unstarted turns,
+including the opponent's future turn below setup after a score, and completed
+turns are excluded: `turn` is then `{"value": null, "present": false}`.
+During an interception choice, only the matching live pass directly below that
+prompt supplies its already-announced destination and applicable receiver.
+Passes to different destinations therefore remain distinguishable even when
+the board and interceptor candidates are identical. Each `PromptOption` contains
 `action_type: ActionType-name string`, `team: Presence[Side]`,
 `skill: Presence[Skill-name string]`, and `disabled: bool`. These describe the
 already-presented prompt, including rolled block faces expressed as selection

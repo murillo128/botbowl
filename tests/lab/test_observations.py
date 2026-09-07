@@ -196,9 +196,11 @@ def test_states_schema_raw_fields_and_pure_copied_reads(kind, size, side):
         assert data["decision"]["phase"] == "terminal"
         assert not data["decision"]["pending"]
         assert not data["decision"]["actor_team"]["present"]
+        assert data["decision"]["turn"] == {"value": None, "present": False}
     elif kind == "drive":
         assert data["match"]["kicking_team"]["value"] == side
         assert sum(team["score"] for team in data["teams"]) == 1
+        assert data["decision"]["turn"] == {"value": None, "present": False}
     # Mutate every serialized container, as well as nested dataclass containers.
     def corrupt(value):
         if isinstance(value, dict):
@@ -272,6 +274,153 @@ def test_same_board_distinct_pending_public_context():
     assert reroll["decision"]["target_position"]["value"] == {"x": 4, "y": 2}
     assert {key: value for key, value in moving.items() if key != "decision"} == {
         key: value for key, value in reroll.items() if key != "decision"}
+
+
+def first_turn(size, seed=0):
+    probe, control = episode(size, seed)
+    probe.game.init()
+    probe.until(lambda game: type(game.get_procedure()) is proc.Turn)
+    return probe, control
+
+
+def pure_snapshot(game, control, observer):
+    before = pickle.dumps(game)  # Includes RNG, dice, trajectory and raw clocks.
+    data = observe(game, control, observer).to_json()
+    assert data == observe(game, control, observer).to_json()
+    assert pickle.dumps(game) == before
+    assert_raw_equivalence(game, control, data)
+    return data
+
+
+@pytest.mark.parametrize("size", SIZES)
+@pytest.mark.parametrize("observer", ("home", "away"))
+def test_announced_pass_targets_survive_actual_interception_choices(size, observer):
+    probe, control = first_turn(size)
+    game = probe.game
+    # Size 1 has only two roster players: compare a receiver with empty turf.
+    # Like the baseline pass fixture, this tests legal actions from a configured
+    # microposition, not legal setup counts. Larger sizes compare two receivers.
+    targets = [(4, 2), (4, 3)] if size == 1 else [(9, 2), (9, 3)]
+    origin, opponent = ((1, 2), (2, 2)) if size == 1 else ((2, 2), (5, 2))
+    own = [origin] + (targets[:1] if size == 1 else targets)
+    passer = place_players(probe, own, [opponent], ball=origin)[0]
+    game.enable_forward_model()
+    probe.step(bb.Action(bb.ActionType.START_PASS, player=passer))
+    other = deepcopy(game)
+    other_control = ObservationControl(other)
+    snapshots, candidates = [], []
+    for candidate, binding, target in ((game, control, targets[0]), (other, other_control, targets[1])):
+        square = candidate.get_square(*target)
+        assert square in next(choice.positions for choice in candidate.state.available_actions
+                              if choice.action_type is bb.ActionType.PASS)
+        candidate.step(bb.Action(bb.ActionType.PASS, position=square))
+        interception = candidate.get_procedure()
+        assert type(interception) is proc.Interception
+        assert candidate.get_step() > 0
+        passing = candidate.state.stack.items[-2]
+        assert type(passing) is proc.PassAttempt and passing.started and not passing.done
+        assert passing.position == square
+        data = pure_snapshot(candidate, binding, observer)
+        decision = data["decision"]
+        assert decision["phase"] == "interception" and decision["pending"]
+        assert decision["subject"]["value"] == binding._player(interception.passer)
+        assert decision["actor_team"]["value"] == binding._team(interception.team)
+        assert decision["target_position"] == {"value": {"x": target[0], "y": target[1]}, "present": True}
+        assert decision["target_player"] == {
+            "value": binding._player(passing.catcher), "present": passing.catcher is not None}
+        assert (passing.catcher is None) == (size == 1 and candidate is other)
+        candidates.append([binding._player(player) for player in interception.interceptors])
+        snapshots.append(deepcopy(data))
+        decision["target_position"]["value"]["x"] = -999
+        decision["target_player"]["value"] = "mutated"
+        assert pure_snapshot(candidate, binding, observer) == snapshots[-1]
+    a, b = snapshots
+    assert candidates[0] == candidates[1]
+    assert {key: value for key, value in a.items() if key != "decision"} == {
+        key: value for key, value in b.items() if key != "decision"}
+    assert a["decision"]["target_position"] != b["decision"]["target_position"]
+    assert a["decision"]["target_player"] != b["decision"]["target_player"]
+    assert {key: value for key, value in a["decision"].items()
+            if key not in ("target_position", "target_player")} == {
+        key: value for key, value in b["decision"].items()
+        if key not in ("target_position", "target_player")}
+
+
+@pytest.mark.parametrize("size", SIZES)
+@pytest.mark.parametrize("seed", (0, 17))
+@pytest.mark.parametrize("observer", ("home", "away"))
+def test_scoring_excludes_queued_future_turn_and_its_contamination(size, seed, observer):
+    probe, control = first_turn(size, seed)
+    game = probe.game
+    team = game.active_team
+    end_x = game.get_opp_endzone_x(team)
+    start_x = end_x + (1 if end_x == 1 else -1)
+    player, = place_players(probe, [(start_x, 2)], ball=(start_x, 2))
+    game.enable_forward_model()
+    probe.step(bb.Action(bb.ActionType.START_MOVE, player=player))
+    assert pure_snapshot(game, control, observer)["decision"]["turn"]["present"]
+    probe.step(bb.Action(bb.ActionType.MOVE, position=game.get_square(end_x, 2)))
+    assert team.state.score == 1
+    assert type(game.get_procedure()) is proc.Setup
+    turns = [item for item in game.state.stack.items if type(item) is proc.Turn]
+    assert len(turns) == 1
+    future = turns[0]
+    assert not future.started and not future.done
+    assert future.team is game.get_opp_team(team)
+    data = pure_snapshot(game, control, observer)
+    assert data["decision"]["turn"] == {"value": None, "present": False}
+    future.pass_available = not future.pass_available  # Still a valid boolean.
+    assert pure_snapshot(game, control, observer) == data
+    future.pass_available = "PRIVATE-QUEUED-TURN-SENTINEL-33"
+    contaminated = pure_snapshot(game, control, observer)
+    assert "PRIVATE-QUEUED-TURN-SENTINEL-33" not in json.dumps(contaminated)
+    assert contaminated == data
+
+
+@pytest.mark.parametrize("size", SIZES)
+@pytest.mark.parametrize("observer", ("home", "away"))
+@pytest.mark.parametrize("kind", ("ordinary", "blitz", "quick_snap"))
+def test_live_turn_flags_remain_available(size, observer, kind):
+    if kind == "ordinary":
+        probe, control = first_turn(size)
+    else:
+        probe, control = episode(size)
+        probe.game.init()
+        probe.until(lambda game: type(game.get_procedure()) is proc.PlaceBall)
+        game = probe.game
+        position = next(choice.positions[0] for choice in game.state.available_actions
+                        if choice.action_type is bb.ActionType.PLACE_BALL)
+        # Actual kickoff action: the size-specific scatter die (d2 uses D6 in
+        # the engine), followed by the two D6 kickoff dice.
+        scatter_d3 = game.config.kick_scatter_dice == "d3"
+        d6 = ([] if scatter_d3 else [1]) + [5, 5 if kind == "blitz" else 4]
+        with game.dice.force(d6=d6, d3=[1] if scatter_d3 else [], d8=[6], strict=True):
+            probe.step(bb.Action(bb.ActionType.PLACE_BALL, position=position))
+    game = probe.game
+    turn = game.get_procedure()
+    assert type(turn) is proc.Turn and turn.started and not turn.done
+    assert turn.team is game.state.current_team
+    assert turn.blitz is (kind == "blitz")
+    assert turn.quick_snap is (kind == "quick_snap")
+    data = pure_snapshot(game, control, observer)
+    assert data["decision"]["turn"]["present"]
+    assert data["decision"]["turn"]["value"] == {
+        name: getattr(turn, name) for name in ("blitz", "quick_snap", "blitz_available",
+                                             "pass_available", "handoff_available", "foul_available")}
+
+
+@pytest.mark.parametrize("observer", ("home", "away"))
+@pytest.mark.parametrize("invalid", ("done", "wrong_team"))
+def test_retained_or_inapplicable_turn_is_absent(observer, invalid):
+    probe, control = first_turn(11)
+    game = probe.game
+    turn = game.get_procedure()
+    # Synthetic retained-state probes supplement the actual touchdown lifecycle.
+    if invalid == "done":
+        turn.done = True
+    else:
+        turn.team = game.get_opp_team(game.state.current_team)
+    assert pure_snapshot(game, control, observer)["decision"]["turn"] == {"value": None, "present": False}
 
 
 def test_private_and_future_sentinels_never_appear_at_any_serialized_depth(monkeypatch):

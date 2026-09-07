@@ -318,12 +318,21 @@ def _decision(game, control):
     phase = "terminal" if state.game_over else "unstarted" if top is None else _PHASES.get(type(top), "other")
     choices = [] if state.game_over else state.available_actions
     subject, target, position = _participants(top)
+    if type(top) is proc.Interception and top.started and not top.done and len(state.stack.items) > 1:
+        # The engine suspends this pass directly below its interception prompt.
+        # Only its already-announced target is public, not candidate or roll data.
+        passing = state.stack.items[-2]
+        if (type(passing) is proc.PassAttempt and passing.started and not passing.done
+                and passing.passer is top.passer and passing.piece is top.ball):
+            target, position = passing.catcher, passing.position
     reroll_of = None
     if type(top) is proc.Reroll:
         reroll_of = _PHASES.get(type(top.context), "other")
         _, target, position = _participants(top.context)
         subject = top.player
-    turn = next((item for item in reversed(state.stack.items) if type(item) is proc.Turn), None)
+    turn = next((item for item in reversed(state.stack.items)
+                 if type(item) is proc.Turn and item.started and not item.done
+                 and item.team is state.current_team), None) if not state.game_over else None
     return DecisionContext(
         phase=phase, pending=any(not choice.disabled for choice in choices),
         # Match Game.active_team / actor semantics (first cached choice).
