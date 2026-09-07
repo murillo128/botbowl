@@ -26,7 +26,7 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.11'
-      - run: python -m pip install -c requirements/core.txt ruff
+      - run: python -m pip install --upgrade -c requirements/core.txt pip setuptools wheel ruff
       - name: Python errors
         run: python -m ruff check --select E9,F63,F7,F82 botbowl tests examples tools setup.py
       - name: Validate Actions YAML and expressions
@@ -53,7 +53,7 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ matrix.python }}
-      - run: python -m pip install -c requirements/core.txt pip build
+      - run: python -m pip install --upgrade -c requirements/core.txt pip setuptools wheel build
       - name: Installed unit and integration tests
         run: python tools/ci/run_profile.py suite --backend '${{ matrix.backend }}' --output '${{ runner.temp }}/evidence'
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -82,7 +82,7 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ matrix.python }}
-      - run: python -m pip install -c requirements/rl.txt pip build
+      - run: python -m pip install --upgrade -c requirements/rl.txt pip setuptools wheel build
       - name: Complete suite including real Gym checker tests
         run: python tools/ci/run_profile.py suite --rl --backend native --output '${{ runner.temp }}/evidence'
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -111,7 +111,7 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.11'
-      - run: python -m pip install -c requirements/core.txt pip build
+      - run: python -m pip install --upgrade -c requirements/core.txt pip setuptools wheel build
       - name: Fresh sdist regression and clean minimal artifact installs
         run: python tools/ci/run_profile.py artifacts --output '${{ runner.temp }}/evidence'
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -145,7 +145,7 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ matrix.python }}
-      - run: python -m pip install -c requirements/core.txt pip build
+      - run: python -m pip install --upgrade -c requirements/core.txt pip setuptools wheel build
       - name: Independent installed extra smoke and pip check
         run: python tools/ci/run_profile.py extra --extra '${{ matrix.extra }}' --output '${{ runner.temp }}/evidence'
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

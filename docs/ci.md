@@ -66,7 +66,7 @@ To reproduce a profile, install `pip` and `build` under the selected constraints
 commit the source to test, then run from a checkout:
 
 ```bash
-python -m pip install -c requirements/core.txt pip build
+python -m pip install --upgrade -c requirements/core.txt pip setuptools wheel build
 python tools/ci/run_profile.py suite --backend native --output /tmp/botbowl-ci-native
 python tools/ci/run_profile.py artifacts --output /tmp/botbowl-ci-artifacts
 python tools/ci/run_profile.py extra --extra web --output /tmp/botbowl-ci-web
