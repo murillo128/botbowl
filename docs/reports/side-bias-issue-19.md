@@ -6,6 +6,59 @@ home/away assignment, scatter, production helper, or shipped example policy.
 The source hashes in the accompanying JSON identify the measured harness and
 scripted policy; the base identifies all unchanged engine/configuration inputs.
 
+## Full-game results
+
+All 96 games completed within the decision limit, with no invalid actions,
+exceptions, or excluded pairs. Each row below is 8 pairs / 16 games; cells
+are reported separately and are not pooled into a larger sample.
+
+| Policy | Engine paths | Home / away / draw | Home points | 95% pair bound |
+|---|---|---:|---:|---:|
+| random-legal | off | 0 / 0 / 16 | 0.5000 | [0.020, 0.980] |
+| random-legal | on | 0 / 0 / 16 | 0.5000 | [0.020, 0.980] |
+| scripted | off | 3 / 8 / 5 | 0.3438 | [0.000, 0.824] |
+| scripted | on | 3 / 8 / 5 | 0.3438 | [0.000, 0.824] |
+| scripted-mirrored | off | 6 / 4 / 6 | 0.5625 | [0.082, 1.000] |
+| scripted-mirrored | on | 6 / 4 / 6 | 0.5625 | [0.082, 1.000] |
+
+First-receiver strata (8 games from 8 pairs per entry):
+
+| Policy | Engine paths | Receiver home: H / A / D | Receiver away: H / A / D |
+|---|---|---:|---:|
+| random-legal | off | 0 / 0 / 8 | 0 / 0 / 8 |
+| random-legal | on | 0 / 0 / 8 | 0 / 0 / 8 |
+| scripted | off | 1 / 4 / 3 | 2 / 4 / 2 |
+| scripted | on | 1 / 4 / 3 | 2 / 4 / 2 |
+| scripted-mirrored | off | 4 / 0 / 4 | 2 / 4 / 2 |
+| scripted-mirrored | on | 4 / 0 / 4 | 2 / 4 / 2 |
+
+Exact receiver-stratum estimates and pair bounds, configuration, all episode
+seeds/scores/end causes, kickoff events and trace hashes are in
+[side-bias-issue-19.json](side-bias-issue-19.json).
+
+The stock scripted sample reproduces the reported direction of an away-heavy
+result under controlled reception. The canonical policy changes the observed
+counts, consistent with the exact orientation/order confounder. It changes both
+orientation and tie handling, and the broad bounds include 0.5 in every cell:
+this is not proof that policy exclusively explains the historical gap, nor
+proof of engine symmetry. Random-legal scored no touchdowns and supplies no
+sensitive scoring-balance evidence. The on/off settings produced identical
+scores in each policy's matched episodes; they are not independent replications.
+No rules correction is justified by these measurements.
+
+The deterministic policy defect and proposed bounded child below are retained
+independently of aggregate win rate. The investigation narrows confounders and
+provides reproducible evidence; it does not claim a fully identified cause for
+all historical home/away differences.
+
+Validation on the measured implementation: 25 focused controls pass with the
+native backend. The isolated Python core profile passes its 2,528 ordinary
+selected cases (2,237 passed, 290 capability skips, one pre-existing expected
+failure); its coverage receipt separately lists the 41 investigation cases
+excluded by the existing core profile. This is not a claim that those 41 cases
+or the separate legacy-RL profile ran. Final-head GitHub lint and both core
+backends are tracked on the draft PR, outside this technical evidence.
+
 ## Method
 
 `examples/side_bias.py` reloads human rosters, rules, configuration, and both
@@ -14,6 +67,8 @@ without UUID noise. Each pair uses one engine seed, with A home in leg 0 and B
 home in leg 1. A/B policy seeds are SHA-256-derived independent streams that
 travel with the identity, not the physical side. The game-local engine RNG is
 separate. A new scripted agent also means new setup/action queues every game.
+Only `random-legal` consumes the derived policy RNG; the scripted policies are
+deterministic and their recorded policy seeds are unused.
 
 First reception is an experimental control: retain the coin toss, then choose
 kick/receive so A receives for even pairs and B for odd pairs, in both legs.
@@ -120,7 +175,7 @@ python setup.py build
 python -m pip install -c requirements/core.txt -e '.[dev,web,competition]'
 python -m pytest tests/ai/test_side_bias.py --require-pathfinding=python -q
 BOTBOWL_BUILD_NATIVE=1 python setup.py build
-BOTBOWL_BUILD_NATIVE=1 python -m pip install -c requirements/core.txt -e .
+BOTBOWL_BUILD_NATIVE=1 python -m pip install --no-build-isolation -c requirements/core.txt -e .
 python -m pytest tests/ai/test_side_bias.py --require-pathfinding=native -q
 python -m examples.side_bias --pairs 8 --seed 19000 --policy scripted \
   --pathfinding off --output /tmp/side-bias-scripted-off
