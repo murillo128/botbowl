@@ -333,7 +333,7 @@ def test_announced_pass_targets_survive_actual_interception_choices(size, observ
         snapshots.append(deepcopy(data))
         decision["target_position"]["value"]["x"] = -999
         decision["target_player"]["value"] = "mutated"
-        assert pure_snapshot(candidate, binding, observer) == snapshots[-1]
+        assert observe(candidate, binding, observer).to_json() == snapshots[-1]
     a, b = snapshots
     assert candidates[0] == candidates[1]
     assert {key: value for key, value in a.items() if key != "decision"} == {
@@ -358,7 +358,7 @@ def test_scoring_excludes_queued_future_turn_and_its_contamination(size, seed, o
     player, = place_players(probe, [(start_x, 2)], ball=(start_x, 2))
     game.enable_forward_model()
     probe.step(bb.Action(bb.ActionType.START_MOVE, player=player))
-    assert pure_snapshot(game, control, observer)["decision"]["turn"]["present"]
+    assert observe(game, control, observer).decision.turn.present
     probe.step(bb.Action(bb.ActionType.MOVE, position=game.get_square(end_x, 2)))
     assert team.state.score == 1
     assert type(game.get_procedure()) is proc.Setup
@@ -370,9 +370,9 @@ def test_scoring_excludes_queued_future_turn_and_its_contamination(size, seed, o
     data = pure_snapshot(game, control, observer)
     assert data["decision"]["turn"] == {"value": None, "present": False}
     future.pass_available = not future.pass_available  # Still a valid boolean.
-    assert pure_snapshot(game, control, observer) == data
+    assert observe(game, control, observer).to_json() == data
     future.pass_available = "PRIVATE-QUEUED-TURN-SENTINEL-33"
-    contaminated = pure_snapshot(game, control, observer)
+    contaminated = observe(game, control, observer).to_json()
     assert "PRIVATE-QUEUED-TURN-SENTINEL-33" not in json.dumps(contaminated)
     assert contaminated == data
 
@@ -402,7 +402,8 @@ def test_live_turn_flags_remain_available(size, observer, kind):
     assert turn.team is game.state.current_team
     assert turn.blitz is (kind == "blitz")
     assert turn.quick_snap is (kind == "quick_snap")
-    data = pure_snapshot(game, control, observer)
+    data = observe(game, control, observer).to_json()
+    assert_raw_equivalence(game, control, data)
     assert data["decision"]["turn"]["present"]
     assert data["decision"]["turn"]["value"] == {
         name: getattr(turn, name) for name in ("blitz", "quick_snap", "blitz_available",
