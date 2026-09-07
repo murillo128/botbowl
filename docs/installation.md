@@ -91,6 +91,18 @@ that wheel's backend. Build output remains under the build directory; ordinary
 wheel builds do not copy extensions back into the source package. Use fresh
 build directories or fresh source trees when comparing build modes.
 
+To verify that a default source distribution also supports a later native build,
+run the explicit packaging regression with a C++ compiler and `build` installed:
+
+```bash
+python tests/packaging/verify_sdist.py --output /tmp/botbowl-sdist-check
+```
+
+This exports committed `HEAD` into a fresh directory, builds the Python wheel and
+sdist with an unavailable compiler, then builds and smoke-tests a native wheel
+from that sdist. It ignores local build and manifest caches. The output directory
+must be new; use `--revision` to test another commit.
+
 Verify the actual installed backend:
 
 ```bash

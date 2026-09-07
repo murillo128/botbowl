@@ -7,6 +7,8 @@ recursive-include botbowl/data/rules *.xml
 recursive-include botbowl/data/teams *.json
 include botbowl/core/pathfinding/*.pyx
 include botbowl/core/pathfinding/*.pxd
+include botbowl/core/pathfinding/pathing_node.cpp
+include botbowl/core/pathfinding/pathing_node.h
 prune tests
 recursive-include botbowl/web/templates *.html
 recursive-include botbowl/web/static/partials *.html
