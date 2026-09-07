@@ -3,9 +3,9 @@
 This change is based on accepted integration
 `23d8c09a5822157a510174c9f0c6bfd3501f74f0`, containing reviewed #4/#5/#7/#13.
 It changes dependency metadata/constraints, the hosted Tests workflow, CI helpers,
-documentation one coordinated core/Gym test boundary, and the existing sdist verifier’s installer
-bootstrap/freeze. Production engine and
-Skillforge launcher sources are unchanged. The transient validation PR is
+documentation, one coordinated core/Gym test boundary, and the existing sdist
+verifier’s installer bootstrap/freeze. Production engine and Skillforge launcher
+sources are unchanged. The transient validation PR is
 [#82](https://github.com/murillo128/botbowl/pull/82); epic delivery remains #81.
 
 ## Scope and isolation
@@ -91,15 +91,70 @@ findings. Updated scans use strict pip-audit with no ignored advisory. These are
 observed package identities at the audit date, not a universal claim for every
 library range or future vulnerability database.
 
+## Final tested source
+
+Source head `51360cce6fa1dd0c53e9089cec44ed19e7ddd25c` passed all **23 jobs**
+in [run 34105952754](https://github.com/murillo128/botbowl/actions/runs/34105952754).
+The downloaded artifacts identify that exact source in 22 main/nested reports;
+all 25 installed inventories match the selected constraints, including maintained
+pip/setuptools bootstrap tools. Three strict scans cover 61 RL 3.11, 58 core 3.11
+and 57 core 3.14 third-party identities, all without advisories or skipped identities.
+
+Each Python-reference cell passes 712 tests with 288 explicit skips and one #16
+xfail; each native core cell passes 991 with nine Gym skips and one #16 xfail.
+Each legacy RL cell passes 1,018 with no skips and one #16 xfail. The extra two
+passing core variants account for the increase from the inherited 1,016-test RL
+baseline. All required core and RL assertions execute in their supported profiles.
+
+| Profile | Final job seconds (including setup/upload) |
+| --- | --- |
+| artifacts / macos-15 | 57 |
+| artifacts / ubuntu-24.04 | 56 |
+| artifacts / windows-2025 | 128 |
+| core / 3.11 / native | 571 |
+| core / 3.11 / python | 336 |
+| core / 3.12 / native | 703 |
+| core / 3.12 / python | 388 |
+| core / 3.13 / native | 539 |
+| core / 3.13 / python | 349 |
+| core / 3.14 / native | 404 |
+| core / 3.14 / python | 268 |
+| dependency audit / 3.11 / core | 30 |
+| dependency audit / 3.11 / rl | 28 |
+| dependency audit / 3.14 / core | 28 |
+| extra / competition / 3.11 | 23 |
+| extra / dev / 3.11 | 25 |
+| extra / render / 3.11 | 34 |
+| extra / rl / 3.11 | 22 |
+| extra / rl / 3.12 | 21 |
+| extra / web / 3.11 | 27 |
+| legacy RL / 3.11 | 622 |
+| legacy RL / 3.12 | 638 |
+| lint | 11 |
+
+Exact patch interpreters are retained per profile in the compact evidence:
+3.11.16, 3.11.9, 3.12.14, 3.13.15 and 3.14.7. Linux full-suite capability cells
+use the corresponding modern 3.11–3.14 builds; platform packaging claims only
+the actual Python 3.11 build each hosted platform supplied. The package audit is
+a PyPI dependency-identity audit, not an OS/interpreter vulnerability audit.
+
+The final documentation-only descendant records these observations without
+changing code/configuration. Its exact SHA and pending/completed CI status are
+recorded in the PR handoff. Parent explicitly permits independent review while
+that report-only-head CI runs, and requires the exact-head gate before integration.
+No earlier source run is relabeled as a later-source run. Parent has accepted #14
+separately but explicitly instructed this owner to preserve the current immutable
+base and let reviewed integration resolve the coordinated test-function boundary.
+
 ## Evidence locations and limits
 
 Local runtimes and complete logs: `/tmp/botbowl-issue6-evidence/`,
 `/tmp/botbowl-issue6-tools/venv/`, `/tmp/botbowl-issue6-test-adjustment/`.
 Hosted results retain per-job source revision, interpreter/dependency versions,
 step durations, JUnit and logs as 14-day Actions artifacts. Initial/control job counts and durations are retained in
-[compact evidence](ci-issue-6-evidence.json). The final exact head, hosted run,
-per-job counts/durations and gate verdict are recorded in the final-capable
-handoff comment on PR #82, after the restore head completes CI. This report
+[compact evidence](ci-issue-6-evidence.json). The final report head, hosted status and review gate are recorded in the
+final-capable handoff comment on PR #82; the complete tested-source results are
+retained here and in the compact evidence. This report
 does not infer a final green result from an earlier revision. Bulky raw logs
 and built artifacts remain outside Git.
 

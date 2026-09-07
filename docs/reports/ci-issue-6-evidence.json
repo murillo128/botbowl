@@ -301,5 +301,253 @@
         "python": "3.14.7"
       }
     ]
+  },
+  "final_tested_source": {
+    "run": "34105952754",
+    "head": "51360cce6fa1dd0c53e9089cec44ed19e7ddd25c",
+    "url": "https://github.com/murillo128/botbowl/actions/runs/34105952754",
+    "jobs": [
+      {
+        "name": "core / 3.11 / native",
+        "id": 101690996298,
+        "conclusion": "success",
+        "seconds": 571,
+        "python": "3.11.16",
+        "counts": {
+          "passed": 991,
+          "failed": 0,
+          "errors": 0,
+          "skipped": 9,
+          "xfailed": 1
+        }
+      },
+      {
+        "name": "lint",
+        "id": 101690996396,
+        "conclusion": "success",
+        "seconds": 11
+      },
+      {
+        "name": "extra / competition / 3.11",
+        "id": 101690996397,
+        "conclusion": "success",
+        "seconds": 23,
+        "python": "3.11.16"
+      },
+      {
+        "name": "artifacts / windows-2025",
+        "id": 101690996408,
+        "conclusion": "success",
+        "seconds": 128,
+        "python": "3.11.9"
+      },
+      {
+        "name": "dependency audit / 3.11 / rl",
+        "id": 101690996443,
+        "conclusion": "success",
+        "seconds": 28,
+        "audited_packages": 61,
+        "advisory_records": 0
+      },
+      {
+        "name": "core / 3.14 / native",
+        "id": 101690996446,
+        "conclusion": "success",
+        "seconds": 404,
+        "python": "3.14.7",
+        "counts": {
+          "passed": 991,
+          "failed": 0,
+          "errors": 0,
+          "skipped": 9,
+          "xfailed": 1
+        }
+      },
+      {
+        "name": "core / 3.14 / python",
+        "id": 101690996497,
+        "conclusion": "success",
+        "seconds": 268,
+        "python": "3.14.7",
+        "counts": {
+          "passed": 712,
+          "failed": 0,
+          "errors": 0,
+          "skipped": 288,
+          "xfailed": 1
+        }
+      },
+      {
+        "name": "core / 3.11 / python",
+        "id": 101690996541,
+        "conclusion": "success",
+        "seconds": 336,
+        "python": "3.11.16",
+        "counts": {
+          "passed": 712,
+          "failed": 0,
+          "errors": 0,
+          "skipped": 288,
+          "xfailed": 1
+        }
+      },
+      {
+        "name": "core / 3.12 / python",
+        "id": 101690996542,
+        "conclusion": "success",
+        "seconds": 388,
+        "python": "3.12.14",
+        "counts": {
+          "passed": 712,
+          "failed": 0,
+          "errors": 0,
+          "skipped": 288,
+          "xfailed": 1
+        }
+      },
+      {
+        "name": "extra / render / 3.11",
+        "id": 101690996543,
+        "conclusion": "success",
+        "seconds": 34,
+        "python": "3.11.16"
+      },
+      {
+        "name": "artifacts / ubuntu-24.04",
+        "id": 101690996548,
+        "conclusion": "success",
+        "seconds": 56,
+        "python": "3.11.16"
+      },
+      {
+        "name": "artifacts / macos-15",
+        "id": 101690996557,
+        "conclusion": "success",
+        "seconds": 57,
+        "python": "3.11.9"
+      },
+      {
+        "name": "dependency audit / 3.11 / core",
+        "id": 101690996567,
+        "conclusion": "success",
+        "seconds": 30,
+        "audited_packages": 58,
+        "advisory_records": 0
+      },
+      {
+        "name": "legacy RL / 3.11",
+        "id": 101690996569,
+        "conclusion": "success",
+        "seconds": 622,
+        "python": "3.11.16",
+        "counts": {
+          "passed": 1018,
+          "failed": 0,
+          "errors": 0,
+          "skipped": 0,
+          "xfailed": 1
+        }
+      },
+      {
+        "name": "core / 3.13 / python",
+        "id": 101690996572,
+        "conclusion": "success",
+        "seconds": 349,
+        "python": "3.13.15",
+        "counts": {
+          "passed": 712,
+          "failed": 0,
+          "errors": 0,
+          "skipped": 288,
+          "xfailed": 1
+        }
+      },
+      {
+        "name": "extra / rl / 3.12",
+        "id": 101690996578,
+        "conclusion": "success",
+        "seconds": 21,
+        "python": "3.12.14"
+      },
+      {
+        "name": "extra / rl / 3.11",
+        "id": 101690996606,
+        "conclusion": "success",
+        "seconds": 22,
+        "python": "3.11.16"
+      },
+      {
+        "name": "dependency audit / 3.14 / core",
+        "id": 101690996609,
+        "conclusion": "success",
+        "seconds": 28,
+        "audited_packages": 57,
+        "advisory_records": 0
+      },
+      {
+        "name": "extra / web / 3.11",
+        "id": 101690996637,
+        "conclusion": "success",
+        "seconds": 27,
+        "python": "3.11.16"
+      },
+      {
+        "name": "core / 3.13 / native",
+        "id": 101690996679,
+        "conclusion": "success",
+        "seconds": 539,
+        "python": "3.13.15",
+        "counts": {
+          "passed": 991,
+          "failed": 0,
+          "errors": 0,
+          "skipped": 9,
+          "xfailed": 1
+        }
+      },
+      {
+        "name": "extra / dev / 3.11",
+        "id": 101690996740,
+        "conclusion": "success",
+        "seconds": 25,
+        "python": "3.11.16"
+      },
+      {
+        "name": "core / 3.12 / native",
+        "id": 101690996743,
+        "conclusion": "success",
+        "seconds": 703,
+        "python": "3.12.14",
+        "counts": {
+          "passed": 991,
+          "failed": 0,
+          "errors": 0,
+          "skipped": 9,
+          "xfailed": 1
+        }
+      },
+      {
+        "name": "legacy RL / 3.12",
+        "id": 101690996842,
+        "conclusion": "success",
+        "seconds": 638,
+        "python": "3.12.14",
+        "counts": {
+          "passed": 1018,
+          "failed": 0,
+          "errors": 0,
+          "skipped": 0,
+          "xfailed": 1
+        }
+      }
+    ]
+  },
+  "artifact_verification": {
+    "run": "34105952754",
+    "head": "51360cce6fa1dd0c53e9089cec44ed19e7ddd25c",
+    "jobs": 23,
+    "profile_identities": 22,
+    "pinned_installed_inventories": 25,
+    "strict_audits": 3
   }
 }
