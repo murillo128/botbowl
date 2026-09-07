@@ -99,11 +99,28 @@ def main():
         run('identity', [python, '-c',
             'import botbowl; from pathlib import Path; '
             'assert "site-packages" in Path(botbowl.__file__).parts; print(botbowl.__file__)'])
-        options = ['--require-pathfinding=' + args.backend, '-q', '-ra']
         if not args.rl:
-            # Only the legacy RL module requires unsupported Gym on 3.13/3.14.
-            # Its complete suite runs in BOTH RL jobs, including the checker.
-            options += ['--ignore=tests/ai/test_env.py']
+            from core_selection import PARTS, verify
+
+            helper = source / 'tools/ci/core_selection.py'
+            common = ['--backend', args.backend, '--revision', result['source_revision']]
+            plan = output / 'collection.json'
+            run('collection', [python, helper, 'collect', *common, '--output', plan], suite)
+            failure = None
+            for part in PARTS:
+                try:
+                    run(part, [python, helper, 'run', *common, '--plan', plan,
+                               '--part', part, '--output', output / (part + '.json')], suite)
+                except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+                    failure = exc
+            if failure:
+                raise failure
+            coverage = verify(json.loads(plan.read_text()),
+                              {part: json.loads((output / (part + '.json')).read_text())
+                               for part in PARTS}, result['source_revision'], args.backend)
+            (output / 'coverage.json').write_text(json.dumps(coverage, indent=2) + '\n')
+            return
+        options = ['--require-pathfinding=' + args.backend, '-q', '-ra']
         # Split fast unit/regression tests and integration without dropping files.
         integration = ['tests/ai', 'tests/framework/test_forward_model.py',
                        'tests/framework/test_server.py', 'tests/game/test_full_game.py']

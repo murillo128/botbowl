@@ -1,5 +1,10 @@
 # Issue #6 — hosted CI and dependency validation
 
+This is historical evidence for the original broad matrix. The September 7
+amendments to #3/#6 replace that matrix as the ordinary gate; [current policy](../ci.md)
+requires lint and CPython 3.11 core on Python/native. The observations below remain
+valid for their recorded heads and profiles.
+
 This change is based on accepted integration
 `23d8c09a5822157a510174c9f0c6bfd3501f74f0`, containing reviewed #4/#5/#7/#13.
 It changes dependency metadata/constraints, the hosted Tests workflow, CI helpers,
@@ -10,7 +15,7 @@ sources are unchanged. The transient validation PR is
 
 ## Scope and isolation
 
-[Profile documentation](../ci.md) defines the matrix, installed-artifact isolation,
+[Profile documentation](../ci.md) defines current policy, installed-artifact isolation,
 skip reasons and reproducibility commands. The workflow has read-only contents,
 explicit GitHub-hosted OS labels, bounded timeouts, branch/PR cancellation and
 immutable maintained action revisions. PR head checkout disables credential
