@@ -103,7 +103,6 @@ def test_one_turn_game_configuration():
         assert sum(action[0] == "END_TURN" for action in probe.actions) == 4, probe.diagnostic()
 
 
-@pytest.mark.xfail(strict=True, reason="Issue #16: externally stepped human games leave end_time unset")
 def test_human_game_records_end_time():
     with scenario(size=1, seed=0, turns=1) as probe:
         probe.until(lambda game: game.state.game_over)

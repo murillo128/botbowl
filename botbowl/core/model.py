@@ -431,42 +431,47 @@ class Clock:
     is_primary: bool
     team: 'Team'
 
-    def __init__(self, team, seconds, is_primary=False):
+    def __init__(self, team, seconds, is_primary=False, time_source=None):
         self.seconds = seconds
+        # Keep the wall timestamp for audit/JSON; elapsed time is monotonic.
+        self.time_source = time_source
         self.started_at = time.time()
+        self._started_at = self._now()
         self.paused_at = None
         self.paused_seconds = 0
         self.is_primary = is_primary
         self.team = team
 
+    def _now(self):
+        return time.monotonic() if self.time_source is None else self.time_source()
+
     def is_running(self) -> bool:
         return self.paused_at is None
 
     def pause(self) -> None:
-        assert self.paused_at is None
-        self.paused_at = time.time()
+        if self.paused_at is None:
+            self.paused_at = self._now()
 
     def resume(self) -> None :
-        assert self.paused_at is not None
-        now = time.time()
-        self.paused_seconds += now - self.paused_at
-        self.paused_at = None
+        if self.paused_at is not None:
+            self.paused_seconds += self._now() - self.paused_at
+            self.paused_at = None
 
     def get_running_time(self) -> float:
-        now = time.time()
+        now = self._now()
         if self.is_running():
-            return now - self.started_at - self.paused_seconds
+            return now - self._started_at - self.paused_seconds
         else:
-            return self.paused_at - self.started_at - self.paused_seconds
+            return self.paused_at - self._started_at - self.paused_seconds
 
     def get_ratio_done(self):
-        return self.get_running_time() / self.seconds
+        return self.get_running_time() / self.seconds if self.seconds else 1.0
 
     def get_seconds_left(self):
         return self.seconds - self.get_running_time()
 
     def is_done(self):
-        return self.is_running() and self.get_running_time() > self.seconds
+        return self.is_running() and self.get_running_time() >= self.seconds
 
     def to_json(self):
         return {
