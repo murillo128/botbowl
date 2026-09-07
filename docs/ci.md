@@ -7,20 +7,36 @@ calls the separate, unchanged Skillforge issue-label launcher. PR code never run
 via `pull_request_target` or on the self-hosted Codex runner.
 
 The Linux core matrix is CPython 3.11–3.14 × Python/native pathfinding. Separate
-Linux legacy RL jobs run the complete suite on 3.11/3.12 with Gym 0.26.2 and NumPy
+Linux legacy RL jobs run the ordinary suite on 3.11/3.12 with Gym 0.26.2 and NumPy
 1.26.4, including real registered environments with the checker enabled. Core
-jobs omit only `tests/ai/test_env.py`; that module runs in both RL jobs. Optional
+jobs route `tests/ai/test_env.py` to both RL jobs. Optional
 Gym export/mask cases explain their absent capability through explicit skips.
 Native-only pathfinding comparisons skip in Python jobs and execute in all four
 native jobs. The strict inherited end-time xfail belongs to #16. No other engine
 failure is waived; known forward-model findings belong to #20 and remain failures.
 
-Each suite is split into fast unit/regression tests and integration (AI,
+The expensive `tests/framework/test_quick_snap_forward_model.py` investigation
+runs once per backend in dedicated CPython 3.11 Python/native jobs, each bounded
+by ten minutes. Core and RL profiles exclude that file from their unit portion.
+The dedicated profile executes all 41 cases, including 24 configurations and
+10,208 checked transitions per backend, with the unchanged complete observer and
+fixture controls. Its 24 per-backend decision/transition traces are retained.
+This routing leaves ordinary `pytest` discovery unchanged.
+
+Each ordinary suite is split into fast unit/regression tests and integration (AI,
 forward-model, server, full-game). Both portions run even if the first fails. The
 suite and examples are copied outside the checkout; only the built wheel supplies
 `botbowl`. `--require-pathfinding` verifies the actual module and native extension
 suffix. Unit/integration JUnit, logs, resolved packages, step durations, and source
 revision are retained as 14-day Actions artifacts even on failure.
+
+Before either test profile executes, `tests/packaging/verify_ci_routing.py`
+collects the full suite and all three portions in separate installed-backend
+processes. It requires disjoint routes whose union equals full collection and
+exact dedicated coverage of all 41 investigation cases, including the 24 matrix
+configurations. Missing files, global filters that lose those cases, and collection
+errors fail the profile. Collection node IDs, logs and `selection.json` make this
+audit inspectable; collection does not execute the expensive test bodies.
 
 Packaging smokes run on Ubuntu 24.04, Windows 2025, and macOS 15, CPython 3.11.
 They invoke `tests/packaging/verify_sdist.py`: export committed source, build a
@@ -68,6 +84,8 @@ commit the source to test, then run from a checkout:
 ```bash
 python -m pip install --upgrade -c requirements/core.txt pip setuptools wheel build
 python tools/ci/run_profile.py suite --backend native --output /tmp/botbowl-ci-native
+python tools/ci/run_profile.py investigation --backend python --output /tmp/botbowl-ci-investigation-python
+python tools/ci/run_profile.py investigation --backend native --output /tmp/botbowl-ci-investigation-native
 python tools/ci/run_profile.py artifacts --output /tmp/botbowl-ci-artifacts
 python tools/ci/run_profile.py extra --extra web --output /tmp/botbowl-ci-web
 python tools/ci/run_profile.py suite --rl --backend native --output /tmp/botbowl-ci-rl

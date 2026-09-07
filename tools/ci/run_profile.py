@@ -11,9 +11,25 @@ import time
 import xml.etree.ElementTree as ET
 
 
+INVESTIGATION = 'tests/framework/test_quick_snap_forward_model.py'
+
+
+def test_selections(profile, rl=False):
+    """Partition ordinary and investigation coverage without changing pytest defaults."""
+    if profile == 'investigation':
+        return [('investigation', [INVESTIGATION])]
+    if profile != 'suite':
+        raise ValueError('No test selection for ' + profile)
+    integration = ['tests/ai', 'tests/framework/test_forward_model.py',
+                   'tests/framework/test_server.py', 'tests/game/test_full_game.py']
+    options = [] if rl else ['--ignore=tests/ai/test_env.py']
+    return [('unit', ['tests'] + ['--ignore=' + p for p in integration + [INVESTIGATION]] + options),
+            ('integration', integration + options)]
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('profile', choices=('suite', 'artifacts', 'extra'))
+    parser.add_argument('profile', choices=('suite', 'investigation', 'artifacts', 'extra'))
     parser.add_argument('--backend', choices=('python', 'native'), default='python')
     parser.add_argument('--extra', choices=('web', 'rl', 'competition', 'dev', 'render'))
     parser.add_argument('--rl', action='store_true')
@@ -99,17 +115,17 @@ def main():
         run('identity', [python, '-c',
             'import botbowl; from pathlib import Path; '
             'assert "site-packages" in Path(botbowl.__file__).parts; print(botbowl.__file__)'])
+        # Audit the actual installed collection before either profile executes.
+        run('selection', [python, source / 'tests/packaging/verify_ci_routing.py',
+                          '--suite', suite, '--backend', args.backend,
+                          '--output', output, *(['--rl'] if args.rl else [])])
         options = ['--require-pathfinding=' + args.backend, '-q', '-ra']
-        if not args.rl:
-            # Only the legacy RL module requires unsupported Gym on 3.13/3.14.
-            # Its complete suite runs in BOTH RL jobs, including the checker.
-            options += ['--ignore=tests/ai/test_env.py']
-        # Split fast unit/regression tests and integration without dropping files.
-        integration = ['tests/ai', 'tests/framework/test_forward_model.py',
-                       'tests/framework/test_server.py', 'tests/game/test_full_game.py']
+        selections = test_selections(args.profile, args.rl)
+        result['selection'] = dict(selections)
+        if args.profile == 'investigation':
+            env['BOTBOWL_ISSUE20_EVIDENCE'] = str(output / 'investigation-traces')
         failure = None
-        for name, selection in [('unit', ['tests'] + ['--ignore=' + p for p in integration]),
-                                ('integration', integration)]:
+        for name, selection in selections:
             try:
                 run(name, [python, '-m', 'pytest', *selection, *options,
                            '--junitxml=' + str(output / (name + '.xml'))], suite)
