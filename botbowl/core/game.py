@@ -1388,11 +1388,13 @@ class Game:
         """
         return 1 if player.has_skill(Skill.VERY_LONG_LEGS) else 0
 
-    def get_dodge_modifiers(self, player: Player, position: Square, include_diving_tackle: bool = False) -> int:
+    def get_dodge_modifiers(self, player: Player, position: Square, include_diving_tackle: bool = False,
+                            from_position: Optional[Square] = None) -> int:
         """
         :param player:
         :param position: The position the player is dodging to
         :param include_diving_tackle:
+        :param from_position: Optional hypothetical origin; the player is not moved.
         :return: the modifier to be added to the dodge roll.
         """
         modifiers = 1
@@ -1408,14 +1410,16 @@ class Game:
         if player.has_skill(Skill.TWO_HEADS):
             modifiers += 1
 
-        prehensile_tailers = self.get_adjacent_opponents(player, skill=Skill.PREHENSILE_TAIL)
+        origin = player.position if from_position is None else from_position
+        opponents = self.get_opp_team(player.team)
+        prehensile_tailers = self.get_adjacent_players(origin, team=opponents, skill=Skill.PREHENSILE_TAIL)
         modifiers -= len(prehensile_tailers)  # subtract 1 for each prehensile tail detractor
 
         if not ignore_opp_mods:
             modifiers -= tackle_zones_to
 
         if include_diving_tackle:
-            diving_tacklers = self.get_adjacent_opponents(player, skill=Skill.DIVING_TACKLE)
+            diving_tacklers = self.get_adjacent_players(origin, team=opponents, skill=Skill.DIVING_TACKLE)
             if len(diving_tacklers) > 0:
                 modifiers -= 2
 
@@ -1771,14 +1775,38 @@ class Game:
         """
         :param from_position: The position of the attacker.
         :param to_position: The position of the defender.
-        :return: Possible square to push the player standing on pos_to on to.
+        :return: Legal destinations, including ordinary push/chain-push fallback
+                 when Side Step has no empty in-bounds neighbour. Stand Firm is
+                 an optional decision before choosing a destination.
         """
         attacker = self.get_player_at(from_position)
         defender = self.get_player_at(to_position)
         assert attacker is not None 
         assert defender is not None
-        if defender.has_skill(Skill.SIDE_STEP) and not attacker.has_skill(Skill.GRAB):
-            return self.get_adjacent_squares(to_position, out=True, occupied=False)
+        return self._get_push_squares_at(attacker, defender, from_position)
+
+    def _get_push_squares_at(self, attacker: Player, defender: Player, from_position: Square,
+                             grab: bool = False) -> List[Square]:
+        """Read push geometry with only the attacker's occupancy relocated."""
+        to_position = defender.position
+
+        def occupant(square):
+            if square == from_position:
+                return attacker
+            if square == attacker.position:
+                return None
+            return self.get_player_at(square)
+
+        # The engine resolves direct Grab choices before calling its shared
+        # fallback. Enable them only for the direct-block query, not for that
+        # fallback (which is also used for chain pushes where Grab cannot act).
+        side_step = defender.has_skill(Skill.SIDE_STEP) and not attacker.has_skill(Skill.GRAB)
+        use_grab = grab and attacker.has_skill(Skill.GRAB) and not defender.has_skill(Skill.SIDE_STEP)
+        if side_step or use_grab:
+            free = [square for square in self.get_adjacent_squares(to_position)
+                    if occupant(square) is None]
+            if free:
+                return free
         squares_to = self.get_adjacent_squares(to_position, out=True)
         squares_empty = []
         squares_out = []
@@ -1794,7 +1822,7 @@ class Game:
             if include:
                 if square.out_of_bounds:
                     squares_out.append(square)
-                elif self.get_player_at(square) is None:
+                elif occupant(square) is None:
                     squares_empty.append(square)
                 squares.append(square)
         if len(squares_empty) > 0:
@@ -1991,73 +2019,115 @@ class Game:
         return self.num_block_dice_at(attacker, defender, attacker.position, blitz, dauntless_success)
 
     def get_block_probs(self, attacker: Player, defender: Player) -> Tuple[float, float, float, float]:
+        """Probabilities of (attacker down, defender down, attacker ball loss,
+        defender ball loss) for one block, without rerolls. Down includes crowd
+        removal; ball loss means the current carrier releases the ball, before
+        bounce/catch/throw-in resolution. These are overlapping marginals.
+
+        The dice chooser first avoids their own down/removal, then seeks the
+        opponent's, then avoids their own ball loss, then seeks the opponent's.
+        Remaining face ties prefer POW, stumble, push, both down, skull.
+        Stand Firm is used; Side Step chooses a safe destination. Ordinary
+        pushes prefer crowd, with destination ties ordered by (y, x).
+
+        This is a fixed local policy, not a unique strategic probability. See
+        docs/probability-queries.md for the supported skills and exclusions.
+        No live game state, dice, policy state or trajectory is changed.
         """
-        :param attacker:
-        :param defender:
-        :return: a tuple containing the knock-down probabilities of the attacker and defender.
-        """
-        dice = self.num_block_dice(attacker, defender)
-        push_squares = self.get_push_squares(attacker.position, defender.position)
-        crowd_push = self.arena.board[push_squares[0].y][push_squares[0].x] == Tile.CROWD and not defender.has_skill(Skill.STAND_FIRM)
-        p_self = 1.0 / 6.0 if attacker.has_skill(Skill.BLOCK) else 2.0 / 6.0
-        p_opp = 2.0 / 6.0 if attacker.has_skill(Skill.BLOCK) else 2.0 / 6.0
-        if crowd_push:
-            p_opp += 2.0 / 6.0
-        if not crowd_push:
-            p_opp -= (1.0 / 6.0 if defender.has_skill(Skill.DODGE) and not attacker.has_skill(Skill.TACKLE) else 0.0)
-        if dice == 2:
-            p_self -= (1.0 - p_self) * p_self
-            p_opp += (1.0 - p_opp) * p_opp
-        if dice == 3:
-            p_self -= (1.0 - p_self) * p_self
-            p_opp += (1.0 - p_opp) * p_opp
-        if dice == -2:
-            p_self += (1.0 - p_self) * p_self
-            p_opp -= (1.0 - p_opp) * p_opp
-        if dice == -3:
-            p_self += (1.0 - p_self) * p_self
-            p_opp -= (1.0 - p_opp) * p_opp
-        p_fumble_opp = 0.0
-        p_fumble_self = 0.0
-        if self.get_ball_carrier() == defender:
-            p_fumble_opp = p_opp
-            if not crowd_push and attacker.has_skill(Skill.STRIP_BALL) and not defender.has_skill(Skill.SURE_HANDS):
-                p_fumble_opp += 2.0 / 6.0
-        elif self.get_ball_carrier() == attacker:
-            p_fumble_self = p_self
-        return p_self, p_opp, p_fumble_self, p_fumble_opp
+        return self._get_block_probs_at(attacker, attacker.position, defender, blitz=False)
+
+    def _validate_query_position(self, player: Player, position: Square) -> None:
+        if player.position is None or position is None or self.is_out_of_bounds(position):
+            raise ValueError("Probability queries require an on-pitch player and origin")
+        occupant = self.get_player_at(position)
+        if occupant is not None and occupant != player:
+            raise ValueError("Hypothetical origin is occupied by another player")
+
+    def _get_block_probs_at(self, attacker: Player, position: Square, defender: Player,
+                            blitz: bool) -> Tuple[float, float, float, float]:
+        self._validate_query_position(attacker, position)
+        if defender.position is None or self.is_out_of_bounds(defender.position) or \
+                position.distance(defender.position) != 1:
+            raise ValueError("Block probability queries require an adjacent on-pitch defender")
+        dice = self.num_block_dice_at(attacker, defender, position, blitz=blitz)
+        if dice not in (-3, -2, -1, 1, 2, 3):
+            raise ValueError("Block probability queries require one, two or three dice")
+
+        # Resolve only direct push effects. Stand Firm is always used when
+        # available; taken root is already a state, not a new skill decision.
+        crowd = False
+        if not defender.has_skill(Skill.STAND_FIRM) and not defender.state.taken_root:
+            squares = self._get_push_squares_at(attacker, defender, position, grab=True)
+            side_step = defender.has_skill(Skill.SIDE_STEP) and not attacker.has_skill(Skill.GRAB)
+            destination = min(squares, key=lambda square: (
+                self.is_out_of_bounds(square) if side_step else not self.is_out_of_bounds(square),
+                square.y, square.x))
+            crowd = self.is_out_of_bounds(destination)
+
+        carrying_attacker = self.has_ball(attacker)
+        carrying_defender = self.has_ball(defender)
+        strip = attacker.has_skill(Skill.STRIP_BALL) and not defender.has_skill(Skill.SURE_HANDS)
+        faces = (BBDieResult.DEFENDER_DOWN, BBDieResult.DEFENDER_STUMBLES,
+                 BBDieResult.PUSH, BBDieResult.PUSH, BBDieResult.BOTH_DOWN,
+                 BBDieResult.ATTACKER_DOWN)
+        outcomes = []
+        for face in faces:
+            self_down = face == BBDieResult.ATTACKER_DOWN or (
+                face == BBDieResult.BOTH_DOWN and not attacker.has_skill(Skill.BLOCK))
+            pushes = face in (BBDieResult.PUSH, BBDieResult.DEFENDER_STUMBLES, BBDieResult.DEFENDER_DOWN)
+            opp_down = (face == BBDieResult.BOTH_DOWN and not defender.has_skill(Skill.BLOCK)) or \
+                face == BBDieResult.DEFENDER_DOWN or (face == BBDieResult.DEFENDER_STUMBLES and (
+                    not defender.has_skill(Skill.DODGE) or attacker.has_skill(Skill.TACKLE))) or (pushes and crowd)
+            outcomes.append((self_down, opp_down, carrying_attacker and self_down,
+                             carrying_defender and (opp_down or (pushes and strip))))
+
+        def preference(outcome):
+            own_down, other_down, own_loss, other_loss = outcome if dice > 0 else (
+                outcome[1], outcome[0], outcome[3], outcome[2])
+            return own_down, not other_down, own_loss, not other_loss
+
+        # Stable sorting implements the documented face tie order. For rank i,
+        # all n dice must have rank >= i and at least one must have rank i.
+        # Count those disjoint rolls with integers, then divide just once. The
+        # duplicated push face has its actual multiplicity on the six-sided die.
+        outcomes.sort(key=preference)
+        n = abs(dice)
+        totals = [0, 0, 0, 0]
+        for i, outcome in enumerate(outcomes):
+            count = (6 - i) ** n - (5 - i) ** n
+            for event, occurs in enumerate(outcome):
+                totals[event] += count * occurs
+        return tuple(total / (6 ** n) for total in totals)
 
     def get_blitz_probs(self, attacker: Player, attack_position: Square, defender: Player) -> Tuple[float, float, float, float]:
+        """The get_block_probs policy for one block from attack_position.
+
+        Includes Horns and assists at that origin. Conditions on reaching it;
+        movement, GFI, activation rolls and a possible second Frenzy block are
+        excluded. Reads hypothetical occupancy without moving player or ball.
         """
-        :param attacker:
-        :param attack_position:
-        :param defender:
-        :return: a tuple containing the knock-down probabilities of the attacker and defender given that attacker
-        blitzes from attack_position.
-        """
-        orig_position = self.get_square(attacker.position.x, attacker.position.y)
-        if attacker.position != attack_position:
-            self.move(attacker, attack_position)
-        p_self, p_opp, p_fumble_self, p_fumble_opp = self.get_block_probs(attacker, defender)
-        if attacker.position != orig_position:
-            self.move(attacker, orig_position)
-        return p_self, p_opp, p_fumble_self, p_fumble_opp
+        return self._get_block_probs_at(attacker, attack_position, defender, blitz=True)
 
     def get_dodge_prob(self, player: Player, position: Square, allow_dodge_reroll: bool=True, allow_team_reroll: bool=False) -> float:
+        """Probability of a single dodge with the existing optional reroll flags.
+
+        Uses the same conditional roll model as get_dodge_prob_from; does not
+        consume a reroll, roll dice, or resolve optional Diving Tackle choices.
         """
-        :param player:
-        :param position:
-        :param allow_dodge_reroll:
-        :param allow_team_reroll:
-        :return: the probability of a successful dodge for player to position.
-        """
-        if self.num_tackle_zones_in(player) == 0:
+        return self._get_dodge_prob_at(player, player.position, position, allow_dodge_reroll, allow_team_reroll)
+
+    def _get_dodge_prob_at(self, player: Player, origin: Square, position: Square,
+                           allow_dodge_reroll: bool, allow_team_reroll: bool) -> float:
+        if self.num_tackle_zones_at(player, origin) == 0:
             return 1.0
-        ag_roll = Rules.agility_table[player.get_ag()] - self.get_dodge_modifiers(player, position)
+        ag_roll = Rules.agility_table[player.get_ag()] - self.get_dodge_modifiers(
+            player, position, from_position=origin)
         ag_roll = max(2, min(6, ag_roll))
         successful_outcomes = 6 - (ag_roll - 1)
         p = successful_outcomes / 6.0
-        if allow_dodge_reroll and player.has_skill(Skill.DODGE) and not self.get_adjacent_opponents(player, down=False, skill=Skill.TACKLE):
+        tacklers = self.get_adjacent_players(origin, team=self.get_opp_team(player.team),
+                                            down=False, skill=Skill.TACKLE)
+        if allow_dodge_reroll and player.has_skill(Skill.DODGE) and not tacklers:
             p += (1.0-p)*p
         elif allow_team_reroll and self.can_use_reroll(player.team):
             p += (1.0 - p) * p
@@ -2094,11 +2164,8 @@ class Game:
         :param allow_team_reroll:
         :return: the probability of a successful dodge for player from from_position to to_position.
         """
-        orig_position = self.get_square(player.position.x, player.position.y)
-        self.move(player, from_position)
-        p = self.get_dodge_prob(player, to_position, allow_dodge_reroll, allow_team_reroll)
-        self.move(player, orig_position)
-        return p
+        self._validate_query_position(player, from_position)
+        return self._get_dodge_prob_at(player, from_position, to_position, allow_dodge_reroll, allow_team_reroll)
 
     def get_pickup_prob(self, player: Player, position: Square, allow_pickup_reroll: bool=True,
                         allow_team_reroll: bool=False) -> float:
