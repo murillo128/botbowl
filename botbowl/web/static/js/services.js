@@ -8,6 +8,14 @@ appServices.factory('GameService', function($http) {
         update: function(id) {
             return $http.post(options.api.base_url + '/games/' + id + '/update', {});
         },
+
+        pause: function(id) {
+            return $http.post(options.api.base_url + '/games/' + id + '/pause', {});
+        },
+
+        resume: function(id) {
+            return $http.post(options.api.base_url + '/games/' + id + '/resume', {});
+        },
         
         findAll: function() {
             return $http.get(options.api.base_url + '/games/');

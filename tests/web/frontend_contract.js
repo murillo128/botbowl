@@ -18,7 +18,8 @@ for (const [label, code] of [['source', source], ['bundle', bundle]]) {
         controller(name, spec) { controllers[name] = spec[spec.length - 1]; },
         directive() {}, filter() {}, config() {}
     };
-    const window = {location: {protocol: 'http:', host: 'localhost', href: '/game/hotseat/test'}};
+    let browserNow = 0;
+    const window = {performance: {now: () => browserNow}, location: {protocol: 'http:', host: 'localhost', href: '/game/hotseat/test'}};
     const document = {addEventListener() {}, getElementById() { return {scrollTop: 0}; }};
     const jquery = () => ({ready() {}, width() {}});
     const pending = [];
@@ -47,10 +48,13 @@ for (const [label, code] of [['source', source], ['bundle', bundle]]) {
     replayService.getSteps('Replay One', 100, 10);
     check(calls[3].url.endsWith('/steps/Replay%20One/100/10'), 'Replay paging uses encoded IDs');
 
-    const scope = {$apply(fn) { if (fn) fn(); }};
+    const notices = [];
+    const timeout = fn => { notices.push(fn); return fn; };
+    timeout.cancel = () => {};
+    const scope = {$on() {}, $apply(fn) { if (fn) fn(); }};
     controllers.GamePlayCtrl(scope, {id: 'test'}, {path() { throw new Error('Unexpected navigation'); }}, {},
-        gameService, {}, {log_timouts: {}}, replayService, {});
-    const data = {game_id: 'test', state: {game_over: false, reports: [], home_team: {players_by_id: {}}, away_team: {players_by_id: {}}}};
+        gameService, {}, {log_timouts: {}}, replayService, {}, timeout);
+    const data = {game_id: 'test', competition_mode: true, state: {game_over: false, reports: [], home_team: {players_by_id: {}}, away_team: {players_by_id: {}}}};
     // Rendering is outside this harness; keep interaction, timers and errors real.
     scope.disableOppActions = scope.setLocalState = scope.setAvailablePositions = scope.setClock = () => {};
     scope.getActiveClock = () => null;
@@ -72,6 +76,15 @@ for (const [label, code] of [['source', source], ['bundle', bundle]]) {
     poll();
     check(calls[calls.length - 1].url.endsWith('/update'), 'Opponent polling must not send CONTINUE action');
 
+    const clock = {running_time: 2, seconds: 60, is_running: true, started_at: -1000000, paused_seconds: 9999};
+    browserNow = 1000;
+    check(scope.getSecondsLeft(clock, false) === 57, 'Display interpolates elapsed duration with monotonic browser time');
+    scope.game.paused = true;
+    check(scope.getSecondsLeft(clock, false) === 58, 'Paused display never interpolates');
+    scope.game.paused = false;
+    scope.replaying = true;
+    check(scope.getSecondsLeft(clock, false) === 58, 'Replay clocks stay on their recorded duration');
+    scope.replaying = false;
     scope.refreshing = false;
     scope.getActiveClock = () => ({});
     scope.getSecondsLeft = () => -1;
@@ -94,13 +107,29 @@ for (const [label, code] of [['source', source], ['bundle', bundle]]) {
     check(scope.error === 'Internal server error.' && !scope.refreshing, 'Internal action failure is visible');
     check(calls.length === count + 1, 'Internal failure is not retried as an action');
 
+    scope.game.state.home_team.team_id = 'home';
+    scope.game.state.home_team.name = 'Synthetic';
+    scope.observeTouchdowns();
+    scope.game.state.home_team.state = {score: 1};
+    scope.observeTouchdowns();
+    check(notices.length === 0, 'A score change alone is not a touchdown event');
+    scope.game.state.reports.push({outcome_type: 'TOUCHDOWN', team_id: 'home'});
+    scope.observeTouchdowns();
+    check(scope.touchdownNotice === 'Touchdown — Synthetic!' && notices.length === 1, 'Real new report announces once');
+    scope.game.state.reports = JSON.parse(JSON.stringify(scope.game.state.reports));
+    scope.observeTouchdowns();
+    check(notices.length === 1, 'Repeated report history does not extend the notice');
+    notices[0]();
+    scope.observeTouchdowns();
+    check(scope.touchdownNotice === '' && notices.length === 1, 'Expired notice stays expired on refresh');
+    check(scope.game.state.home_team.state.score === 1, 'Notice does not change score');
     scope.replaying = true;
     scope.replay_id = 'empty';
     pending.push({data: {steps: {}, actions: {}}});
     scope.reload();
     check(scope.emptyReplay && !scope.loading && !scope.refreshing, 'Empty replay renders without dereferencing frame zero');
 
-    const missing = {$apply() {}};
+    const missing = {$on() {}, $apply() {}};
     controllers.GamePlayCtrl(missing, {id: 'missing'}, {}, {}, gameService, {}, {}, replayService, {});
     pending.push({error: true, status: 404, data: {error: {message: 'Game not found.'}}});
     missing.reload();
