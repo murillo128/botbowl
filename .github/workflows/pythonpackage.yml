@@ -3,7 +3,9 @@ name: Tests
 on:
   pull_request:
   push:
-    branches: [main]
+    branches:
+      - main
+      - 'codex/**'
 
 permissions:
   contents: read
@@ -12,8 +14,9 @@ concurrency:
   group: tests-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
-# PR code runs exclusively on GitHub-hosted machines. The separate issue-label
-# Skillforge launcher is unchanged and is never called by this workflow.
+# Untrusted pull-request code is never scheduled on the local runner. Public PRs
+# receive the hosted lint gate only; functional core validation is triggered by
+# trusted pushes to repository-owned codex/** branches (and main).
 jobs:
   lint:
     runs-on: ubuntu-24.04
@@ -39,8 +42,9 @@ jobs:
           "$RUNNER_TEMP/actionlint" -shellcheck='' -pyflakes=''
 
   core:
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/codex/'))
     name: core / ${{ matrix.python }} / ${{ matrix.backend }}
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, codex]
     timeout-minutes: 25
     strategy:
       fail-fast: false
@@ -50,7 +54,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.sha }}
           persist-credentials: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
