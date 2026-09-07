@@ -324,7 +324,7 @@ def test_initial_frenzy_block_failed_gfi_cancels_both_attacks(pathfinding):
         assert game.state.current_team is defender.team
         assert not attack_reports(game, OutcomeType.BLOCK_ROLL)
         assert not attack_reports(game, OutcomeType.SKILL_USED, attacker, Skill.STAB)
-        assert not any(isinstance(p, (Block, Stab, Frenzy, BlitzAction)) for p in game.state.stack.items)
+        assert not any(isinstance(p, (Block, Stab, BlockAction, BlitzAction)) for p in game.state.stack.items)
 
 
 @pytest.mark.parametrize('blitz', [False, True])

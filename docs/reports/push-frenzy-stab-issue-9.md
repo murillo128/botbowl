@@ -42,3 +42,98 @@ strict game-owned dice (`tests.util.only_fixed_rolls`, accepted #14):
 Full baseline traces and the standalone reproducer are retained under
 `/tmp/botbowl-issue9-evidence/` (`baseline-chain.log`, `baseline-frenzy.log`,
 `reproduce.py`). Deterministic regression tests accompany the fixes.
+
+## Implementation and regression coverage
+
+`Push` checks whether the selected destination was vacated after the nested push
+finishes. If it remains occupied, displacement stops through the preceding
+chain; the original block's knockdown or Strip Ball still resolves in place.
+Displacement reports now describe completed movement. The accepted #8 push
+geometry and Side Step selection code are unchanged.
+
+`Frenzy` continues the existing Block/Blitz activation, retaining the first
+`Block` and its exact defender. Eligibility is evaluated after the first block's
+push, follow-up and damage. Only push/stumbles results with both players standing
+and adjacent qualify. The continuation offers Block/Stab only to a stabber,
+charges the second Blitz movement at selection, and delegates GFI and attack
+resolution to the existing procedures. It subclasses `BlockAction` so ProcBot
+uses its existing player-action dispatch. No extra activation is started.
+
+Stab's damage path uses armour strictly greater than AV (Stakes excepted),
+unmodified injury, and Foul Appearance (also specified on printed p. 65 of the
+cited rule pack). These existing-path defects were exposed by the required
+initial/second-attack damage tests. The new injury flag defaults off for every
+other caller. No Throw Team Mate implementation is changed.
+
+The three focused files contain 108 tests (103 added):
+
+- `test_push.py`: short/long chains in both directions; Stand Firm use/decline;
+  Side Step with free squares/full occupancy; both sidelines; knockdown and
+  Strip Ball on a stopped chain; Take Root as another immovable tail. Assertions
+  cover board/player identity, carried/loose ball position, follow-up legality,
+  remaining stack, subsequent actions and one activation end.
+- `test_frenzy.py`: both attack choices and activation types; unrelated targets
+  and late Stab rejected; normal/first/second GFI costs and exhausted movement;
+  first/second failed GFI; Fend, knockdown, Both Down, Foul Appearance and Stand
+  Firm eligibility; stopped long chains; ProcBot dispatch and reversible replay.
+- `test_stab.py`: initial and second attacks; armour below/equal/above AV;
+  Mighty Blow, Thick Skull, Stunty, niggling injuries, Stakes and Foul Appearance;
+  initial GFI with both pathfinding settings; casualties, ball release and
+  rejection of another attack/activation.
+
+All new attack and push sequences use strict game-owned controlled dice. A fresh
+export of the execution base, overlaid only with these final three test files,
+produces **78 failed, 30 passed**, without missing-name or fixture-type failures
+(`regressions-on-base-final.log`). This complements the two standalone baseline
+reproductions above. Early development logs are retained, including corrected
+fixture mistakes (same-square placement, running-clock comparisons and D68
+casualty dice); they are not counted as engine regressions.
+
+## Validation
+
+Isolated CPython **3.11.16**. Full profiles exported committed implementation
+`d3521bee6a33a13ff3e4e1692130af0a47f3b390`, built fresh wheels under `/tmp`,
+installed into separate environments, and checked installed-package/backend
+identity and dependencies. No shared native-extension mutation was required.
+The only later test change names the existing `BlockAction` base class in the
+failed-first-GFI stack assertion, allowing that test to run on the old source
+as well. All 108 final focused tests were then run against both installed wheels.
+
+| Check | Passed | Skipped | Expected failures | Failed/errors |
+| --- | ---: | ---: | ---: | ---: |
+| Affected skills, block, Throw Team Mate, probability and damage tests | 350 | 0 | 0 | 0 |
+| Final push/Frenzy/Stab tests, installed Python wheel | 108 | 0 | 0 | 0 |
+| Final push/Frenzy/Stab tests, installed native wheel | 108 | 0 | 0 | 0 |
+| Python profile: unit | 853 | 9 | 1 | 0 |
+| Python profile: integration | 443 | 279 | 0 | 0 |
+| Native + RL profile: unit | 862 | 0 | 1 | 0 |
+| Native + RL profile: integration | 740 | 0 | 0 | 0 |
+
+The earlier 350-test affected-skill run preceded two added reversible-replay
+cases; those are included in the full profiles and final 108-test runs. The
+expected failure is the base's issue #16 human-game `end_time` test. Python
+skips comprise 279 optional-native integration cases, seven Gym import cases,
+and two tests identifying Gym as a separate capability. The native/RL profile
+runs all of those capabilities. Its integration log retains **102 warnings**,
+including Gym observation-space checker warnings; a passing exit code does not
+claim that these warnings have been resolved.
+
+Commands (run from the issue worktree; outputs must not already exist):
+
+```sh
+/tmp/botbowl-epic3-wave6-21-tools/bin/python tools/ci/run_profile.py suite \
+  --backend python --output /tmp/botbowl-issue9-evidence/suite-python
+/tmp/botbowl-epic3-wave6-21-tools/bin/python tools/ci/run_profile.py suite \
+  --rl --backend native --output /tmp/botbowl-issue9-evidence/suite-native-rl
+```
+
+Each output contains `result.json`, unit/integration JUnit XML, full build/test
+logs, dependency freeze and installed identity. `final-focused-python.log` and
+`final-focused-native.log` (and matching XML) capture the final focused runs
+outside the checkout. `affected-skills-final.log` records the broader focused
+selection. Repository CI error lint (`ruff check --select E9,F63,F7,F82 botbowl
+tests examples tools setup.py`) and `git diff --check` also pass.
+
+No local claim is made for other Python versions, platforms, or the separate
+`artifacts`/`extra` profiles. Independent technical review must still assess the
+rule interpretation and complete transition at the published final head.
