@@ -12,6 +12,10 @@ from numbers import Integral
 
 from botbowl.core.load import *
 from botbowl.core.procedure import *
+from botbowl.core.probability import (
+    PassRerollPolicy, BlockRerollPolicy, RerollProbabilityInfo,
+    PassOutcomeProbabilities, BlockOutcomeProbabilities,
+)
 from botbowl.core.forward_model import Trajectory, MovementStep, Step
 from copy import deepcopy
 from typing import Optional, Tuple, List, Union, Any
@@ -2146,13 +2150,24 @@ class Game:
 
     def _get_block_probs_at(self, attacker: Player, position: Square, defender: Player,
                             blitz: bool) -> Tuple[float, float, float, float]:
+        dice, counts, outcomes = self._get_block_face_counts_at(attacker, position, defender, blitz)
+        return tuple(sum(count * outcome[event] for count, outcome in zip(counts, outcomes)) / (6 ** abs(dice))
+                     for event in range(4))
+
+    def _get_block_face_counts_at(self, attacker: Player, position: Square, defender: Player,
+                                  blitz: bool, strict: bool = False):
+        """The shared #8 evaluator, retaining selected face identities/counts."""
         self._validate_query_position(attacker, position)
         if defender.position is None or self.is_out_of_bounds(defender.position) or \
                 position.distance(defender.position) != 1:
             raise ValueError("Block probability queries require an adjacent on-pitch defender")
         dice = self.num_block_dice_at(attacker, defender, position, blitz=blitz)
+        if strict and (isinstance(dice, bool) or not isinstance(dice, Integral)):
+            raise ValueError("dice: probability queries require an integer dice count")
         if dice not in (-3, -2, -1, 1, 2, 3):
             raise ValueError("Block probability queries require one, two or three dice")
+        if strict:
+            dice = int(dice)
 
         # Resolve only direct push effects. Stand Firm is always used when
         # available; taken root is already a state, not a new skill decision.
@@ -2191,14 +2206,15 @@ class Game:
         # all n dice must have rank >= i and at least one must have rank i.
         # Count those disjoint rolls with integers, then divide just once. The
         # duplicated push face has its actual multiplicity on the six-sided die.
-        outcomes.sort(key=preference)
+        ranked = sorted(zip(faces, outcomes), key=lambda item: preference(item[1]))
         n = abs(dice)
-        totals = [0, 0, 0, 0]
-        for i, outcome in enumerate(outcomes):
+        order = (BBDieResult.ATTACKER_DOWN, BBDieResult.BOTH_DOWN, BBDieResult.PUSH,
+                 BBDieResult.DEFENDER_STUMBLES, BBDieResult.DEFENDER_DOWN)
+        counts = [0] * 5
+        for i, (face, outcome) in enumerate(ranked):
             count = (6 - i) ** n - (5 - i) ** n
-            for event, occurs in enumerate(outcome):
-                totals[event] += count * occurs
-        return tuple(total / (6 ** n) for total in totals)
+            counts[order.index(face)] += count
+        return dice, tuple(counts), tuple(outcomes[faces.index(face)] for face in order)
 
     def get_blitz_probs(self, attacker: Player, attack_position: Square, defender: Player) -> Tuple[float, float, float, float]:
         """The get_block_probs policy for one block from attack_position.
@@ -2208,6 +2224,159 @@ class Game:
         excluded. Reads hypothetical occupancy without moving player or ball.
         """
         return self._get_block_probs_at(attacker, attack_position, defender, blitz=True)
+
+    def _validate_probability_options(self, policy, policies, already_rerolled):
+        if not isinstance(policy, str) or policy not in policies:
+            raise ValueError("policy: unsupported probability reroll policy")
+        if type(already_rerolled) is not bool:
+            raise ValueError("already_rerolled: expected bool")
+        if getattr(self.config, 'ruleset', None) != 'BB2016' or getattr(self.ruleset, 'name', None) != 'BB2016':
+            raise ValueError("ruleset: probability queries require BB2016 consistently")
+        if not isinstance(self.state.weather, WeatherType):
+            raise ValueError("weather: unrecognized probability query weather")
+
+    def _validate_probability_square(self, position, category):
+        if not isinstance(position, Square):
+            raise ValueError(category + ": expected an on-pitch Square")
+        if any(isinstance(c, bool) or not isinstance(c, Integral) for c in (position.x, position.y)):
+            raise ValueError(category + ": coordinates must be integers")
+        if self.is_out_of_bounds(position):
+            raise ValueError(category + ": square is off pitch")
+
+    def _validate_probability_player(self, player):
+        if not isinstance(player, Player):
+            raise ValueError("player: expected a registered Player")
+        team = player.team
+        if not isinstance(team, Team) or not any(team is t for t in self.state.teams) or \
+                self.state.team_by_id.get(team.team_id) is not team or \
+                self.state.player_by_id.get(player.player_id) is not player or \
+                self.state.team_by_player_id.get(player.player_id) is not team or \
+                not any(player is p for p in team.players):
+            raise ValueError("player: foreign or unregistered player/team")
+        self._validate_probability_square(player.position, 'origin')
+        if self.get_player_at(player.position) is not player:
+            raise ValueError("origin: player is not on the pitch at its position")
+
+    def _apply_probability_reroll(self, player, counts, denominator, triggers,
+                                  policy, already_rerolled, passing=False):
+        """Transform integer counts, dividing only when constructing public values."""
+        pass_available = bool(passing and player.can_use_skill(Skill.PASS))
+        team_available = bool(self.can_use_reroll(player.team))
+        source = 'none'
+        if not already_rerolled and policy != 'never':
+            if pass_available:
+                source = 'pass'
+            elif team_available and policy in ('pass_skill_then_team', 'avoid_attacker_down'):
+                source = 'team'
+        loner_denominator = 2 if source == 'team' and player.has_skill(Skill.LONER) else 1
+        bad = sum(count for count, trigger in zip(counts, triggers) if trigger)
+        use = bad / denominator if source != 'none' else 0.0
+        info = RerollProbabilityInfo(
+            policy, already_rerolled, pass_available, team_available, source,
+            1 / loner_denominator, use / loner_denominator,
+            use if source == 'pass' else 0.0, use if source == 'team' else 0.0)
+        if source != 'none':
+            counts = tuple(count * (denominator * loner_denominator - denominator * trigger + bad)
+                           for count, trigger in zip(counts, triggers))
+            denominator = denominator ** 2 * loner_denominator
+        return counts, denominator, info
+
+    def get_block_outcome_probs(self, attacker: Player, defender: Player, *,
+                                reroll_policy: BlockRerollPolicy = 'never',
+                                already_rerolled: bool = False) -> BlockOutcomeProbabilities:
+        """One conditional block's direct effects under issue8_local_v1 selection.
+
+        avoid_attacker_down replaces all dice only after a selected self-down,
+        using the attacker's eligible team resource (and an unrerolled Loner 4+).
+        See docs/probability-queries.md for optional-skill/continuation conditions.
+        """
+        return self._get_block_outcome_probs_at(attacker, None, defender, False,
+                                                reroll_policy, already_rerolled)
+
+    def get_blitz_outcome_probs(self, attacker: Player, attack_position: Square, defender: Player, *,
+                                reroll_policy: BlockRerollPolicy = 'never',
+                                already_rerolled: bool = False) -> BlockOutcomeProbabilities:
+        """The typed block experiment at a hypothetical origin, including Horns.
+
+        Conditions on reaching this one block; excludes travel and continuation.
+        Juggernaut blitzes are unsupported. No player or carried ball is moved.
+        """
+        return self._get_block_outcome_probs_at(attacker, attack_position, defender, True,
+                                                reroll_policy, already_rerolled)
+
+    def _get_block_outcome_probs_at(self, attacker, position, defender, blitz, policy, already_rerolled):
+        self._validate_probability_options(policy, ('never', 'avoid_attacker_down'), already_rerolled)
+        self._validate_probability_player(attacker)
+        self._validate_probability_player(defender)
+        if attacker is defender or attacker.team is defender.team:
+            raise ValueError("players: block requires distinct opposing players")
+        if not blitz:
+            position = attacker.position
+        self._validate_probability_square(position, 'origin')
+        if position.distance(defender.position) != 1:
+            raise ValueError("target: block requires an adjacent defender")
+        if len(self.state.pitch.balls) > 1 or any(not isinstance(b, Ball) for b in self.state.pitch.balls):
+            raise ValueError("ball: blocks support zero or one pitch Ball")
+        if blitz and attacker.has_skill(Skill.JUGGERNAUT):
+            raise ValueError("Juggernaut: blitz probability queries are unsupported")
+        dice, counts, outcomes = self._get_block_face_counts_at(attacker, position, defender, blitz, strict=True)
+        counts, denominator, info = self._apply_probability_reroll(
+            attacker, counts, 6 ** abs(dice), tuple(o[0] for o in outcomes), policy, already_rerolled)
+        marginals = tuple(sum(c * o[i] for c, o in zip(counts, outcomes)) / denominator for i in range(4))
+        return BlockOutcomeProbabilities(
+            *marginals, tuple(c / denominator for c in counts), 'BB2016', 'single_block_direct_effects_v1',
+            'issue8_local_v1', int(dice), 'attacker' if dice > 0 else 'defender', 'attacker', blitz,
+            (int(position.x), int(position.y)), info)
+
+    def get_pass_outcome_probs(self, player: Player, piece: Ball, position: Square, *,
+                               reroll_policy: PassRerollPolicy = 'pass_skill',
+                               already_rerolled: bool = False) -> PassOutcomeProbabilities:
+        """Accurate/inaccurate/fumble conditional on a normal ball launch roll.
+
+        Interception has not stopped the launch; catch and continuation are
+        excluded. Preserves PassAttempt's accuracy-first branch order, including
+        high AG and natural six. Safe Throw, TTM, bombs and Hail Mary are rejected.
+        See docs/probability-queries.md for policies, costs and the complete domain.
+        """
+        self._validate_probability_options(reroll_policy, ('never', 'pass_skill', 'pass_skill_then_team'),
+                                            already_rerolled)
+        self._validate_probability_player(player)
+        self._validate_probability_square(position, 'target')
+        if position == player.position:
+            raise ValueError("target: pass target equals origin")
+        if not isinstance(piece, Ball) or len(self.state.pitch.balls) != 1 or self.state.pitch.balls[0] is not piece:
+            raise ValueError("ball: pass requires the game's single registered pitch Ball")
+        if player.has_skill(Skill.SAFE_THROW):
+            raise ValueError("Safe Throw: held-ball fourth outcome is unsupported")
+        distance = self.get_pass_distance(player.position, position)
+        if distance not in (PassDistance.QUICK_PASS, PassDistance.SHORT_PASS,
+                             PassDistance.LONG_PASS, PassDistance.LONG_BOMB):
+            raise ValueError("distance: Hail Mary or unsupported pass range")
+        if self.state.weather == WeatherType.BLIZZARD and distance in (PassDistance.LONG_PASS, PassDistance.LONG_BOMB):
+            raise ValueError("Blizzard: only quick and short passes are supported")
+        agility = player.get_ag()
+        if isinstance(agility, bool) or not isinstance(agility, Integral) or not 1 <= agility <= 10:
+            raise ValueError("agility target: expected effective integer AG in 1..10")
+        target = Rules.agility_table[agility]
+        modifier = self.get_pass_modifiers(player, distance, ttm=False)
+        for category, value in (('agility target', target), ('modifier', modifier)):
+            if isinstance(value, bool) or not isinstance(value, Integral):
+                raise ValueError(category + ": expected a finite integer")
+        target, modifier = int(target), int(modifier)
+        counts = [0, 0, 0]
+        for raw in range(1, 7):
+            if raw == 6 or (raw != 1 and raw + modifier >= target):
+                counts[0] += 1
+            elif raw == 1 or raw + modifier <= 1:
+                counts[2] += 1
+            else:
+                counts[1] += 1
+        counts, denominator, info = self._apply_probability_reroll(
+            player, counts, 6, (False, True, True), reroll_policy, already_rerolled, passing=True)
+        return PassOutcomeProbabilities(
+            *(c / denominator for c in counts), 'BB2016', 'normal_ball_launch_reached_v1',
+            int(target), int(modifier), distance, self.state.weather,
+            (int(player.position.x), int(player.position.y)), (int(position.x), int(position.y)), info)
 
     def get_dodge_prob(self, player: Player, position: Square, allow_dodge_reroll: bool=True, allow_team_reroll: bool=False) -> float:
         """Probability of a single dodge with the existing optional reroll flags.
@@ -2289,13 +2458,12 @@ class Game:
 
     def get_pass_prob(self, player: Player, piece: Piece, position: Square,
                       allow_pass_reroll: bool = True, allow_team_reroll: bool = False) -> float:
-        """
-        :param player: passer
-        :param piece: piece to pass
-        :param position: the position of the ball
-        :param allow_pass_reroll:
-        :param allow_team_reroll:
-        :return: the probability of a successful catch for player.
+        """Historical accuracy-threshold estimate, not catch/whole-pass success.
+
+        Retains the quick/short TTM approximation and at most one reroll based
+        on has_skill(PASS) or team eligibility. Used Pass, Loner and already-
+        rerolled history are deliberately not modeled. For an explicit ordinary
+        ball launch distribution use get_pass_outcome_probs instead.
         """
         distance = self.get_pass_distance(from_position=player.position, to_position=position)
         ttm = type(piece) != Ball
