@@ -220,6 +220,64 @@ passes, each with the inherited xfail and Python's 279 capability skips) retain
 their separate observer-source hash. The original Quick Snap risk and separate
 follow-up proposals remain unresolved pending parent acceptance and ownership.
 
+## CI-cost instrumentation correction
+
+The ordinary-order correction at `577337b05559cee9f027330a8c550387b310646b`
+kept the blueprint bounded but still exceeded the unchanged hosted ten-minute
+limit in [run 34120016057](https://github.com/murillo128/botbowl/actions/runs/34120016057).
+Its local full-suite passes (618.99 seconds Python; 808.75 seconds native) remain
+valid evidence for that earlier source, not hosted-CI success. The timeout log
+and annotation are retained in the current evidence packet too.
+
+A cProfile run of the seed-0, home-receiving, size-3, pathfinding-enabled matrix
+case attributed 35.44 of 39.93 profiled seconds to complete semantic observation.
+The correction caches type dispatch and public class-field metadata within one
+observation, and immutable string-key ordering in a bounded cache. Immutable
+enum tokens are reused within an observation. Every mutable field and nested
+rule value is read anew; no mutable game subtree or rules snapshot is memoized.
+Custom attribute lookup and `dir` use the general observer. Mixed dictionary
+keys retain the original normalized-key/tie ordering. Returning the completed
+`play()` observation also removes duplicate traversal immediately before its
+comparison, without an intervening transition; the clean game is still observed.
+
+On final source, the same profile takes 20.37 seconds, with 14.97 seconds in
+semantic observation and the same 296 graph traversals. The paired unprofiled
+benchmark compares both complete observations against the same live game:
+median cost falls from 5.932 to 2.574 milliseconds across five batches
+of 30 observations. cProfile overhead and inherited-suite timing variability
+mean these are separate measurements, not a guaranteed wall-time ratio for
+other machines. The discarded broad identity-memo experiment and other candidate
+measurements retain explicit precursor attribution in `/tmp`.
+
+| Final-source validation | Python | Native |
+| --- | --- | --- |
+| Focused investigation | 39 passed / 138.42 s | 39 passed / 143.08 s |
+| Full default-order suite | 855 passed, 279 capability skips, 1 inherited xfail / 465.80 s | 1,134 passed, no skips, 1 inherited xfail / 582.45 s |
+
+The added test challenges changed nested values, inherited defaults, newly added
+class/instance fields, a method shadowed by an instance field, static data,
+computed properties and custom lookup. Existing sharing and ordinary-loader
+regressions remain intact. Both default-order prefixes retain 24/71/8 rules
+and 5/7/6 dictionary entries after 289 Python or 568 native passing calls.
+
+Each final backend still covers all 24 configurations, 10,208 checked game
+transitions, 240 repeated queries, and 774 one-action probes. All 48 focused
+trace files are byte-identical to the prior correction and their final full-run
+counterparts. Replaying the unchanged reviewer challenge preserves all 244 graph
+comparisons, 45 first-game stability checks, 13 nested faults and 12 deliberate
+aliases per backend. The ten setup/helper/consumer JSON outputs are unchanged.
+This replay is executor validation, not a fresh independent review.
+
+Full evidence, profiles, exact commands, isolated source archives and source/trace
+hash audits are in `/tmp/botbowl-issue20-ci-cost/`; reproduction is described by
+its `reproduce.md`. The JSON report appends `ci_cost_correction` without changing
+any prior evidence section. Both prior FAIL packets remain unchanged. Hosted
+CI is recorded against the published commit in PR86; it is a separate gate from
+the local results above. No production, inherited-test, workflow, timeout, matrix,
+skip-policy, base or DAG change is included. The original Quick Snap crash stays
+unreproduced/unresolved, and the separate setup/helper/hash findings retain their
+limits and ownership proposals below.
+
 ## Reproduced setup defect
 
 The unchanged `packaging-forward-model-reproduction.py` exits 1 at seed 3,

@@ -20,16 +20,44 @@ import botbowl as bb
 from botbowl.core.procedure import MoveAction, Procedure, Turn
 
 
-def fields(value):
+def fields(value, class_names=None):
     # Enabling trajectory copies public class defaults onto instances. Compare
     # their values in both games, independent of where the attribute is stored.
+    cls = type(value)
+    if (class_names is None or cls.__dir__ is not object.__dir__
+            or cls.__getattribute__ is not object.__getattribute__):
+        names = dir(value)
+    else:
+        if cls not in class_names:
+            definitions = {key: item for base in reversed(cls.__mro__) for key, item in vars(base).items()}
+            class_names[cls] = [key for key, item in definitions.items()
+                                if not key.startswith("_") and key != "game"
+                                and not isinstance(item, FunctionType)]
+        # Plain attribute lookup reads instance storage directly, with descriptors
+        # and inherited defaults resolved below. Instance overrides of methods
+        # remain visible. Custom lookup/dir implementations use the general path.
+        result = {key: item for key, item in vars(value).items()
+                  if not key.startswith("_") and key != "game" and not callable(item)} if hasattr(value, "__dict__") else {}
+        for key in class_names[cls]:
+            item = getattr(value, key)
+            if callable(item):
+                result.pop(key, None)
+            else:
+                result[key] = item
+        return result
     result = {}
-    for key in dir(value):
+    for key in names:
         if not key.startswith("_") and key != "game":
             item = getattr(value, key)
             if not callable(item):
                 result[key] = item
     return result
+
+
+@lru_cache(maxsize=128)
+def string_keys(keys):
+    """Cache only immutable string-key ordering, never observed values."""
+    return tuple(sorted(keys, key=lambda key: repr(key) + ", "))
 
 
 def semantic(game):
@@ -40,61 +68,90 @@ def semantic(game):
     Path caches are represented by their complete public path result.
     """
     stack = game.state.stack.items
+    # Only field names are reused, and only during this observation. Every value
+    # (including nested rules and class defaults) is read again on the next call.
+    class_names = {}
+
+    def public(value):
+        return fields(value, class_names)
+
+    scalar_types = {str, int, float, bool, type(None)}
+    handlers, enum_tokens = {}, {}
 
     def encode(value):
-        if value is None or type(value) in (str, int, float, bool):
+        cls = type(value)
+        if cls in scalar_types:
             return value
-        if isinstance(value, np.ndarray):
-            return encode(value.tolist())
-        if isinstance(value, np.generic):
-            return encode(value.item())
-        if value is None or isinstance(value, (str, int, float, bool)):
-            return value
-        if isinstance(value, Enum):
-            return [type(value).__name__, value.name]
-        if isinstance(value, bb.Player):
-            assert game.state.player_by_id[value.player_id] is value, "foreign player reference"
-            return ["player", value.player_id]
-        if isinstance(value, bb.Team):
-            assert game.state.team_by_id[value.team_id] is value, "foreign team reference"
-            return ["team", value.team_id]
-        if isinstance(value, bb.Square):
-            return ["square", value.x, value.y]
-        if isinstance(value, Procedure):
-            assert value.game is game, "foreign procedure game"
-            for index, proc in enumerate(stack):
-                if value is proc:
-                    return ["procedure", index, type(value).__name__]
-            return [type(value).__name__, encode(fields(value))]
-        if isinstance(value, dict):
-            # Preserve key sets, including same-length dictionaries with different keys.
-            # The old repr([key, item]) ordering only needs item repr when encoded
-            # keys tie. Avoid stringifying whole nested states just to sort keys.
-            groups = {}
-            for key, item in value.items():
-                pair = [encode(key), encode(item)]
-                groups.setdefault(repr(pair[0]) + ", ", []).append(pair)
-            return [pair for key in sorted(groups)
-                    for pair in (groups[key] if len(groups[key]) == 1 else sorted(groups[key], key=repr))]
-        if isinstance(value, (list, tuple)):
-            return [encode(item) for item in value]
-        if isinstance(value, set):
-            return sorted([encode(item) for item in value], key=repr)
+        if cls not in handlers:
+            handlers[cls] = next(handler for kind, handler in categories if isinstance(value, kind))
+        return handlers[cls](value)
+
+    def dictionary(value):
+        if all(type(key) is str for key in value):
+            return [[key, encode(value[key])] for key in string_keys(tuple(value))]
+        # Preserve key sets and the old full-pair repr order when normalized keys
+        # tie (for example a Square and a tuple with the same encoded contents).
+        groups = {}
+        for key, item in value.items():
+            pair = [encode(key), encode(item)]
+            groups.setdefault(repr(pair[0]) + ", ", []).append(pair)
+        return [pair for key in sorted(groups)
+                for pair in (groups[key] if len(groups[key]) == 1 else sorted(groups[key], key=repr))]
+
+    def enumeration(value):
+        identity = id(value)
+        if identity not in enum_tokens:
+            enum_tokens[identity] = [type(value).__name__, value.name]
+        return enum_tokens[identity]
+
+    def player(value):
+        assert game.state.player_by_id[value.player_id] is value, "foreign player reference"
+        return ["player", value.player_id]
+
+    def team(value):
+        assert game.state.team_by_id[value.team_id] is value, "foreign team reference"
+        return ["team", value.team_id]
+
+    def procedure(value):
+        assert value.game is game, "foreign procedure game"
+        for index, proc in enumerate(stack):
+            if value is proc:
+                return ["procedure", index, type(value).__name__]
+        return [type(value).__name__, encode(public(value))]
+
+    def other(value):
         if type(value).__name__ == "Path":
             return ["Path", encode({name: getattr(value, name) for name in
                     ("steps", "rolls", "prob", "block_dice", "handoff_roll", "foul_roll")})]
-        return [type(value).__name__, encode(fields(value))]
+        return [type(value).__name__, encode(public(value))]
 
-    state = fields(game.state)
+    # Cache dispatch by type for this observation, never object values. Keep the
+    # original precedence for numpy scalar conversion and reference validation.
+    categories = (
+        (np.ndarray, lambda value: encode(value.tolist())),
+        (np.generic, lambda value: encode(value.item())),
+        ((str, int, float, bool), lambda value: value),
+        (Enum, enumeration),
+        (bb.Player, player),
+        (bb.Team, team),
+        (bb.Square, lambda value: ["square", value.x, value.y]),
+        (Procedure, procedure),
+        (dict, dictionary),
+        ((list, tuple), lambda value: [encode(item) for item in value]),
+        (set, lambda value: sorted([encode(item) for item in value], key=repr)),
+        (object, other),
+    )
+
+    state = public(game.state)
     state.pop("clocks")
     state.pop("stack")
     # References in state are tokens; include their complete public definitions too.
     return {
         "state": encode(state),
         "ruleset": encode(game.ruleset),
-        "teams": [encode(fields(team)) for team in game.state.teams],
-        "players": [encode(fields(player)) for team in game.state.teams for player in team.players],
-        "stack": [[type(proc).__name__, encode(fields(proc))] for proc in stack],
+        "teams": [encode(public(team)) for team in game.state.teams],
+        "players": [encode(public(player)) for team in game.state.teams for player in team.players],
+        "stack": [[type(proc).__name__, encode(public(proc))] for proc in stack],
     }
 
 
@@ -207,7 +264,7 @@ def play(game, spec):
     action = action_for(game, spec)
     assert game.validate_action(action).allowed, spec
     game.step(action)
-    consistency(game)
+    return consistency(game)
 
 
 @lru_cache(maxsize=None)
@@ -299,10 +356,11 @@ class Investigation:
     def advance(self, spec):
         # Retain the attempted decision even if the engine raises before check().
         self.events.append(dict(transition="attempt-advance", decision=spec, step=self.game.get_step()))
-        play(self.game, spec)
+        return play(self.game, spec)
 
-    def check(self, transition, expected=None, rng=None, spec=None):
-        actual = consistency(self.game)
+    def check(self, transition, expected=None, rng=None, spec=None, actual=None):
+        if actual is None:
+            actual = consistency(self.game)
         clean = consistency(self.clean)
         if expected is None:
             expected = clean
@@ -328,12 +386,13 @@ class Investigation:
         independent(self.game, self.clean, control)
         for old in self.committed:
             play(control, old)
-        play(control, spec)
-        expected = semantic(control)
+        expected = play(control, spec)
         final_rng = control.capture_rng_state()
         for repeat in range(3):
-            self.advance(spec)
-            self.check("advance-{}".format(repeat), expected, final_rng, spec)
+            actual = self.advance(spec)
+            # play() has just checked this complete state; no game transition
+            # occurs before check() consumes it. The clean game is still observed.
+            self.check("advance-{}".format(repeat), expected, final_rng, spec, actual)
             steps = self.game.revert(checkpoint.step)
             # Legacy undo retains final RNG; explicitly compare against that contract.
             self.check("revert-{}".format(repeat), before, final_rng, spec)
@@ -585,3 +644,51 @@ def test_observer_dictionary_order_preserves_mixed_keys_and_normalized_ties():
     assert semantic(game) == before
     game.state.observer_probe[square] = "changed"
     assert semantic(game) != before
+
+
+def test_observer_refreshes_public_fields_and_nested_values_between_observations():
+    class Parent:
+        inherited = ["original"]
+
+    class Probe(Parent):
+        static_value = staticmethod([0])
+
+        def method(self):
+            pass
+
+        @property
+        def property_value(self):
+            return self.nested["value"]
+
+    game = kickoff_fixture(size=1)
+    probe = Probe()
+    probe.nested = {"value": [1]}
+    probe.method = "instance override"
+    game.state.observer_probe = probe
+    before = semantic(game)
+    probe.nested["value"].append(2)
+    assert semantic(game) != before
+    before = semantic(game)
+    Parent.inherited.append("changed")
+    assert semantic(game) != before
+    before = semantic(game)
+    Probe.added_default = [3]
+    assert semantic(game) != before
+    before = semantic(game)
+    probe.new_instance_field = [4]
+    assert semantic(game) != before
+    del probe.new_instance_field
+    assert semantic(game) == before
+    # Metadata acceleration must match the general observer's public lookup,
+    # including an instance field shadowing a method and a computed property.
+    assert fields(probe, {}) == fields(probe)
+
+    class CustomLookup(Probe):
+        def __dir__(self):
+            return ["virtual"]
+
+        def __getattribute__(self, name):
+            return [5] if name == "virtual" else super().__getattribute__(name)
+
+    custom = CustomLookup()
+    assert fields(custom, {}) == fields(custom) == {"virtual": [5]}
