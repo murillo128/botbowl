@@ -461,6 +461,7 @@ def test_close_before_run_twice_and_bind_failure():
 
 
 def mock_docker(monkeypatch):
+    monkeypatch.delenv("DOCKER_HOST", raising=False)
     api = Mock()
     api.api.base_url = "http+docker://localhost"
     api.images.list.return_value = [Mock(tags=["trusted-image"])]
@@ -498,7 +499,10 @@ def test_docker_startup_failure_cleanup(monkeypatch, failure):
 
 def test_docker_host_network_and_explicit_idempotent_cleanup(monkeypatch):
     api = mock_docker(monkeypatch)
+    monkeypatch.setenv("DOCKER_CONTEXT", "remote-context")
     with protocol.DockerAgent("local", image="trusted-image", command=None) as agent:
+        protocol.docker.from_env.assert_called_once_with(
+            environment={"DOCKER_HOST": "unix:///var/run/docker.sock"})
         options = api.containers.run.call_args.kwargs
         assert "ports" not in options
         assert "publish_all_ports" not in options
@@ -715,3 +719,31 @@ def test_server_close_racing_accept_does_not_read_new_peer(monkeypatch):
     peer.__exit__.assert_called_once()
     assert server.socket_ is None
     assert server._connection is None
+
+
+
+@pytest.mark.parametrize("host", ["tcp://192.0.2.1:2375", "ssh://example.com",
+                                  "http://127.0.0.1:2375", "npipe:////./pipe/docker_engine"])
+def test_docker_rejects_remote_configuration_before_sdk_initialization(monkeypatch, host):
+    monkeypatch.setenv("DOCKER_HOST", host)
+    factory = Mock(side_effect=AssertionError("Must reject before SDK version negotiation"))
+    monkeypatch.setattr(protocol.docker, "from_env", factory)
+    with pytest.raises(protocol.UnsafeTransportError):
+        protocol.DockerAgent("local", image="trusted-image", command=None)
+    factory.assert_not_called()
+
+
+
+class ExtendedRequest(protocol.Request):
+    pass
+
+
+def test_request_subclasses_keep_legacy_compatibility():
+    value = ExtendedRequest(protocol.AgentCommand.STATE_NAME)
+    agent = Mock()
+    agent.name = "local"
+    with socket_pair() as (left, right):
+        protocol.send_data(value, left)
+        decoded = protocol.receive_data(right)
+    with protocol.PythonSocketServer(agent) as server:
+        assert server.handle_request(decoded) == "local"

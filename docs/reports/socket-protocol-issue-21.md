@@ -41,7 +41,7 @@ outside Git under `/tmp/botbowl-issue21-*`.
 
 ## Retained validation findings
 
-The focused native check passed 228 tests. The first full run, before the final
+The focused native check before the Docker startup preflight correction passed 228 tests. The first full run, before the final
 regressions/test-fixture corrections, recorded 1,238 passed, one inherited xfail,
 and two failures in the new deadline/resource tests. Its log is
 `/tmp/botbowl-issue21-native.log`; no existing test or skip was changed.
@@ -66,6 +66,14 @@ step 167, and `compare_iterable` KeyError on differing dictionary keys on both
 the exact accepted-base archive and this source. The undo JSON is identical.
 These controls do not explain or excuse the two new test failures above.
 Their logs are `/tmp/botbowl-issue21-{base,head}-{undo,compare}-repro.log`.
+
+A final SDK inspection found that `docker.from_env()` can negotiate a version
+and load a Docker context before returning the API object. Locality therefore
+must be enforced before construction: remote `DOCKER_HOST` values are rejected
+and an explicit Unix endpoint is supplied, preventing context redirection. The
+mocked regression proves rejection occurs before the SDK constructor is called;
+no remote service was contacted. Original failure evidence is retained in
+`/tmp/botbowl-issue21-docker-preflight-before.log`.
 
 ## Boundaries and compatibility
 

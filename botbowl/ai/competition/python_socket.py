@@ -168,7 +168,7 @@ def _read_exact(connection, size, deadline):
 
 def _send_data(data, connection, deadline, max_frame_size):
     _remaining(deadline)
-    if type(data) not in (Request, Response):
+    if not isinstance(data, (Request, Response)):
         raise InvalidMessageError("Expected a Request or Response envelope")
     payload = pickle.dumps(data)
     if len(payload) > max_frame_size:
@@ -334,9 +334,14 @@ class DockerAgent(PythonSocketClient):
     def __init__(self, name: str, *, image: str, command: Optional[str]):
         self.container = None
         self._docker_api = None
+        daemon_host = os.environ.get("DOCKER_HOST") or "unix:///var/run/docker.sock"
+        if not daemon_host.startswith("unix://"):
+            raise UnsafeTransportError("DockerAgent requires a local Unix-socket Docker daemon")
         super().__init__(name, port=get_free_port(), connection_timeout=4)
         try:
-            self._docker_api = docker.from_env()
+            # SDK construction negotiates an API version. Pin a prevalidated
+            # endpoint before that I/O, including SDKs that auto-load contexts.
+            self._docker_api = docker.from_env(environment={"DOCKER_HOST": daemon_host})
             api = self._docker_api
             if api.api.base_url != "http+docker://localhost":
                 raise UnsafeTransportError("DockerAgent requires a local Unix-socket Docker daemon")
@@ -446,7 +451,7 @@ class PythonSocketServer:
             self.close()
 
     def handle_request(self, request: Request) -> Union[Action, str, None]:
-        if type(request) is not Request:
+        if not isinstance(request, Request):
             raise InvalidMessageError("Expected a Request envelope")
         request.validate()
         if request.command == AgentCommand.ACT:

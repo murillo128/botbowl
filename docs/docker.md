@@ -8,7 +8,9 @@ processes on the same host. Receiving a pickle may execute arbitrary code.
 Loopback is an exposure restriction, not authentication of local users. Tokens
 and request IDs are checked after deserialization and only detect protocol
 mixups. Do not use untrusted images, remote daemons, public bindings, proxies,
-or port tunnels. Remote untrusted use requires the replacement authenticated
+or port tunnels. DockerAgent accepts only a Unix-socket `DOCKER_HOST`, defaulting
+to `unix:///var/run/docker.sock`; Docker contexts cannot redirect this endpoint.
+Remote configuration is rejected before SDK version negotiation. Remote untrusted use requires the replacement authenticated
 data protocol tracked by #2 API-08/09.
 
 `PythonSocketClient` and `PythonSocketServer` default to `127.0.0.1` and reject
