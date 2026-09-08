@@ -124,6 +124,20 @@ Publish when remote preservation, collaboration, a checkpoint, or PR review requ
 
 Update durable repository documents only when the durable content they own changes. Do not edit architecture, plans, decision records, guidelines, or knowledge documents merely to mirror workflow state.
 
+## Blocking waits and bounded output
+
+Apply this policy to tests, builds, evaluations, CI, and delegated review or GitHub operations. Include the same wait and output constraints in delegated requests.
+
+Before a long phase, inspect the effective configuration and exposed tool limits once. Prefer `background_terminal_max_timeout = 3600000` where supported. Check `multi_agent_v2.default_wait_timeout_ms = 3600000` and `multi_agent_v2.max_wait_timeout_ms = 3600000` only when the installed version recognizes those settings. Do not add unsupported keys, assume configuration edits affect an already-running session, or change host configuration outside the task's authority. If one-hour waits are unavailable, use the largest valid timeout and record the limitation once.
+
+- Launch each operation once and retain its identifiers and target. When no useful independent work remains, block until the next actionable completion, material failure, intervention request, or maximum permitted wait. Never busy poll merely to confirm that work is still active.
+- For a pure terminal/process wait, use `write_stdin` with `chars=""`, explicit `yield_time_ms=3600000`, and normally `max_output_tokens` of 512 or less. Clamp to the effective permitted maximum, or use the available equivalent when the tool differs. Shorter waits require actual interactive input/output or a concrete deadline, not progress chatter.
+- For native agents, use `wait_agent` or its exposed equivalent with explicit `timeout_ms=3600000`, subject to the same limit rule. Wait on relevant agents together when the transport can return on the next actionable event; do not impose an all-agents barrier that delays an intervention.
+- For CI, discover relevant runs/checks for the exact published target once, then use a deterministic watcher such as `gh run watch <run-id> --exit-status` when available. Keep delayed run discovery and backoff inside the watcher, not repeated model turns. Redirect watcher output to a file and wait on its process using the terminal rule. Reconcile new or replaced runs only after a material change; a missing run or watcher transport failure is not CI success.
+- Keep complete command and watcher logs in files outside Git unless explicitly required otherwise; ask delegated workers for compact summaries and evidence paths. Preserve the underlying command's exit status through redirection or pipelines. Return only material state, identifiers, relevant target, exit status, validation counts or metrics, failure summary, evidence paths, and next action. Read the smallest useful log range or artifact needed to verify success or diagnose failure; do not suppress required success evidence merely because the command exited zero.
+
+A wait timeout is not an execution deadline or a failed operation. Retain task-appropriate command/CI time limits so hung work can fail deterministically. If a wait expires or returns without a material change while work remains active, continue waiting on the same identifiers; do not relaunch tests, watchers, or reviewers, reload history, or emit elapsed-time updates. After an actionable return, reconcile only changed state and verify the result against its actual target before choosing the next bounded action.
+
 ## Comments and progress observability
 
 By default, comment only when:
@@ -154,6 +168,7 @@ Progress-observability comments:
 - do not trigger independent review;
 - do not change issue scope, acceptance, or workflow state;
 - do not replace normal checkpoint, blocker, design/investigation-return, or final-handoff comments;
+- must use already-observed phase changes or actionable events; observability never justifies waking the model solely to poll or announce that work is still running;
 - should not reproduce logs or emit per-item/per-step chatter.
 
 ## Review checkpoints
@@ -193,6 +208,19 @@ The Codex executor must never:
 - enable auto-merge;
 - interpret `PASS` / `PASS_WITH_NOTES`, issue acceptance criteria, CI success, or a final-capable checkpoint as merge authorization;
 - close the controlling issue or set it to `completed` before an explicit user-facing review accepts and merges the PR.
+
+## Executor recovery and handoff
+
+Use a recovery handoff when an executor must be replaced because its context is excessive or its execution surface cannot continue safely. Stop dispatching new work and freeze executor mutations. Write a compact host-local handoff outside tracked project files, without secrets or complete conversation/log dumps. Include:
+
+- controlling issue and current contract/version, workflow state, bounded phase, and next action;
+- repository/worktree, execution lease and owner, branch and `HEAD`, staged/unstaged changes, and relevant untracked files;
+- PR and exact validation/review targets, completed checks and verdicts, pending findings, and preserved evidence paths;
+- active worker, reviewer, terminal, and CI run/watch identifiers, their host/session ownership and targets, effective wait limits, and how their status/results can be recovered.
+
+Routine continuation may use `resume`. When the purpose is to discard accumulated context, start a fresh session from the compact handoff and current authoritative state, not `resume` or the old conversation. A replacement session must not mutate until the previous executor has relinquished ownership or is confirmed inactive. Reconcile the handoff once with current Git/worktree, issue, PR, and relevant process state, then reapply the entry gate and local-runner lease checks.
+
+Do not assume native-agent or terminal identifiers survive across sessions. Before ending the old session, verify which operations and evidence survive teardown and can actually be adopted by the replacement; let non-transferable work finish when safe, or preserve an explicit recovery limitation. Adopt reachable active work without restarting it. If ownership or liveness cannot be established, do not launch a duplicate or discard existing changes. Recovery never authorizes an extra worktree, another implementation branch, weakening validation/review gates, or reopening a `review-ready` issue.
 
 ## Handoff
 
