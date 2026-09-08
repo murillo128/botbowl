@@ -2,6 +2,7 @@
 
     <section class="post">
         <h3>Create new game</h3>
+        <div class="alert alert-danger" ng-if="error" role="alert">{{ error }}</div>
         <hr />
         <form name="CreateGame">
             <div class="row">
@@ -181,6 +182,9 @@
         </div>
             <hr/>
 
+            <div class="checkbox">
+                <label><input type="checkbox" ng-model="local"> Local practice (allows pause; no forced timeouts)</label>
+            </div>
             <div class="text-center">
                 <button type="submit" ng-disabled="home_team_name == null || away_team_name == null" class="btn btn-success" ng-click="createGame(game)">Create Game</button>
             </div>
