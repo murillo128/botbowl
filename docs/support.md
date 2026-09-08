@@ -28,7 +28,7 @@ is made across arbitrary package, NumPy, RNG-algorithm or rules changes. See
 | --- | --- | --- | --- |
 | `Replay` | Action/report history and visual seeking | Not a general branch point | Pickled local file; trusted input only |
 | Web save/load | Resume an inherited local game | Yes, within compatible trusted code | Pickled local file; trusted input only |
-| `Game.checkpoint()` | Rewind engine/RNG during one live process | Yes, for tested in-memory branches | Not a persistent or cross-process format |
+| `Game.capture_checkpoint()` / `Game.restore_checkpoint()` | Rewind engine/RNG during one live process | Yes, for tested in-memory branches | Not a persistent or cross-process format |
 | `Game.to_json()` / replay page | UI observation | No | Data view, not enough to restore the simulator |
 
 A replay looking correct in the browser does not prove that a simulation can be

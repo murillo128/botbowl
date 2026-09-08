@@ -25,8 +25,10 @@ python tools/release/verify_artifacts.py --output dist/release --install-smoke
 
 The verifier builds wheel and sdist twice from fresh copies, checks that both
 runs contain the same expected files, compares wheel/sdist/source/runtime
-versions, rejects tests/caches/graphics/secrets, and installs each artifact into
-a clean virtual environment outside the checkout. It writes the canonical
+versions, rejects tests, caches, listed graphic formats and known sensitive
+filenames, and installs each artifact into a clean virtual environment outside
+the checkout. The filename filter does not detect credentials embedded in file
+contents; inspect the selected files before sharing. It writes the canonical
 reviewed pair, hashes and a file manifest under `dist/release/`.
 Hashes identify this run; equal archive bytes are not claimed because archive
 timestamps and generated metadata can differ. The enforced reproducibility claim

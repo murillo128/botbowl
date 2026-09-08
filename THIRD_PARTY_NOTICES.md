@@ -39,9 +39,12 @@ included in any container-level redistribution review.
 ## Vendored browser code in built distributions
 
 The optional web subset includes AngularJS (MIT), jQuery (MIT), Bootstrap 3.0.0
-(Apache-2.0 as stated in the vendored header), normalize.css (MIT), and the
-bootstrap3-wysihtml5 files whose bundled [`LICENCE`](botbowl/web/static/lib/wysiwyg/LICENCE)
-is MIT. Their retained file headers/notices remain authoritative. The package
+(Apache-2.0 as stated in the vendored header), normalize.css (MIT), and
+wysihtml5 0.3.0 (MIT, XING AG), including its bundled Rangy code (MIT, Tim Down).
+The separate bootstrap3-wysihtml5 wrapper notice
+([`LICENCE`](botbowl/web/static/lib/wysiwyg/LICENCE), MIT, JFHollingworth LTD)
+is also retained; it does not replace the wysihtml5/Rangy attribution in their
+file header. Their retained file headers/notices remain authoritative. The package
 manifest includes only the JS/CSS/HTML subset needed by the inherited interface;
 it excludes vendored fonts and images.
 
