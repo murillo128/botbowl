@@ -113,6 +113,7 @@ def test_corruption_rejected_before_materialization_and_preserves_target(tmp_pat
     game, path, doc, _ = saved_file(tmp_path, game)
     before = executable(game)
     identities = tuple(id(v) for v in (game.state, game.dice, game.trajectory, game.timeline))
+    original_semantic = doc['semantic_state_hash']
     if damage == 'digest':
         doc['provenance']['note'] = 'changed'
     elif damage == 'enum':
@@ -132,6 +133,10 @@ def test_corruption_rejected_before_materialization_and_preserves_target(tmp_pat
     elif damage == 'descriptor':
         doc['descriptor']['engine_version'] = '999'
     elif damage == 'game-rule-trace':
+        saved = io.read_snapshot(path)
+        assert 'rule_trace' in vars(saved._game) and saved._game.rule_trace is None
+        clone = clone_from_snapshot(saved)
+        assert 'rule_trace' in vars(clone) and clone.rule_trace is None
         node(doc, 'Game')['fields'].append(['rule_trace', None])
     elif damage in ('unknown-field', 'duplicate-field'):
         item = node(doc, 'procedure/StartGame')
@@ -176,11 +181,19 @@ def test_corruption_rejected_before_materialization_and_preserves_target(tmp_pat
     if damage == 'digest':
         path.write_bytes(io._json(doc))
     else:
-        reseal(path, doc)
+        reseal(path, doc, semantic=damage == 'game-rule-trace')
+    if damage == 'game-rule-trace':
+        sealed = json.loads(path.read_text())
+        assert node(sealed, 'Game')['fields'].count(['rule_trace', None]) == 1
+        assert sealed['semantic_state_hash'] != original_semantic
+        assert sealed['semantic_state_hash'] == io._semantic_hash(sealed['payload'], sealed['scope'])
+        assert sealed['payload_digest'] == io._digest(
+            {key: value for key, value in sealed.items() if key != 'payload_digest'})
     def forbidden(*args, **kwargs):
         pytest.fail('Malformed file reached engine materialization')
     monkeypatch.setattr(io._Decoder, '__init__', forbidden)
-    with pytest.raises(io.SnapshotFileError):
+    expected = '^Unknown codec field$' if damage == 'game-rule-trace' else None
+    with pytest.raises(io.SnapshotFileError, match=expected):
         restore_snapshot(game, io.read_snapshot(path))
     assert executable(game) == before
     assert tuple(id(v) for v in (game.state, game.dice, game.trajectory, game.timeline)) == identities
