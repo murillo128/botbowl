@@ -8,11 +8,17 @@ import sys
 import pytest
 
 
-ROOT = Path(__file__).resolve().parents[2]
+TEST_ROOT = Path(__file__).resolve().parents[2]
+# The committed-source CI runner copies tests beside an installed wheel and
+# retains the exported source as a sibling. Direct checkout runs use TEST_ROOT.
+SOURCE_ROOT = (TEST_ROOT.parent / "source"
+               if (TEST_ROOT.parent / "source/pyproject.toml").is_file()
+               else TEST_ROOT)
 
 
 def load_version():
-    spec = util.spec_from_file_location("botbowl_release_version", ROOT / "botbowl/_version.py")
+    spec = util.spec_from_file_location(
+        "botbowl_release_version", SOURCE_ROOT / "botbowl/_version.py")
     module = util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module.__version__
@@ -22,7 +28,7 @@ def test_version_has_one_source_and_runtime_export():
     import tomllib
     import botbowl
 
-    project = tomllib.loads((ROOT / "pyproject.toml").read_text())
+    project = tomllib.loads((SOURCE_ROOT / "pyproject.toml").read_text())
     assert "version" not in project["project"]
     assert project["project"]["dynamic"] == ["version"]
     assert project["tool"]["setuptools"]["dynamic"]["version"] == {
@@ -33,7 +39,7 @@ def test_version_has_one_source_and_runtime_export():
 
 
 def test_release_workflow_is_artifact_only_and_not_triggered_by_pull_requests():
-    workflow = (ROOT / ".github/workflows/release-artifacts.yml").read_text()
+    workflow = (SOURCE_ROOT / ".github/workflows/release-artifacts.yml").read_text()
     lowered = workflow.lower()
     assert "workflow_dispatch:" in workflow and "tags:" in workflow
     assert "pull_request:" not in workflow and "pull_request_target:" not in workflow
@@ -44,7 +50,7 @@ def test_release_workflow_is_artifact_only_and_not_triggered_by_pull_requests():
 
 
 def test_dockerfile_installs_verified_wheel_as_non_root_headless_default():
-    dockerfile = (ROOT / "Dockerfile").read_text()
+    dockerfile = (SOURCE_ROOT / "Dockerfile").read_text()
     assert "COPY ." not in dockerfile and "requirements.txt" not in dockerfile
     assert "dist/release/artifacts/*.whl" in dockerfile and "USER 10001:10001" in dockerfile
     assert dockerfile.rstrip().endswith(
@@ -54,7 +60,7 @@ def test_dockerfile_installs_verified_wheel_as_non_root_headless_default():
 
 
 def run_example(name, tmp_path, *arguments):
-    subprocess.run([sys.executable, ROOT / "examples" / name, *arguments],
+    subprocess.run([sys.executable, TEST_ROOT / "examples" / name, *arguments],
                    cwd=tmp_path, check=True, timeout=30)
 
 
@@ -89,5 +95,6 @@ def test_installed_web_cli_passes_explicit_safe_server_flags(monkeypatch):
 
 
 def test_all_repository_local_documentation_links_resolve(tmp_path):
-    subprocess.run([sys.executable, ROOT / "tools/release/check_docs.py", "--root", ROOT],
+    subprocess.run([sys.executable, SOURCE_ROOT / "tools/release/check_docs.py",
+                    "--root", SOURCE_ROOT],
                    cwd=tmp_path, check=True, timeout=30)
