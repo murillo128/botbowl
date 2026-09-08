@@ -63,12 +63,29 @@ Reassigning IDs consistently does not change the semantic hash.
 | Registered object tags | `fields`: ordered `[field_name, atom]` pairs; no unknown/duplicate fields |
 
 The trusted registry is closed in package code. `CODEC_FIELDS` exposes the
-field inventory; the [codec report](../reports/snapshot-files-inventory.md)
+field inventory and `CODEC_SCHEMA` exposes every field's required domain;
+[`snapshot_schema.py`](../../botbowl/lab/snapshot_schema.py) owns explicit local
+contracts composed over trusted inheritance. No missing contract gets a default.
+The schema digest covers these domains, presence rules, episode fields, enum
+members and the work/hash algorithm versions; the [codec report](../reports/snapshot-files-inventory.md)
 lists the object/enum/procedure coverage. Tags are opaque names. No tag is
 resolved through an import, module attribute lookup, reducer, arbitrary class
 constructor, callable, pickle, joblib or jsonpickle supplied by the file.
 Strings resembling module names are ordinary data. Unknown reachable types,
 procedures, enums, fields and unavailable adapters fail explicitly.
+
+Every field is required, including nullable fields, except the five explicit
+presence rules: optional `Game.seed`; `Touchback.players_on_pitch_standing`,
+`HighKick.available_players` and `EatThrall.victim_pos` exist exactly when the
+procedure has started; `Loner.result` exists only after the completed failed
+Loner declines its retry. Constructor-created reversible fields and immutable
+`__setattr__ = null` sentinels are required. Missing `Reroll.can_use_team_reroll`
+is invalid even if both hashes have been recomputed. Scalar constraints distinguish
+booleans from integers, constrain counters, die faces, seed namespaces and known
+enum domains, and recursively constrain collection items and record references.
+`Procedure.context` is the explicit generic registered-graph extension slot;
+component payloads remain adapter-owned data with the SIM-02 engine-reference
+restriction. Neither slot bypasses validation of reachable registered objects.
 
 Procedure fields include inherited continuation state, including popped procedures
 still reached by reroll/context cycles and suspended route `steps`. All current
@@ -119,7 +136,12 @@ it. Every structural/compatibility check still runs for a correctly re-signed fi
 
 `semantic_state_hash` traverses the executable graph with normalized node IDs,
 preserving alias edges and ordering of sequences. Team/player/seat IDs normalize
-to side/roster slots; mapping keys and sets have canonical ordering. It excludes
+to side/roster slots; mapping keys and all unordered containers have canonical
+ordering. Frozenset elements are recursively canonicalized, including nested
+frozensets inside tuple keys. Tuple order and graph aliases remain causal.
+Fresh-interpreter read/clone/capture/write retains this identity across hash seeds.
+Sorting uses memoized fixed-size child digests, never recursively expanded key
+strings. It excludes
 Game local ID and wall audit timestamps, clock audit `started_at`, configuration
 name/arena path hints (loaded geometry is retained), timeline episode/branch labels,
 the episode provenance manifest, and envelope provenance. Logical time, procedure
@@ -132,7 +154,8 @@ equivalence or authenticate a simulation.
 
 ## Validation, bounds and failures
 
-Defaults: 32 MiB file bytes, 100,000 graph nodes, depth 128. `SnapshotLimits`
+Defaults: 32 MiB file bytes, 100,000 graph nodes, depth 128 and 1,000,000
+work units (`max_work`). `SnapshotLimits`
 accepts positive integer overrides; depth has a hard implementation ceiling of
 256. The reader reads at most `max_bytes + 1`. A quote-aware scanner bounds JSON
 nesting before parsing. Parsed data values are additionally limited to
@@ -141,6 +164,21 @@ nesting, using one visited set and a cycle stack. All array allocations together
 are bounded by `max_bytes`; each dimension is bounded, rank is at most 32,
 shape products must match flat lengths, dtype widths are restricted and numeric
 overflow/string truncation is rejected before array allocation.
+
+A shared work ledger bounds atom/edge visits, domain checks, key identity checks
+and semantic sorting (including an `n * bit_length(n)` sorting allowance).
+Immutable keys use memoized graph identities with shallow integer child tokens;
+validation never constructs recursively nested Python tuple/frozenset keys.
+A separate memoized cost recurrence counts repeated immutable child references
+with multiplicity, saturates at the work limit, and reserves eight expanded
+traversals per immutable node for Python key hashing/equality during decoding
+and SIM-02 copies. Eight ordinary atom traversals are also prepaid before object
+construction. Semantic hashing finishes against the same ledger before decoding.
+This is a conservative operation budget, not a wall-clock deadline or a budget
+for trusted adapter callbacks. Affordable shared DAGs preserve aliases; the
+26-node repeated-tuple regression is rejected with `SnapshotLimitError` despite
+its small byte/node/depth footprint. Writers run graph preflight before SIM-02's
+private clone, and a work-limit failure leaves the destination unchanged.
 
 Before allocating engine objects or invoking adapters, validation checks the
 envelope, digest, closed tags, field inventory, required fields, scalar/reference

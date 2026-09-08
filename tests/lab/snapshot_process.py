@@ -104,6 +104,14 @@ def trace(subject, case, scope):
 
 
 def main():
+    if sys.argv[1] == 'resave':
+        directory = Path(sys.argv[2])
+        clone = clone_from_snapshot(read_snapshot(directory / 'snapshot.json'))
+        envelope = write_snapshot(directory / 'resaved.json', capture_snapshot(clone))
+        (directory / 'resave-evidence.json').write_text(json.dumps({
+            'pid': os.getpid(), 'hash_seed': os.environ.get('PYTHONHASHSEED'),
+            'semantic_state_hash': envelope.semantic_state_hash}), encoding='utf-8')
+        return
     mode, directory, case, size, fm, side, scope = sys.argv[1:]
     directory = Path(directory)
     codecs = registry()

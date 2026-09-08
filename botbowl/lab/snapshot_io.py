@@ -22,6 +22,7 @@ from botbowl.core.forward_model import Reversible, ReversibleDict, ReversibleLis
 from botbowl.core.game import Game
 from botbowl.core.util import Stack
 from . import snapshots as memory
+from . import snapshot_schema as schema
 from .observations import ObservationControl
 from .rules import (CAPABILITIES_VERSION, RULESET_IMPLEMENTATION_VERSION,
                     RulesDescriptor, _backend_id, describe_rules)
@@ -45,6 +46,7 @@ class SnapshotLimits:
     max_bytes: int = 32 * 1024 * 1024
     max_nodes: int = 100000
     max_depth: int = 128
+    max_work: int = 1000000
 
     def __post_init__(self):
         if any(type(value) is not int or value < 1 for value in asdict(self).values()):
@@ -129,6 +131,7 @@ def _allowed_fields(cls):
 
 CODEC_FIELDS = MappingProxyType({tag: tuple(sorted(_allowed_fields(cls)))
                                for tag, cls in _CLASSES.items()})
+CODEC_SCHEMA = MappingProxyType(schema.contracts(_CLASSES, CODEC_FIELDS))
 
 
 def _json(value):
@@ -152,8 +155,8 @@ def _versions(adapters, names=()):
     return {'graph': 1, 'snapshot': memory.VERSION, 'rng': 'MT19937-v1',
             'numpy': np.__version__, 'engine': package_version('botbowl'),
             'backend': _backend_id(),
-            'schema': _digest({'fields': dict(CODEC_FIELDS), 'types': _FIELD_TYPES,
-                              'procedure_fields': _PROCEDURE_FIELD_TYPES, 'items': _ITEM_TYPES,
+            'schema': _digest({'fields': dict(CODEC_SCHEMA), 'lazy': schema.LAZY, 'episode': schema.EPISODE,
+                              'key_work_version': 1, 'semantic_version': 2,
                               'enums': {tag: list(cls.__members__) for tag, cls in _ENUMS.items()}}),
             'adapters': {name: 1 for name in sorted(names)}}
 
@@ -272,10 +275,105 @@ def _bounded_json(raw, limits):
     return document
 
 
+class _Work:
+    """One ledger for validation, semantic sorting and materialization."""
+    def __init__(self, limits):
+        self.limit, self.used = limits.max_work, 0
+
+    def spend(self, amount=1):
+        self.used += amount
+        if self.used > self.limit:
+            raise SnapshotLimitError('Graph work limit exceeded')
+
+
+class _GraphKeys:
+    """Intern shallow signatures and bound expanded immutable key work.
+
+    Child tokens are integers, never nested tuple/frozenset signatures. Reserve
+    eight expanded traversals per immutable node for Python hashing/equality in
+    decoding and the SIM-02 copies; shared DAG edges still count multiplicity.
+    Costs saturate at the budget so neither arithmetic nor recursion expands.
+    """
+    def __init__(self, nodes, work):
+        self.nodes, self.work = nodes, work
+        self.memo, self.tokens, self.costs, self.active = {}, {}, {}, set()
+
+    def token(self, signature):
+        self.work.spend()
+        if signature not in self.tokens:
+            self.tokens[signature] = len(self.tokens)
+        return self.tokens[signature]
+
+    def cost(self, atom):
+        self.work.spend()
+        if type(atom) is not dict or 'ref' not in atom:
+            return 1
+        index = atom['ref']
+        if index in self.costs:
+            return self.costs[index]
+        node = self.nodes[index]
+        if node['type'] not in ('tuple', 'frozenset'):
+            return 1
+        _require(index not in self.active, 'Cyclic immutable container')
+        self.active.add(index)
+        result = 1
+        for value in node['items']:
+            result = min(self.work.limit + 1, result + self.cost(value))
+        self.active.remove(index)
+        self.costs[index] = result
+        return result
+
+    def key(self, atom):
+        self.work.spend()
+        if type(atom) is not dict or 'ref' not in atom:
+            if type(atom) in (bool, int, float):
+                return self.token(('number', atom))  # True == 1 == 1.0 in Python.
+            if type(atom) is dict:
+                return self.token(('enum', *atom['enum']) if 'enum' in atom else ('bytes', atom['bytes']))
+            return self.token((type(atom).__name__, atom))
+        index = atom['ref']
+        if index in self.memo:
+            return self.memo[index]
+        node = self.nodes[index]
+        tag = node['type']
+        if tag in ('tuple', 'frozenset'):
+            _require(index not in self.active, 'Cyclic immutable container')
+            self.active.add(index)
+            parts = [self.key(v) for v in node['items']]
+            self.active.remove(index)
+            if tag == 'frozenset':
+                parts = sorted(set(parts))
+            signature = (tag, *parts)
+        else:
+            _require(tag.startswith('procedure/') or tag in ('Game', 'model/Player', 'model/Team', 'model/Square'),
+                     'Unhashable or unsupported graph key')
+            attrs = dict(node['fields'])
+            identity = ((attrs['player_id'],) if tag == 'model/Player' else
+                        (attrs['team_id'],) if tag == 'model/Team' else
+                        (attrs['x'], attrs['y']) if tag == 'model/Square' else (index,))
+            signature = (tag, *identity)
+        result = self.token(signature)
+        self.memo[index] = result
+        return result
+
+    def validate(self):
+        for node in self.nodes:
+            self.work.spend()
+            if node['type'] in ('tuple', 'frozenset'):
+                self.work.spend(8 * self.cost({'ref': node['id']}))
+        for node in self.nodes:
+            if node['type'] in (*_MAPPINGS, *_SETS):
+                keys = [self.key(v[0] if node['type'] in _MAPPINGS else v) for v in node['items']]
+                _require(len(keys) == len(set(keys)), 'Duplicate mapping key or set element')
+
+
 class _Validator:
     """Pure JSON validation. No engine objects, arrays or adapters are allocated."""
     def __init__(self, payload, limits, adapters):
         self.limits, self.adapters = limits, adapters
+        self.work = _Work(limits)
+        self.matches, self.matching = {}, set()
+        self.atom_count = 0
         _require(type(payload) is dict and set(payload) == {'roots', 'nodes'}, 'Invalid graph payload')
         self.nodes = payload['nodes']
         _require(type(self.nodes) is list, 'Expected node array')
@@ -299,7 +397,15 @@ class _Validator:
         self.expect(roots['episode'], {'dict', 'null'})
         self.expect(roots['components'], {'dict'})
         self.graph_depth(roots)
+        for node in self.nodes:
+            if node['type'] in _CLASSES:
+                self.fields(node['type'], self.attrs(node))
+        if roots['episode'] is not None:
+            _require(self.match(roots['episode'], schema.record(**schema.EPISODE)), 'Invalid episode field domain')
         self.structure(roots)
+        # Prepay visits for decoding and private SIM-02 copies before any
+        # materialization; expanded immutable key work was reserved separately.
+        self.work.spend(8 * self.atom_count)
 
     def kind(self, atom):
         if type(atom) is dict:
@@ -312,6 +418,8 @@ class _Validator:
         _require(self.kind(atom) in kinds, 'Invalid field/reference type; expected ' + ','.join(sorted(kinds)))
 
     def atom(self, atom, owner=None):
+        self.atom_count += 1
+        self.work.spend()
         cls = type(atom)
         if cls in (type(None), bool, int, float, str):
             _require(cls is not float or math.isfinite(atom), 'Non-finite atom')
@@ -385,7 +493,6 @@ class _Validator:
             _require(not set(attrs) - set(CODEC_FIELDS[tag]), 'Unknown codec field')
             for value in attrs.values():
                 self.atom(value, index)
-            self.fields(tag, attrs)
         _require(set(node) == expected, 'Unknown or missing node members')
 
     @staticmethod
@@ -429,45 +536,104 @@ class _Validator:
                 self.expect(value, {'bytes'})
                 _require(len(value['bytes']) // 2 <= size, 'Array byte string overflow')
 
+    def match(self, atom, spec):
+        """Evaluate trusted field data, memoizing shared references per contract."""
+        self.work.spend()
+        key = (atom['ref'], id(spec)) if type(atom) is dict and 'ref' in atom else None
+        if key in self.matches:
+            return self.matches[key]
+        if key in self.matching:
+            return False  # Recursive JSON data cannot contain cycles.
+        if key is not None:
+            self.matching.add(key)
+        result = self.domain(atom, spec)
+        if key is not None:
+            self.matching.remove(key)
+            self.matches[key] = result
+        return result
+
+    def domain(self, atom, spec):
+        kind = self.kind(atom)
+        if type(spec) is str:
+            if spec in ('graph', 'component-data'):
+                return True  # Closed graph grammar / component_data traversal below.
+            if spec == 'procedure':
+                return kind.startswith('procedure/')
+            if spec == 'number':
+                return type(atom) in (int, float)
+            if spec == 'json':
+                if kind in ('null', 'bool', 'int', 'float', 'str'):
+                    return True
+                if kind in ('list', 'tuple'):
+                    return all(self.match(v, spec) for v in self.items(atom))
+                if kind == 'dict':
+                    return all(type(k) is str and self.match(v, spec) for k, v in self.items(atom))
+                return False
+            return kind == spec
+        op, *args = spec
+        if op == 'or':
+            return any(self.match(atom, sub) for sub in args)
+        if op in ('integer', 'number'):
+            return (type(atom) in ((int,) if op == 'integer' else (int, float)) and
+                    (args[0] is None or atom >= args[0]) and (args[1] is None or atom <= args[1]))
+        if op == 'literal':
+            return any(type(atom) is type(value) and atom == value for value in args)
+        if op == 'text':
+            return type(atom) is str and re.fullmatch(args[0], atom) is not None
+        if op == 'enum-name':
+            return type(atom) is str and atom in _ENUMS[args[0]].__members__
+        if op == 'items':
+            return kind in args[0].split() and all(self.match(v, args[1]) for v in self.items(atom))
+        if op == 'map':
+            return kind in _MAPPINGS and all(self.match(k, args[0]) and self.match(v, args[1])
+                                           for k, v in self.items(atom))
+        if op == 'record':
+            if kind != 'dict':
+                return False
+            pairs = self.items(atom)
+            return (len(pairs) == len(args[0]) and all(type(k) is str and k in args[0] and
+                    self.match(v, args[0][k]) for k, v in pairs))
+        if op == 'product':
+            return kind == 'tuple' and len(self.items(atom)) == len(args) and all(
+                self.match(v, sub) for v, sub in zip(self.items(atom), args))
+        if op == 'empty':
+            return kind in args[0].split() and not self.items(atom)
+        if op == 'array':
+            return (kind == 'array' and self.nodes[atom['ref']]['dtype'][1] == args[0] and
+                    len(self.nodes[atom['ref']]['shape']) == args[1] and
+                    all(self.match(v, args[2]) for v in self.items(atom)))
+        if op == 'matrix':
+            if kind == 'array':
+                node = self.nodes[atom['ref']]
+                return (node['dtype'][1] == 'U' and len(node['shape']) == 2 and all(node['shape']) and
+                        all(type(v) is str and v in args[0] and len(v) == 1 for v in node['items']))
+            if kind not in _SEQUENCES or not self.items(atom):
+                return False
+            rows = self.items(atom)
+            return (all(self.kind(row) in _SEQUENCES or self.kind(row) == 'array' and
+                        self.nodes[row['ref']]['dtype'][1] == 'U' and len(self.nodes[row['ref']]['shape']) == 1 for row in rows) and
+                    len(self.items(rows[0])) > 0 and all(len(self.items(row)) == len(self.items(rows[0])) and
+                    all(type(v) is str and len(v) == 1 and v in args[0] for v in self.items(row)) for row in rows))
+        raise RuntimeError('Unknown trusted snapshot constraint: ' + op)
+
     def fields(self, tag, attrs):
-        cls = _CLASSES[tag]
-        if tag.startswith('procedure/'):
-            _require({'game', 'context', 'started', 'done', '_trajectory', '_ignored_keys'} <= set(attrs),
-                     'Missing procedure continuation base fields')
-            self.expect(attrs['game'], {'Game'})
-            for name in ('started', 'done'):
-                self.expect(attrs[name], {'bool'})
-            for name, value in attrs.items():
-                if name in _PROCEDURE_FIELD_TYPES:
-                    self.expect(value, set(_PROCEDURE_FIELD_TYPES[name].split()))
-        elif cls in (*memory._DATA_TYPES, memory.ComponentState) or cls in _SPECIAL_FIELDS:
-            required = set(CODEC_FIELDS[tag]) - ({'seed'} if cls is Game else set())
-            _require(required <= set(attrs), 'Missing required codec fields')
-        else:
-            # These models have fixed fields; procedure-specific lazy fields are
-            # separately inventoried above, never filled with guessed defaults.
-            required = set(CODEC_FIELDS[tag]) - {'__setattr__'}
-            _require(required <= set(attrs), 'Missing model fields: ' + tag)
+        contract = CODEC_SCHEMA[tag]
+        lazy = schema.LAZY.get(tag, {})
+        _require(set(contract) - set(lazy) <= set(attrs), 'Missing required codec fields: ' + tag)
+        for name, phase in lazy.items():
+            if phase == 'started':
+                _require((name in attrs) == (attrs['started'] is True), 'Invalid lazy field phase: ' + tag + '.' + name)
+            elif phase == 'loner-declined':
+                declined = (attrs['done'] is True and attrs['success'] is False and
+                            self.kind(attrs['reroll']) == 'procedure/Reroll' and
+                            not self.object_fields(attrs['reroll']).get('use_reroll'))
+                _require((name in attrs) == declined, 'Invalid lazy field phase: ' + tag + '.' + name)
         for name, value in attrs.items():
-            if name == '__setattr__':
-                self.expect(value, {'null'})
-            elif name == '_trajectory':
-                self.expect(value, {'Trajectory', 'null'})
-            elif name == '_ignored_keys':
-                self.expect(value, {'set'})
-                _require(all(type(v) is str and v in CODEC_FIELDS[tag] for v in self.items(value)),
-                         'Invalid reversible ignored field')
+            _require(self.match(value, contract[name]), 'Invalid field domain: ' + tag + '.' + name)
+            if name == '_ignored_keys':
+                _require(all(v in contract for v in self.items(value)), 'Invalid reversible ignored field')
         if tag == 'ComponentState':
-            self.expect(attrs['adapter'], {'str'})
             self.names.add(attrs['adapter'])
-        for name, kinds in _FIELD_TYPES.get(tag, {}).items():
-            if name in attrs:
-                self.expect(attrs[name], set(kinds.split()))
-        for name, kinds in _ITEM_TYPES.get(tag, {}).items():
-            if name in attrs:
-                self.expect(attrs[name], _SEQUENCES | _SETS)
-                for item in self.items(attrs[name]):
-                    self.expect(item, set(kinds.split()))
 
     def items(self, atom):
         return self.nodes[atom['ref']]['items']
@@ -493,38 +659,14 @@ class _Validator:
         for atom in roots.values():
             if type(atom) is dict:
                 visit(atom['ref'], 0)
-        _require(len(seen) == len(self.nodes), 'Unreachable graph nodes')
-        # Container keys/elements are restricted to safe hashable engine types;
-        # never invoke a user-defined hash/equality function during allocation.
-        def key(atom, pending):
-            if type(atom) is not dict or 'ref' not in atom:
-                if type(atom) in (bool, int, float):
-                    return ('number', atom)  # Python keys: True == 1 == 1.0.
-                if type(atom) is dict:
-                    return ('enum', *atom['enum']) if 'enum' in atom else ('bytes', atom['bytes'])
-                return (type(atom).__name__, atom)
-            index = atom['ref']
-            _require(index not in pending, 'Cyclic immutable container')
-            node = self.nodes[index]
-            tag = node['type']
-            if tag in ('tuple', 'frozenset'):
-                pending.add(index)
-                parts = [key(v, pending) for v in node['items']]
-                pending.remove(index)
-                return (tag, frozenset(parts) if tag == 'frozenset' else tuple(parts))
-            _require(tag.startswith('procedure/') or tag in ('Game', 'model/Player', 'model/Team', 'model/Square'),
-                     'Unhashable or unsupported graph key')
-            attrs = self.object_fields(atom)
-            identity = (attrs['player_id'] if tag == 'model/Player' else
-                        attrs['team_id'] if tag == 'model/Team' else
-                        [attrs['x'], attrs['y']] if tag == 'model/Square' else index)
-            return (tag, tuple(identity) if type(identity) is list else identity)
-        for node in self.nodes:
-            if node['type'] in (*_MAPPINGS, *_SETS):
-                keys = [key(v[0] if node['type'] in _MAPPINGS else v, set()) for v in node['items']]
-                _require(len(keys) == len(set(keys)), 'Duplicate mapping key or set element')
+        self.reachable = seen
+        # Identity interning never builds recursively nested Python keys. The
+        # separate expanded-cost bound covers CPython tuple hashing/equality
+        # during decoding and SIM-02's subsequent private copies.
+        _GraphKeys(self.nodes, self.work).validate()
 
     def structure(self, roots):
+        _require(len(self.reachable) == len(self.nodes), 'Unreachable graph nodes')
         game = self.object_fields(roots['game'])
         state = self.object_fields(game['state'])
         pitch = self.object_fields(state['pitch'])
@@ -610,63 +752,6 @@ class _Validator:
             _require(not components, 'Engine Game cannot contain episode components')
 
 
-_FIELD_TYPES = {
-    'Game': {'state': 'model/GameState', 'config': 'model/Configuration', 'arena': 'model/TwoPlayerArena',
-             'ruleset': 'model/RuleSet', 'action': 'model/Action null', 'home_agent': 'Agent', 'away_agent': 'Agent',
-             'dice': 'dice', 'trajectory': 'Trajectory', 'timeline': 'Timeline null', 'time_source': 'LogicalTime',
-             '_initialized': 'bool', '_closed': 'bool', '_end_notified': 'bool', 'external_control': 'bool'},
-    'model/GameState': {'pitch': 'model/Pitch', 'stack': 'Stack', 'teams': 'list rlist',
-                        'home_team': 'model/Team', 'away_team': 'model/Team', 'half': 'int', 'round': 'int',
-                        'game_over': 'bool', 'available_actions': 'list rlist', 'weather': 'enum/WeatherType',
-                        'reports': 'list rlist', 'dugouts': 'dict rdict', 'clocks': 'list rlist',
-                        'player_by_id': 'dict rdict', 'team_by_id': 'dict rdict', 'team_by_player_id': 'dict rdict'},
-    'model/Pitch': {'width': 'int', 'height': 'int', 'board': 'list rlist', 'squares': 'list rlist',
-                    'balls': 'list rlist', 'bomb': 'model/Bomb null'},
-    'model/Player': {'player_id': 'str', 'team': 'model/Team null', 'position': 'model/Square null',
-                     'role': 'model/Role', 'state': 'model/PlayerState'},
-    'model/Team': {'team_id': 'str', 'players': 'list rlist', 'state': 'model/TeamState'},
-    'model/Square': {'x': 'int', 'y': 'int', '_out_of_bounds': 'bool null'},
-    'model/Action': {'action_type': 'enum/ActionType', 'player': 'model/Player null', 'position': 'model/Square null'},
-    'model/ActionChoice': {'action_type': 'enum/ActionType', 'team': 'model/Team', 'players': 'list rlist',
-                          'positions': 'list rlist', 'paths': 'list rlist'},
-    'model/Outcome': {'outcome_type': 'enum/OutcomeType'},
-    'Stack': {'items': 'list rlist'},
-    'Trajectory': {'enabled': 'bool'},
-    'Agent': {'name': 'str', 'agent_id': 'str', 'human': 'bool'},
-    'Clock': {'seconds': 'int float', 'started_at': 'int float', '_started_at': 'int float',
-              'paused_at': 'null int float', 'paused_seconds': 'int float', 'is_primary': 'bool',
-              'team': 'model/Team', 'time_source': 'LogicalTime'},
-    'LogicalTime': {'value': 'int float'},
-    'ObservationControl': {'_game': 'Game'},
-    'Timeline': {'_game': 'Game', '_entities': 'ObservationControl', '_context': 'data/TimelineContext',
-                 '_events': 'list', '_decisions': 'list', '_pending': 'null'},
-}
-
-_PROCEDURE_FIELD_TYPES = {
-    **{name: 'model/Player null' for name in (
-        'player attacker defender inflictor passer interceptor fouler catcher pusher '
-        'shadower tentacler delicious_player hungry_player victim '
-        'target_player selected_player diving_tackler player_chain').split()},
-    **{name: 'model/Team null' for name in ('team receiving_team').split()},
-    **{name: 'model/Square null' for name in (
-        'position from_position pos_to follow_to push_to victim_pos').split()},
-    'ball': 'model/Ball null', 'piece': 'model/Ball model/Bomb model/Player null',
-    'reroll': 'procedure/Reroll null', 'skill': 'enum/Skill null',
-    'roll_type': 'enum/RollType null', 'pass_distance': 'enum/PassDistance null',
-    'orig_action_type': 'enum/ActionType null', 'player_action_type': 'enum/PlayerActionType null',
-}
-
-_ITEM_TYPES = {
-    'model/GameState': {'teams': 'model/Team', 'clocks': 'Clock', 'reports': 'model/Outcome',
-                        'available_actions': 'model/ActionChoice', 'rerolled_procs':
-                        ' '.join('procedure/' + name for name in _PROCEDURE_NAMES)},
-    'model/Team': {'players': 'model/Player'},
-    'model/ActionChoice': {'players': 'model/Player', 'positions': 'model/Square null'},
-    'model/Dugout': {key: 'model/Player' for key in ('reserves', 'kod', 'casualties', 'dungeon')},
-    'model/Pitch': {'balls': 'model/Ball'},
-}
-
-
 class _Decoder:
     def __init__(self, validator):
         self.nodes, self.memo, self.active = validator.nodes, {}, set()
@@ -742,13 +827,15 @@ class _Decoder:
         return value
 
 
-def _semantic_hash(payload, scope):
+def _semantic_hash(payload, scope, *, limits=SnapshotLimits(), work=None):
     """Canonical traversal normalizes node IDs and roster-local entity IDs.
 
     Opaque adapter state remains causal; provenance is never part of this root.
     This is a state identity, not proof of equivalence for arbitrary policies.
     """
+    work = _Work(limits) if work is None else work
     nodes = payload['nodes']
+    _GraphKeys(nodes, work).validate()
     roots = payload['roots']
     attrs = lambda atom: dict(nodes[atom['ref']]['fields'])
     game = attrs(roots['game'])
@@ -766,31 +853,52 @@ def _semantic_hash(payload, scope):
                'Clock': {'started_at'}}
     episode = roots['episode']
     memo = {}
-    def sort_key(atom, active=()):
-        if type(atom) is dict and 'ref' in atom:
-            node = nodes[atom['ref']]
-            if atom['ref'] in active or node['type'] == 'Game':
-                return _json(['cycle', node['type']])
-            active = (*active, atom['ref'])
-            if node['type'] in ('model/Player', 'model/Team'):
-                key = 'player_id' if node['type'] == 'model/Player' else 'team_id'
-                return _json(identities.get(dict(node['fields'])[key]))
-            if node['type'] == 'model/Square':
-                data = dict(node['fields'])
-                return _json(['square', data['x'], data['y']])
-            if node['type'] in ('tuple', 'frozenset'):
-                return b'[' + b','.join(sort_key(v, active) for v in node['items']) + b']'
-            if 'fields' in node:
-                return b'[' + b','.join(_json(k) + sort_key(v, active) for k, v in sorted(node['fields'])
-                                       if k not in ignored.get(node['type'], ()) and k != '_trajectory') + b']'
-            if 'items' in node:
-                items = node['items']
-                if node['type'] in _MAPPINGS:
-                    return b'[' + b','.join(sorted(sort_key(k, active) + sort_key(v, active) for k, v in items)) + b']'
-                return b'[' + b','.join(sort_key(v, active) for v in items) + b']'
-            return _json({k: v for k, v in node.items() if k != 'id'})
-        return _json(identities.get(atom, atom) if type(atom) is str else atom)
+    sort_memo, sorting = {}, set()
+    def ordered(items, key):
+        work.spend(len(items) * max(1, len(items).bit_length()))
+        return sorted(items, key=key)
+
+    def sort_key(atom, opaque=False):
+        # Fixed-size child digests keep a shared immutable DAG linear. Unordered
+        # children are recursively sorted; tuple order remains part of identity.
+        work.spend()
+        if type(atom) is not dict or 'ref' not in atom:
+            value = identities.get(atom, atom) if type(atom) is str and not opaque else atom
+            return _digest(value)
+        index = atom['ref']
+        cache_key = (index, opaque)
+        if cache_key in sort_memo:
+            return sort_memo[cache_key]
+        node = nodes[index]
+        tag = node['type']
+        if cache_key in sorting or tag == 'Game':
+            return _digest(['cycle', tag])
+        sorting.add(cache_key)
+        if tag in ('model/Player', 'model/Team'):
+            key = 'player_id' if tag == 'model/Player' else 'team_id'
+            identity = dict(node['fields'])[key]
+            value = identities.get(identity, identity)
+        elif tag == 'model/Square':
+            data = dict(node['fields'])
+            value = [data['x'], data['y']]
+        elif 'fields' in node:
+            value = [[k, sort_key(v, opaque or tag == 'ComponentState' and k == 'state')]
+                     for k, v in sorted(node['fields']) if k not in ignored.get(tag, ()) and k != '_trajectory']
+        elif 'items' in node:
+            if tag in _MAPPINGS:
+                value = ordered([[sort_key(k, opaque), sort_key(v, opaque)] for k, v in node['items']], lambda v: v)
+            else:
+                value = [sort_key(v, opaque) for v in node['items']]
+                if tag in _SETS:
+                    value = ordered(value, lambda v: v)
+        else:
+            value = {k: v for k, v in node.items() if k != 'id'}
+        result = _digest([tag, value])
+        sort_memo[cache_key] = result
+        sorting.remove(cache_key)
+        return result
     def visit(atom, opaque=False):
+        work.spend()
         if type(atom) is str and not opaque and atom in identities:
             return {'entity': identities[atom]}
         if type(atom) is not dict or 'ref' not in atom:
@@ -811,10 +919,10 @@ def _semantic_hash(payload, scope):
                 if atom == episode:
                     items = [pair for pair in items if pair[0] != '_manifest']
                 result['items'] = [[visit(k, opaque), visit(v, opaque)] for k, v in
-                                   sorted(items, key=lambda pair: sort_key(pair[0]))]
+                                   ordered(items, lambda pair: sort_key(pair[0], opaque))]
             else:
                 result['items'] = [visit(v, opaque) for v in
-                                   (sorted(items, key=sort_key) if tag in _SETS else items)]
+                                   (ordered(items, lambda value: sort_key(value, opaque)) if tag in _SETS else items)]
             for key in ('shape', 'dtype'):
                 if key in node:
                     result[key] = node[key]
@@ -844,16 +952,16 @@ def write_snapshot(path, snapshot, *, adapters=None, limits=SnapshotLimits(), pr
         _require(type(snapshot) is memory.Snapshot, 'Expected capture_snapshot() result')
         # Reuse SIM-02 validation and detached reconstruction, including adapter
         # validation. The original and its live forced scopes remain untouched.
-        memory.clone_from_snapshot(snapshot, adapters=adapters)
         graph = _Encoder(limits)
         roots = {name: graph.atom(value) for name, value in (
             ('game', snapshot._game), ('episode', snapshot._episode), ('components', snapshot._components))}
         payload = {'roots': roots, 'nodes': graph.nodes}
         validator = _Validator(payload, limits, adapters)
+        memory.clone_from_snapshot(snapshot, adapters=adapters)
         document = dict(format='SnapshotFileV1', version=1, descriptor=_descriptor(snapshot._game),
                         scope=snapshot.scope, component_versions=_versions(adapters, validator.names),
                         payload=payload, provenance={} if provenance is None else provenance,
-                        semantic_state_hash=_semantic_hash(payload, snapshot.scope))
+                        semantic_state_hash=_semantic_hash(payload, snapshot.scope, work=validator.work))
         _require(type(document['provenance']) is dict, 'Provenance must be JSON data')
         document['payload_digest'] = _digest(document)
         raw = _json(document) + b'\n'
@@ -910,7 +1018,7 @@ def read_snapshot(path, *, adapters=None, limits=SnapshotLimits()):
         roots = document['payload']['roots']
         _require(document['scope'] != 'episode' or roots['episode'] is not None, 'Episode scope requires episode data')
         _require(document['scope'] != 'engine' or not validator.items(roots['components']), 'Engine scope contains policies')
-        _require(document['semantic_state_hash'] == _semantic_hash(document['payload'], document['scope']),
+        _require(document['semantic_state_hash'] == _semantic_hash(document['payload'], document['scope'], work=validator.work),
                  'Semantic state hash mismatch')
         decoder = _Decoder(validator)
         game, episode, components = (decoder.atom(roots[name]) for name in ('game', 'episode', 'components'))

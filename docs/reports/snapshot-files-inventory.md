@@ -10,6 +10,29 @@ SIM-02. The complete per-procedure inherited/local field listing is in
 [snapshots-inventory.md](snapshots-inventory.md). File schema drift changes the
 schema digest in `component_versions`; a file with a different digest is rejected.
 `CODEC_FIELDS` provides the complete computed field inventory for inspection.
+`CODEC_SCHEMA` now provides 1,277 inherited/local field contracts over 133 object
+codecs (26 models, 88 procedures, 10 records, 9 special owners).
+[`snapshot_schema.py`](../../botbowl/lab/snapshot_schema.py) declares every local
+field and every fieldless subclass explicitly; import-time consistency checks
+reject omissions and inventory drift. Its `LOCAL`, `LAZY` and `EPISODE` tables
+are the full machine-readable domain and required-presence inventory. All 8
+containers, 3 array/RNG/dice codecs and 13 enum types retain their closed grammar.
+
+Required-field handling is shared across codec families. Nullable means a required
+field whose value may be null. The only lazy fields are Game.seed, the three
+start-created procedure lists, and the declined-Loner result described in the
+wire specification. In particular every Reroll local field is required. Domain
+contracts specify scalar type/range, exact enum family or member names, allowed
+reference tags, tuple arity, record members, mapping key/value and collection item
+types. Formation matrices accept the engine's lists of Unicode array rows as well
+as rectangular list/tuple or Unicode array matrices, validating every symbol.
+Existing resource representations are retained: inducement cost -1 is a sentinel;
+Role.feeder can contain the loader's SkillCategory list; Outcome.n can contain a
+CasualtyEffect name or the engine's boolean marker. These are explicit unions.
+
+The corrected schema digest includes field domains and lazy presence policies,
+episode data constraints, enum membership, key-work version 1 and semantic
+version 2. Earlier schema identities are incompatible; there is no migration.
 
 | Codec family | Inventory |
 | --- | --- |
@@ -52,6 +75,20 @@ at all five sizes. Additional tests cover double loads, mutation isolation,
 semantic/digest distinctions, no constructor/global-RNG effects, malformed types/
 enums/IDs/keys/refs/versions, corruption, limits, truncation, module sentinels,
 atomic write failures at each stage, and late restore-adapter failure.
+
+Correction regressions in `tests/lab/test_snapshot_schema.py` recompute both
+digests after deleting Reroll fields or corrupting model/data/procedure scalar,
+enum, reference and item domains. They guard decoder construction and compare
+live state plus object identities after rejection. Genuine start-created and
+Loner lazy states round-trip before phase-inconsistent variants reject.
+
+The shared-DAG controls separate cheap memoized key identity checks from expanded
+Python tuple hash cost: 26 repeated tuple nodes reject before decoder construction,
+while an eight-level graph round-trips and resaves with aliases intact. Work
+preflight also precedes the writer's private clone and preserves an existing file.
+Recursive unordered wire reversal retains the semantic hash; reversing a tuple
+or splitting an alias changes it. Eight fresh-process resaves with hash seeds
+1..8 preserve the original semantic hash and executable context.
 
 Required review order remains: independent schema/codec checkpoint against an
 exact published commit, then a distinct fresh final-capable review covering the
