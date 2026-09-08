@@ -24,6 +24,12 @@ from .session import SessionResult as SessionResult
 from .session import SessionSnapshot as SessionSnapshot
 from .session import SimulationSession as SimulationSession
 from .session import StaleRevision as StaleRevision
+from .splits import OriginSourceV1 as OriginSourceV1
+from .splits import SplitManifestV1 as SplitManifestV1
+from .splits import build_split_manifest as build_split_manifest
+from .splits import origin_from_episode as origin_from_episode
+from .splits import validate_split_manifest as validate_split_manifest
+from .splits import validate_window_membership as validate_window_membership
 
 __all__ = [
     "ActionControl",
@@ -33,6 +39,7 @@ __all__ = [
     "LegacyBotAdapter",
     "LegalActionsV1",
     "Observer",
+    "OriginSourceV1",
     "Policy",
     "Recorder",
     "Scenario",
@@ -50,4 +57,9 @@ __all__ = [
     "InvalidAction",
     "InvalidConfiguration",
     "NoProgress",
+    "SplitManifestV1",
+    "build_split_manifest",
+    "origin_from_episode",
+    "validate_split_manifest",
+    "validate_window_membership",
 ]
