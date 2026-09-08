@@ -16,6 +16,12 @@ from .replays import ReplayContinuation as ReplayContinuation
 from .replays import ReplayReader as ReplayReader
 from .replays import ReplayRecorder as ReplayRecorder
 from .replays import open_legacy_replay as open_legacy_replay
+from .splits import OriginSourceV1 as OriginSourceV1
+from .splits import SplitManifestV1 as SplitManifestV1
+from .splits import build_split_manifest as build_split_manifest
+from .splits import origin_from_episode as origin_from_episode
+from .splits import validate_split_manifest as validate_split_manifest
+from .splits import validate_window_membership as validate_window_membership
 
 __all__ = [
     "ActionControl",
@@ -25,6 +31,7 @@ __all__ = [
     "LegacyBotAdapter",
     "LegalActionsV1",
     "Observer",
+    "OriginSourceV1",
     "Policy",
     "Recorder",
     "ReplayContinuation",
@@ -34,4 +41,9 @@ __all__ = [
     "Simulation",
     "IndexedReplayEvent",
     "open_legacy_replay",
+    "SplitManifestV1",
+    "build_split_manifest",
+    "origin_from_episode",
+    "validate_split_manifest",
+    "validate_window_membership",
 ]
