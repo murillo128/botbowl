@@ -26,7 +26,8 @@ class GymnasiumEnv(gym.Env):
     metadata = {"render_modes": ["ansi"], "render_fps": 1}
 
     def __init__(self, size=11, *, config=None, pathfinding=False,
-                 max_decisions=10000, max_steps=100000, render_mode=None):
+                 max_decisions=10000, max_steps=100000, render_mode=None,
+                 record_timeline=False):
         super().__init__()
         if render_mode not in (None, "ansi"):
             raise ValueError("render_mode must be None or 'ansi'")
@@ -41,6 +42,7 @@ class GymnasiumEnv(gym.Env):
         self.render_mode = render_mode
         self.max_decisions = max_decisions
         self.max_steps = max_steps
+        self.record_timeline = record_timeline
         arena = load_arena(self.env_conf.config.arena)
         self.width, self.height = arena.width, arena.height
         self.board_squares = self.width * self.height
@@ -228,10 +230,11 @@ class GymnasiumEnv(gym.Env):
         mask[list(legal)] = 1
         return {"spatial": spatial, "non_spatial": np.asarray(values, dtype=np.float32), "action_mask": mask}
 
-    def _info(self, acting_team=None, events=(), rewards=None):
+    def _info(self, acting_team=None, events=(), rewards=None, decisions=()):
         return {"acting_team": acting_team, "next_team": self._seat(self.game.active_team),
                 "rewards": rewards or {"home": 0., "away": 0.},
                 "events": tuple(deepcopy(event.to_json()) for event in events),
+                "decisions": tuple(decision.to_json() for decision in decisions),
                 "truncation_reason": self._truncation_reason}
 
     def reset(self, *, seed=None, options=None):
@@ -243,6 +246,9 @@ class GymnasiumEnv(gym.Env):
         self.game = create_game(self.env_conf.config, self.home_team, self.away_team,
                                 size=self.env_conf.size, control="external",
                                 seed=int(self.np_random.integers(0, 2**32)))
+        if self.record_timeline:
+            from botbowl.lab.timeline import Timeline
+            Timeline(self.game)
         self._closed = self._terminated = self._truncated = False
         self._truncation_reason = None
         self._steps = 0
@@ -260,6 +266,8 @@ class GymnasiumEnv(gym.Env):
         team = self._seat(self.game.active_team)
         before = [t.state.score for t in self.game.state.teams]
         report_start = len(self.game.state.reports)
+        timeline = self.game.timeline
+        decision_start = 0 if timeline is None else timeline.context.decision_seq
         try:
             self.game.advance(legal[int(action)], max_steps=self._budget)
         except GameTruncatedError as error:
@@ -273,7 +281,8 @@ class GymnasiumEnv(gym.Env):
         rewards = {seat: float(t.state.score - score) for seat, t, score in
                    zip(("home", "away"), self.game.state.teams, before)}
         obs = self.get_state()
-        info = self._info(team, self.game.state.reports[report_start:], rewards)
+        decisions = () if timeline is None else timeline.decisions_since(decision_start)
+        info = self._info(team, self.game.state.reports[report_start:], rewards, decisions)
         return obs, rewards[team], self._terminated, self._truncated, info
 
     def render(self):
@@ -354,8 +363,9 @@ class ScriptedActionWrapper(gym.Wrapper):
             obs, _, terminated, truncated, info = result
         rewards = {seat: sum(t["info"]["rewards"][seat] for t in transitions) for seat in ("home", "away")}
         events = tuple(e for t in transitions for e in t["info"]["events"])
+        decisions = tuple(d for t in transitions for d in t["info"]["decisions"])
         return obs, terminated, truncated, {**info, "rewards": rewards, "events": events,
-                                          "transitions": tuple(transitions)}
+                                          "transitions": tuple(transitions), "decisions": decisions}
 
     def step(self, action):
         team = self.unwrapped._seat(self.unwrapped.game.active_team)

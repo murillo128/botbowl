@@ -18,7 +18,10 @@ from botbowl.core.probability import (
 )
 from botbowl.core.forward_model import Trajectory, MovementStep, Step
 from copy import deepcopy
-from typing import Optional, Tuple, List, Union, Any
+from typing import TYPE_CHECKING, Optional, Tuple, List, Union, Any
+
+if TYPE_CHECKING:
+    from botbowl.lab.timeline import DecisionEnvelope
 
 
 class InvalidActionError(Exception):
@@ -78,6 +81,7 @@ class DecisionResult:
     actor: Optional[Agent]
     events: Tuple[Outcome, ...]
     terminal: bool
+    decisions: Tuple['DecisionEnvelope', ...] = ()
 
 
 @dataclass(frozen=True)
@@ -88,6 +92,7 @@ class GameCheckpoint:
     rng_state: DiceSourceState
     _trajectory: Trajectory = field(repr=False, compare=False)
     _anchor: Optional[Step] = field(repr=False, compare=False)
+    timeline: Any = None
 
 
 class Game:
@@ -143,6 +148,7 @@ class Game:
         self.time_source = time_source
         self.trajectory = Trajectory()
         self.square_shortcut = self.state.pitch.squares
+        self.timeline = None
 
     @property
     def closed(self) -> bool:
@@ -265,7 +271,8 @@ class Game:
             raise RuntimeError("Checkpoints require the forward model")
         step = self.get_step()
         anchor = self.trajectory.action_log[step - 1] if step else None
-        return GameCheckpoint(step, self.capture_rng_state(), self.trajectory, anchor)
+        timeline = None if self.timeline is None else self.timeline.capture()
+        return GameCheckpoint(step, self.capture_rng_state(), self.trajectory, anchor, timeline)
 
     def restore_checkpoint(self, checkpoint: GameCheckpoint) -> List[Step]:
         """Undo to a live ancestor checkpoint and restore its complete game RNG.
@@ -282,8 +289,14 @@ class Game:
                 checkpoint.step and self.trajectory.action_log[checkpoint.step - 1] is not checkpoint._anchor):
             raise ValueError("Checkpoint is not an ancestor of the current trajectory")
         self.dice._validate_state(checkpoint.rng_state)
+        if (self.timeline is None) != (checkpoint.timeline is None):
+            raise ValueError('Checkpoint timeline instrumentation differs')
+        if self.timeline is not None:
+            self.timeline._validate_checkpoint(checkpoint.timeline)
         steps = self.revert(checkpoint.step)
         self.restore_rng_state(checkpoint.rng_state)
+        if self.timeline is not None:
+            self.timeline.restore(checkpoint.timeline)
         return steps
 
     @property
@@ -357,20 +370,33 @@ class Game:
         if self.state.game_over:
             return DecisionResult(None, (), True)
         budget = _step_budget(100000 if budget is None else budget)
+        timeline = self.timeline
+        semantic = None if timeline is None else timeline._prepare(action)
         report_start = len(self.state.reports)
         self.action = action
-        while True:
-            budget.consume(self)
-            done = self._one_step(self.action)
-            if self.state.game_over:
-                self.state.available_actions = []
-                self._end_game()
-                break
-            if done or single_step:
-                break
-            self.action = None
+        first = True
+        try:
+            while True:
+                budget.consume(self)
+                if first and timeline is not None:
+                    timeline._begin(semantic)
+                first = False
+                done = self._one_step(self.action)
+                if self.state.game_over:
+                    self.state.available_actions = []
+                    self._end_game()
+                    break
+                if done or single_step:
+                    break
+                self.action = None
+        except Exception as error:
+            if timeline is not None:
+                timeline._settle(failed=True)
+                timeline._failure(error)
+            raise
+        decisions = () if timeline is None else timeline._settle()
         return DecisionResult(self.actor if not self.state.game_over else None,
-                              tuple(self.state.reports[report_start:]), self.state.game_over)
+                              tuple(self.state.reports[report_start:]), self.state.game_over, decisions)
 
     def refresh(self, *, max_steps=100000) -> None:
         """
@@ -860,6 +886,12 @@ class Game:
         Adds the outcome to the game's reports.
         """
         self.state.reports.append(outcome)
+        if self.timeline is not None:
+            self.timeline._report(outcome)
+
+    def _timeline_phase(self, kind, **data) -> None:
+        if self.timeline is not None:
+            self.timeline._phase(kind, **data)
 
     def is_started(self) -> bool:
         return self.start_time is not None

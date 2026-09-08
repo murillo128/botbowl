@@ -39,6 +39,11 @@ no available actions. A subsequent `advance(None)` returns an empty terminal
 result without invoking callbacks again. Other terminal input raises
 `InvalidActionError` with code `game_over`.
 
+Optional [logical timeline recording](lab/timeline.md) adds data-only accepted
+envelopes in `DecisionResult.decisions`, with ActionV1, choosing actors, logical
+contexts and ordered event intervals. `PolicyDriver.run().decisions` preserves
+all intermediate envelopes, and Gymnasium wrappers expose them in step info.
+
 Initialize first. Before terminal, `None` or `CONTINUE` is accepted only when
 there is no pending decision. Invalid actions leave state, RNG (including forced
 dice), reports, procedure stack, clocks, replay and the caller's `Action` intact.

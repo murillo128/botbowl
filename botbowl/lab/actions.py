@@ -5,9 +5,13 @@ episode-local mapping back to engine objects and the current decision token;
 it must remain in trusted control code rather than being used as model input.
 """
 
+from contextlib import nullcontext
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Literal
+from typing import TYPE_CHECKING, Literal, Optional
+
+if TYPE_CHECKING:
+    from .timeline import DecisionEnvelope
 
 from botbowl.core import procedure as proc
 from botbowl.core.model import Action, ActionChoice, Player, Square
@@ -379,6 +383,7 @@ class MacroStepV1:
     state_revision: int
     action: ActionV1
     events: list[dict]
+    decision: Optional['DecisionEnvelope'] = None
 
     def to_json(self) -> dict:
         return {
@@ -389,6 +394,7 @@ class MacroStepV1:
             "action": self.action.to_json(),
             "result": "accepted",
             "events": deepcopy(self.events),
+            "decision": None if self.decision is None else self.decision.to_json(),
         }
 
 
@@ -790,33 +796,40 @@ class ActionControl:
             else self._route_plan(macro)
         )
         records = []
+        timeline = self._game.timeline
+        before = None if timeline is None else timeline.context
+
+        def finish(status, interruption=None):
+            result = MacroResultV1(1, macro.macro_id, status, records, interruption)
+            if timeline is not None:
+                timeline._macro_result(macro, before, result)
+            return result
+
         for order, core in enumerate(plan):
             if self._game.state.game_over:
-                return MacroResultV1(
-                    1, macro.macro_id, "interrupted", records, "terminal"
-                )
+                return finish("interrupted", "terminal")
             if self._side(self._game.active_team) != actor:
-                return MacroResultV1(
-                    1, macro.macro_id, "interrupted", records, "actor_changed"
-                )
+                return finish("interrupted", "actor_changed")
             try:
                 semantic = self.encode(core)
             except SemanticActionError:
-                return MacroResultV1(
-                    1, macro.macro_id, "interrupted", records, "unplanned_decision"
-                )
+                return finish("interrupted", "unplanned_decision")
             if isinstance(macro, RouteMacroV1) and isinstance(
                 semantic.options, PathOptionsV1
             ) and semantic.options.path != [_position(core.position)]:
                 # A newly offered detour is a different plan, even if its
                 # endpoint is the anticipated next square. Never send it as
                 # one primitive or silently change pathfinding backends.
-                return MacroResultV1(
-                    1, macro.macro_id, "interrupted", records, "route_invalidated"
-                )
+                return finish("interrupted", "route_invalidated")
             request = self.request(semantic)
             decoded = self.decode(request)
-            result = self._game.advance(decoded, max_steps=max_steps)
+            parent = nullcontext() if timeline is None else timeline.primitive(macro.macro_id, order)
+            try:
+                with parent:
+                    result = self._game.advance(decoded, max_steps=max_steps)
+            except Exception:
+                finish("interrupted", "operational_error")
+                raise
             events = [deepcopy(event.to_json()) for event in result.events]
             records.append(
                 MacroStepV1(
@@ -826,24 +839,19 @@ class ActionControl:
                     request.state_revision,
                     semantic,
                     events,
+                    result.decisions[0] if result.decisions else None,
                 )
             )
             self._sync(self._game)
             if self._game.state.game_over:
-                return MacroResultV1(
-                    1, macro.macro_id, "interrupted", records, "terminal"
-                )
+                return finish("interrupted", "terminal")
             if self._side(self._game.active_team) != actor:
-                return MacroResultV1(
-                    1, macro.macro_id, "interrupted", records, "actor_changed"
-                )
+                return finish("interrupted", "actor_changed")
             if isinstance(macro, RouteMacroV1) and not isinstance(
                 self._game.get_procedure(), (proc.MoveAction, proc.Turn)
             ):
-                return MacroResultV1(
-                    1, macro.macro_id, "interrupted", records, "unplanned_decision"
-                )
-        return MacroResultV1(1, macro.macro_id, "completed", records, None)
+                return finish("interrupted", "unplanned_decision")
+        return finish("completed")
 
 
 SemanticActionControl = ActionControl
