@@ -122,7 +122,11 @@ Initial matching supports at most 32 declared **GFI D6** pairs. Attach an API-02
 captured before its die is sampled and includes the player, source/destination
 squares, weather, half/round/drive/turn/activation, decision and event anchors,
 procedure stack, and occurrence count. Other procedures have diagnostic tape
-contexts but are not eligible for shared variables.
+contexts but are not eligible for shared variables. With a Timeline, chance
+participants use its retained initial roster binding, including after roster
+reordering, chance-policy reinstallation, checkpoints and snapshot restoration.
+They therefore agree with timeline events rather than being reassigned from the
+current roster-list positions.
 
 A matching declaration is a list of `{source_index, target}` objects. The
 source is a natural GFI record in an actual tape; target is the complete expected

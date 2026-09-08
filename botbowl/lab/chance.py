@@ -166,7 +166,12 @@ class ChancePolicy:
         _require(game is not None, 'Chance policy must be bound to a game')
         from .observations import ObservationControl
         from botbowl.core.procedure import GFI
-        control = ObservationControl(game)
+        # Timeline owns the initial participant IDs for supported matching.
+        # Rebinding from live roster order can alias a different player after
+        # a reorder, or lose a valid match after snapshot restoration.
+        control = (ObservationControl(game) if game.timeline is None else
+                   game.timeline._entities)
+        control._check(game)
         stack = list(game.state.stack.items)
         proc = stack[-1] if stack else None
         participants = {}

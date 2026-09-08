@@ -171,7 +171,7 @@ def test_observation_control_render_and_context_query_do_not_consume_tape():
     assert all(key not in encoded for key in ('chance', 'master_seed', 'cursor', 'MT19937'))
 
 
-def gfi_boundary():
+def gfi_boundary(*, slot=None, reorder=False):
     context = episode(size=3)
     game = context.game
     Timeline(game, episode_id='gfi')
@@ -183,7 +183,10 @@ def gfi_boundary():
     game.state.pitch.balls.append(bb.Ball(game.get_square(1, 1)))
     turn = proc.Turn(game, team, half=1, turn=1)
     turn.started = True
-    player = next(p for p in team.players if p.role.name == 'Blitzer')
+    player = (next(p for p in team.players if p.role.name == 'Blitzer')
+              if slot is None else team.players[slot])
+    if reorder:
+        team.players[0], team.players[slot] = team.players[slot], team.players[0]
     game.put(player, game.get_square(2, 2))
     player.state.moves = player.get_ma()
     team.state.rerolls = 1
@@ -400,3 +403,71 @@ def test_matched_prefix_and_nested_replay_preserve_rng_consumption():
         assert capture_stream(repeated.game.rng) == expected_rng
         current_tape = repeated.game.dice.chance.tape()
         assert not current_tape['rolls'][0]['rng_advance']
+
+
+@pytest.mark.parametrize('unmatched', ['error', 'independent'])
+def test_roster_reordering_cannot_match_a_different_initial_player(unmatched):
+    factual = gfi_boundary(slot=0)
+    factual.step(MOVE)
+    tape = factual.game.dice.chance.tape()
+    target = deepcopy(tape['rolls'][0]['context'])
+    assert target['participants'] == {'player': 'home:0'}
+    before_factual = factual.game.capture_rng_state()
+
+    other = gfi_boundary(slot=1, reorder=True)
+    player = other.game.get_procedure().player
+    assert other.game.state.home_team.players[0] is player
+    assert other._control._player(player) == other.game.timeline._entities._player(player) == 'home:1'
+    policy = install_chance(other.game, ChancePolicy(
+        'matched', tape=tape, matches=[{'source_index': 0, 'target': target}], unmatched=unmatched))
+    rng = capture_stream(other.game.rng)
+    if unmatched == 'error':
+        with pytest.raises(ChanceError, match='Unmatched'):
+            other.step(MOVE)
+        assert not policy.tape()['rolls']
+        assert capture_stream(other.game.rng) == rng
+    else:
+        other.step(MOVE)
+        row = policy.tape()['rolls'][0]
+        assert row['context']['participants'] == {'player': 'home:1'}
+        assert row['scope'] == 'none' and row['provenance'] == 'independent-fallback'
+    assert policy._used == []
+    with pytest.raises(ChanceError, match='Unconsumed matched'):
+        policy.finish()
+    assert factual.game.capture_rng_state() == before_factual
+
+
+@pytest.mark.parametrize('transport', ['clone', 'restore', 'checkpoint', 'file'])
+def test_same_initial_player_matches_after_roster_reordering_and_restoration(tmp_path, transport):
+    factual = gfi_boundary(slot=1, reorder=True)
+    saved = capture_snapshot(factual)
+    factual.step(MOVE)
+    tape = factual.game.dice.chance.tape()
+    row = tape['rolls'][0]
+    assert row['context']['participants'] == {'player': 'home:1'}
+    policy = ChancePolicy('matched', tape=tape, matches=[{
+        'source_index': 0, 'target': deepcopy(row['context'])}], unmatched='independent')
+
+    subject = clone_from_snapshot(saved)
+    subject.game.state.home_team.players.reverse()
+    reordered = capture_snapshot(subject)
+    if transport == 'file':
+        path = tmp_path / 'reordered.json'
+        write_snapshot(path, reordered)
+        reordered = read_snapshot(path)
+    if transport == 'restore':
+        restore_snapshot(subject, reordered)
+    else:
+        subject = branch_from_snapshot(reordered, branch_id='reordered', policy=policy)
+    # Reinstallation must reuse the restored timeline binding, not current slots.
+    install_chance(subject.game, policy)
+    checkpoint = subject.capture_checkpoint()
+    subject.step(MOVE)
+    if transport == 'checkpoint':
+        subject.restore_checkpoint(checkpoint)
+        subject.step(MOVE)
+    consumed = subject.game.dice.chance.tape()['rolls'][0]
+    assert consumed['context']['participants'] == {'player': 'home:1'}
+    assert consumed['result'] == row['result']
+    assert consumed['scope'] == 'declared-gfi'
+    subject.game.dice.chance.finish()
