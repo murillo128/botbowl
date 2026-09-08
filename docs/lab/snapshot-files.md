@@ -135,6 +135,9 @@ empty derived paths; clone/restore recomputes executable choices privately.
 Suspended `MoveAction.steps` survives until its child decision resolves.
 Logical clocks retain elapsed/running/paused state; no wall deadline resumes.
 Transport revisions remain owned by the caller, as in SIM-02.
+Live rule traces are rejected at the snapshot boundary and are never wire data;
+file loads initialize the private decoded game's transient `rule_trace` slot to
+`None` before compatibility checks and detached cloning.
 
 Engine scope contains inert seat metadata and external-action continuation.
 For an `EpisodeContext`, its four other streams, budgets, seed recipe, initial

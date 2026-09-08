@@ -36,6 +36,9 @@ def multiprocess(tmp_path, case, size=3, fm=False, side='home', scope='engine'):
     assert json.loads((root / 'A-trace.json').read_text()) == json.loads((root / 'B-trace.json').read_text())
     first, second = [json.loads((root / (mode + '-evidence.json')).read_text()) for mode in ('A', 'B')]
     assert first['pid'] != second['pid'] and os.getpid() not in (first['pid'], second['pid'])
+    assert first['rule_trace_is_none'] and second['rule_trace_is_none']
+    expected_fm = case == 'episode' or fm
+    assert first['forward_model_enabled'] == second['forward_model_enabled'] == expected_fm
 
 
 @pytest.mark.parametrize('size', (1, 3, 5, 7, 11))
@@ -61,6 +64,13 @@ def test_process_a_to_b_suspended_route_and_rebuilt_paths(tmp_path, fm):
 @pytest.mark.parametrize('scope', ('engine', 'episode'))
 def test_process_a_to_b_episode_policies_wrappers_and_five_streams(tmp_path, size, scope):
     multiprocess(tmp_path, 'episode', size, scope=scope)
+
+
+@pytest.mark.parametrize('case,fm,scope', (
+    ('reroll', False, 'engine'), ('reroll', True, 'engine'), ('episode', False, 'episode'),
+))
+def test_process_a_to_b_rule_trace_is_transient_in_both_scopes(tmp_path, case, fm, scope):
+    multiprocess(tmp_path, case, size=1, fm=fm, scope=scope)
 
 
 def saved_file(tmp_path, game=None):
@@ -91,7 +101,7 @@ def field(record, key, value):
 
 @pytest.mark.parametrize('damage', (
     'digest', 'enum', 'procedure', 'duplicate-id', 'dangling', 'negative-ref', 'bool-ref',
-    'version', 'codec-version', 'ruleset', 'descriptor', 'unknown-field', 'duplicate-field',
+    'version', 'codec-version', 'ruleset', 'descriptor', 'unknown-field', 'game-rule-trace', 'duplicate-field',
     'missing-field', 'wrong-field-type', 'rng-index', 'rng-array', 'rng-flag', 'forced-roll',
     'square-index', 'player-alias', 'duplicate-key', 'unreachable', 'semantic',
     'array-shape', 'array-dtype', 'array-overflow', 'immutable-cycle', 'engine-components',
@@ -121,6 +131,8 @@ def test_corruption_rejected_before_materialization_and_preserves_target(tmp_pat
         doc['descriptor']['ruleset_id'] = 'UNKNOWN'
     elif damage == 'descriptor':
         doc['descriptor']['engine_version'] = '999'
+    elif damage == 'game-rule-trace':
+        node(doc, 'Game')['fields'].append(['rule_trace', None])
     elif damage in ('unknown-field', 'duplicate-field'):
         item = node(doc, 'procedure/StartGame')
         item['fields'].append(['__reduce__', 'sentinel.module'] if damage == 'unknown-field' else item['fields'][0])
@@ -304,8 +316,11 @@ def test_independent_loads_aliases_cycles_rng_arrays_queues_and_no_init(tmp_path
     monkeypatch.setattr(bb.Game, '__init__', forbidden)
     monkeypatch.setattr(procedure.Procedure, '__init__', forbidden)
     monkeypatch.setattr(bb.Clock, '__init__', forbidden)
-    left, right = [clone_from_snapshot(io.read_snapshot(path)) for _ in range(2)]
+    saved = [io.read_snapshot(path) for _ in range(2)]
+    assert all('rule_trace' in vars(item._game) and item._game.rule_trace is None for item in saved)
+    left, right = [clone_from_snapshot(item) for item in saved]
     for clone in (left, right):
+        assert 'rule_trace' in vars(clone) and clone.rule_trace is None
         root = clone.get_procedure()
         assert root.context.reroll is root
         context = root.context.context

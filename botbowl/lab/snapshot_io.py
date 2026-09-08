@@ -1447,6 +1447,7 @@ def read_snapshot(path, *, adapters=None, limits=SnapshotLimits()):
         game.square_shortcut = game.state.pitch.squares
         game.ff_map = game.replay = None
         game.finalization_errors = []
+        game.rule_trace = None
         game._snapshot_busy, game._snapshot_ready = 0, True
         if _descriptor(game) != descriptor:
             raise SnapshotIncompatibleError('RulesDescriptor disagrees with graph resources')

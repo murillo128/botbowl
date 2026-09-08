@@ -137,6 +137,10 @@ def main():
         bb.Game.init = forbidden
         subject = clone_from_snapshot(read_snapshot(directory / 'snapshot.json', adapters=codecs), adapters=codecs)
         evidence = {'pid': os.getpid()}
+    game = subject.game if case == 'episode' else subject
+    assert 'rule_trace' in vars(game) and game.rule_trace is None
+    evidence['rule_trace_is_none'] = True
+    evidence['forward_model_enabled'] = game.trajectory.enabled
     result = trace(subject, case, scope)
     def scalar(value):
         if isinstance(value, Enum):

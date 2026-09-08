@@ -68,7 +68,9 @@ A exits. B starts a fresh interpreter, reads only the snapshot and repeats the
 actions without fixture creation or Game.init. Parent compares the full executable
 walker (state and all procedure fields/references), events, choices/path values,
 RNG arrays/queues and logical timeline; episode cases additionally compare all
-five streams, policy counters, wrapper RNG, aliasing and truncation.
+five streams, policy counters, wrapper RNG, aliasing and truncation. Both workers
+also assert that the transient, non-wire `Game.rule_trace` slot is explicitly
+initialized to `None` before continuation.
 
 The matrix covers all five sizes at pre-randomness, setup and terminal boundaries,
 forward model off/on; reroll, push, interception and apothecary decisions for both
