@@ -87,6 +87,26 @@ enum domains, and recursively constrain collection items and record references.
 component payloads remain adapter-owned data with the SIM-02 engine-reference
 restriction. Neither slot bypasses validation of reachable registered objects.
 
+`ActionChoice.rolls` stores target thresholds. Let `S(T)` mean an ordered
+list/rlist/tuple of T, `D` an exact integer 2..6, `F` 2..12 and `A` 1..12.
+Empty outer sequences are valid for every action. Nonempty targets use:
+
+| Action family | Target contract |
+| --- | --- |
+| MOVE, STAND_UP, LEAP, PICKUP_TEAM_MATE, BLOCK, PASS, THROW_TEAM_MATE, THROW_BOMB, HYPNOTIC_GAZE, SELECT_PLAYER | `S(S(D))`, including empty inner rows |
+| HANDOFF | `S(S(D))` or flat `S(D)` |
+| FOUL | `S(S(F))` or flat `S(F)` |
+| STAB | Ordered nonempty rows of zero or more D targets followed by one A armor target |
+| All other ActionTypes | Empty only |
+
+Mixed flat/nested shapes and noninteger leaves (including bool and 2.0) reject.
+No target is clamped, reshaped or inferred from live modifiers during validation.
+Initial STAKES Stab currently adds one, while Frenzy Stab subtracts one; the
+armor domain retains both producers' union, including 1 and 12. Block counts
+are exact integers in {-3, -2, 1, 2, 3}, and nonempty counts require BLOCK.
+Saved paths stay empty under SIM-02, including the flat pathfinder HANDOFF/FOUL
+targets; suspended steps and private choice rebuilding retain their contract.
+
 Procedure fields include inherited continuation state, including popped procedures
 still reached by reroll/context cycles and suspended route `steps`. All current
 engine procedure classes are registered, and a test compares the closed inventory
@@ -134,23 +154,37 @@ JSON escapes and object-key order are not data and do not affect the digest.
 It detects accidental corruption, **not authentication**; an attacker can recompute
 it. Every structural/compatibility check still runs for a correctly re-signed file.
 
-`semantic_state_hash` traverses the executable graph with normalized node IDs,
-preserving alias edges and ordering of sequences. Team/player/seat IDs normalize
-to side/roster slots; mapping keys and all unordered containers have canonical
-ordering. Frozenset elements are recursively canonicalized, including nested
-frozensets inside tuple keys. Tuple order and graph aliases remain causal.
-Fresh-interpreter read/clone/capture/write retains this identity across hash seeds.
-Sorting uses memoized fixed-size child digests, never recursively expanded key
-strings. It excludes
+`semantic_state_hash` uses exact canonical labeling of the projected typed graph.
+Equality means graph isomorphism preserving named roots, codec/scalar types,
+field and ordered-sequence edge labels, multiplicity, aliases and cycles. Mapping
+entries are unordered key/value associations; set/rset/frozenset membership is
+unordered. Distinct equal-field Procedure identities remain distinct, including
+identity keys and tuple/frozenset composites. An outside ordered anchor can
+distinguish associations; swapping wholly interchangeable identities cannot.
+Team/player/seat IDs normalize to side/roster slots. It excludes
 Game local ID and wall audit timestamps, clock audit `started_at`, configuration
 name/arena path hints (loaded geometry is retained), timeline episode/branch labels,
 the episode provenance manifest, and envelope provenance. Logical time, procedure
 fields, counters, reports, resources, loaded rules/configuration, forced queues,
 RNG position/cache and opaque component state remain causal. Changing RNG or
 replacing one shared list by two equal independent lists changes this hash.
-Opaque adapter state is not interpreted as entity IDs. A seed recipe is retained
+Opaque adapter literals are not interpreted as entity IDs. A container shared
+with engine data has normal/opaque internal views linked to one common object
+identity, preserving both projections and their cross-view alias independently
+of discovery order. No additional wire nodes or adapter format are introduced.
+A seed recipe is retained
 because it affects episode reset. The hash does not assert arbitrary policy
 equivalence or authenticate a simulation.
+
+The internal semantic algorithm stamp is 3 and contributes to the schema digest;
+the envelope, graph and SIM-02 versions remain 1. Canonicalization starts from
+exact scalar/codec colors and refines labeled incoming/outgoing neighbor
+multisets. Remaining ties use bounded individualization and complete enumeration.
+Only the lexicographically least whole candidate encoding is hashed. No digest,
+wire order, object address or first-encounter order resolves a structural tie.
+Consistent node renumbering, field/unordered permutations and fresh hash seeds
+preserve semantic identity. Cryptographic SHA-256 collisions are outside this
+equality guarantee; no intermediate fingerprint collision is assumed impossible.
 
 ## Validation, bounds and failures
 
@@ -166,7 +200,14 @@ shape products must match flat lengths, dtype widths are restricted and numeric
 overflow/string truncation is rejected before array allocation.
 
 A shared work ledger bounds atom/edge visits, domain checks, key identity checks
-and semantic sorting (including an `n * bit_length(n)` sorting allowance).
+and canonical graph construction, sorting, refinement rounds, search branches,
+complete candidate encoding/comparison and variable-sized scalar processing.
+Temporary incidence records, normal/opaque views and search buffers also count
+against the byte/work budgets. Search uses an explicit stack and retains one
+best complete encoding, never all candidate encodings. Work accounting is
+invariant across equivalent wire permutations; a limit rejection never returns
+a best-so-far hash. Large symmetry can exhaust the budget while ordinary
+fixtures and two/three-object symmetric cases remain supported at defaults.
 Immutable keys use memoized graph identities with shallow integer child tokens;
 validation never constructs recursively nested Python tuple/frozenset keys.
 A separate memoized cost recurrence counts repeated immutable child references

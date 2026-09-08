@@ -31,8 +31,9 @@ Role.feeder can contain the loader's SkillCategory list; Outcome.n can contain a
 CasualtyEffect name or the engine's boolean marker. These are explicit unions.
 
 The corrected schema digest includes field domains and lazy presence policies,
-episode data constraints, enum membership, key-work version 1 and semantic
-version 2. Earlier schema identities are incompatible; there is no migration.
+episode data constraints, the finite ActionChoice producer-family target table,
+enum membership, key-work version 1 and semantic version 3. Earlier schema
+identities are incompatible; there is no migration or format-family change.
 
 | Codec family | Inventory |
 | --- | --- |
@@ -86,9 +87,31 @@ The shared-DAG controls separate cheap memoized key identity checks from expande
 Python tuple hash cost: 26 repeated tuple nodes reject before decoder construction,
 while an eight-level graph round-trips and resaves with aliases intact. Work
 preflight also precedes the writer's private clone and preserves an existing file.
-Recursive unordered wire reversal retains the semantic hash; reversing a tuple
-or splitting an alias changes it. Eight fresh-process resaves with hash seeds
-1..8 preserve the original semantic hash and executable context.
+Exact typed incidence labeling replaces recursive key-digest sorting. Incoming
+and outgoing refinement plus complete bounded individualization handles tied
+identity keys/members, anchored associations, mutable aliases, cycles and true
+symmetry. Normal/opaque component views preserve common object identity. Direct
+hash/read/write budget rejection precedes decoder/adapters and destination
+replacement; the large-symmetry probe uses an explicit 500,000-unit budget that
+also accepts the three-object symmetric fixture (412,349 shared-ledger units).
+
+The finite target inventory contains 14 target-bearing sites among 92 engine
+ActionChoice constructors, exercised through 20 branches including three pass
+variants and five path variants. Producer fixtures retained in Procedure.context
+prove shape/order persistence separately from playable continuations. Armor
+extremes, initial/Frenzy STAKES behavior and Foul assist clamps exercise their
+actual producers. Independent signed negative probes reject before decoding.
+
+The executable A/B matrix retains the original 58 pairs and adds 12 Foul/Stab
+boundaries across both seats and forward-model settings plus Frenzy/STAKES,
+path HANDOFF and path FOUL: 73 pairs per backend. Ten tied-identity graph families
+and one shared engine/component projection family each resave across hash seeds
+1..8, with node renumbering, field order and individual unordered-container
+reversals. Two independent producers per identity family compare semantic
+identity and labeled incidence receipts; all small symmetric mapping permutations
+retain distinct identities. Anchored association, alias, cycle, tuple-order and
+opaque-literal changes have distinct semantic hashes. These finite probes do
+not assert exhaustive skill-combination or arbitrary graph-size coverage.
 
 Required review order remains: independent schema/codec checkpoint against an
 exact published commit, then a distinct fresh final-capable review covering the

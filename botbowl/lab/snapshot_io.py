@@ -156,7 +156,8 @@ def _versions(adapters, names=()):
             'numpy': np.__version__, 'engine': package_version('botbowl'),
             'backend': _backend_id(),
             'schema': _digest({'fields': dict(CODEC_SCHEMA), 'lazy': schema.LAZY, 'episode': schema.EPISODE,
-                              'key_work_version': 1, 'semantic_version': 2,
+                              'action_targets': schema.ACTION_TARGETS,
+                              'key_work_version': 1, 'semantic_version': 3,
                               'enums': {tag: list(cls.__members__) for tag, cls in _ENUMS.items()}}),
             'adapters': {name: 1 for name in sorted(names)}}
 
@@ -279,6 +280,7 @@ class _Work:
     """One ledger for validation, semantic sorting and materialization."""
     def __init__(self, limits):
         self.limit, self.used = limits.max_work, 0
+        self.limits = limits
 
     def spend(self, amount=1):
         self.used += amount
@@ -315,6 +317,8 @@ class _GraphKeys:
         if node['type'] not in ('tuple', 'frozenset'):
             return 1
         _require(index not in self.active, 'Cyclic immutable container')
+        if len(self.active) >= self.work.limits.max_depth:
+            raise SnapshotLimitError('Immutable key depth limit exceeded')
         self.active.add(index)
         result = 1
         for value in node['items']:
@@ -326,6 +330,10 @@ class _GraphKeys:
     def key(self, atom):
         self.work.spend()
         if type(atom) is not dict or 'ref' not in atom:
+            # Prepay variable-sized token hashing/comparison before interning.
+            scalar = atom.get('bytes', '') if type(atom) is dict else atom
+            size = len(scalar) if type(scalar) is str else scalar.bit_length() // 8 if type(scalar) is int else 0
+            self.work.spend((size + 63) // 64)
             if type(atom) in (bool, int, float):
                 return self.token(('number', atom))  # True == 1 == 1.0 in Python.
             if type(atom) is dict:
@@ -338,10 +346,13 @@ class _GraphKeys:
         tag = node['type']
         if tag in ('tuple', 'frozenset'):
             _require(index not in self.active, 'Cyclic immutable container')
+            if len(self.active) >= self.work.limits.max_depth:
+                raise SnapshotLimitError('Immutable key depth limit exceeded')
             self.active.add(index)
             parts = [self.key(v) for v in node['items']]
             self.active.remove(index)
             if tag == 'frozenset':
+                self.work.spend(len(parts) * max(1, len(parts).bit_length()))
                 parts = sorted(set(parts))
             signature = (tag, *parts)
         else:
@@ -582,6 +593,10 @@ class _Validator:
             return type(atom) is str and re.fullmatch(args[0], atom) is not None
         if op == 'enum-name':
             return type(atom) is str and atom in _ENUMS[args[0]].__members__
+        if op == 'suffix':
+            return (kind in _SEQUENCES and bool(self.items(atom)) and
+                    all(self.match(v, args[0]) for v in self.items(atom)[:-1]) and
+                    self.match(self.items(atom)[-1], args[1]))
         if op == 'items':
             return kind in args[0].split() and all(self.match(v, args[1]) for v in self.items(atom))
         if op == 'map':
@@ -629,9 +644,16 @@ class _Validator:
                             not self.object_fields(attrs['reroll']).get('use_reroll'))
                 _require((name in attrs) == declined, 'Invalid lazy field phase: ' + tag + '.' + name)
         for name, value in attrs.items():
-            _require(self.match(value, contract[name]), 'Invalid field domain: ' + tag + '.' + name)
+            spec = contract[name]
+            if spec == ('action-targets',):
+                self.expect(attrs['action_type'], {'enum/ActionType'})
+                spec = schema.ACTION_TARGETS.get(attrs['action_type']['enum'][1], schema.EMPTY_TARGETS)
+            _require(self.match(value, spec), 'Invalid field domain: ' + tag + '.' + name)
             if name == '_ignored_keys':
                 _require(all(v in contract for v in self.items(value)), 'Invalid reversible ignored field')
+        if tag == 'model/ActionChoice' and self.items(attrs['block_dice']):
+            _require(attrs['action_type'] == {'enum': ['ActionType', 'BLOCK']},
+                     'Nonempty block_dice requires BLOCK')
         if tag == 'ComponentState':
             self.names.add(attrs['adapter'])
 
@@ -827,113 +849,341 @@ class _Decoder:
         return value
 
 
-def _semantic_hash(payload, scope, *, limits=SnapshotLimits(), work=None):
-    """Canonical traversal normalizes node IDs and roster-local entity IDs.
+class _CanonicalGraph:
+    """Exact finite labeling of the projected, typed incidence graph.
 
-    Opaque adapter state remains causal; provenance is never part of this root.
-    This is a state identity, not proof of equivalence for arbitrary policies.
+    Vertices are wire-object views or temporary mapping/identity/root records.
+    Scalars stay in exact byte colors; edges are shallow labeled references.
+    Individualization enumerates every unresolved candidate, without heuristic
+    pruning. Only the least *complete* encoding is returned, never a partial one.
     """
-    work = _Work(limits) if work is None else work
-    nodes = payload['nodes']
-    _GraphKeys(nodes, work).validate()
-    roots = payload['roots']
-    attrs = lambda atom: dict(nodes[atom['ref']]['fields'])
-    game = attrs(roots['game'])
-    state = attrs(game['state'])
-    identities = {}
-    for side in ('home', 'away'):
-        team = attrs(state[side + '_team'])
-        identities[team['team_id']] = ['team', side]
-        for slot, player in enumerate(nodes[team['players']['ref']]['items']):
-            identities[attrs(player)['player_id']] = ['player', side, slot]
-        identities[attrs(game[side + '_agent'])['agent_id']] = ['agent', side]
-    ignored = {'Game': {'game_id', 'start_time', 'end_time', 'last_request_time', 'last_action_time'},
-               'model/Configuration': {'name', 'arena'},
-               'data/TimelineContext': {'episode_id', 'branch_id'},
-               'Clock': {'started_at'}}
-    episode = roots['episode']
-    memo = {}
-    sort_memo, sorting = {}, set()
-    def ordered(items, key):
-        work.spend(len(items) * max(1, len(items).bit_length()))
-        return sorted(items, key=key)
+    def __init__(self, payload, scope, work):
+        self.work = work
+        self.nodes = payload['nodes']
+        if len(self.nodes) > work.limits.max_nodes:
+            raise SnapshotLimitError('Graph node limit exceeded')
+        self.colors, self.outgoing, self.incoming = [], [], []
+        self.storage = 0
+        self.views, self.pending, self.labels, self.literals, self.prefixes = {}, [], {}, {}, {}
+        roots = payload['roots']
+        def attrs(atom):
+            pairs = self.nodes[atom['ref']]['fields']
+            self.work.spend(1 + len(pairs))
+            return dict(pairs)
+        game = attrs(roots['game'])
+        state = attrs(game['state'])
+        self.identities = {}
+        for side in ('home', 'away'):
+            team = attrs(state[side + '_team'])
+            self.identities[team['team_id']] = ('team', side)
+            for slot, player in enumerate(self.nodes[team['players']['ref']]['items']):
+                self.identities[attrs(player)['player_id']] = ('player', side, slot)
+            self.identities[attrs(game[side + '_agent'])['agent_id']] = ('agent', side)
+        self.episode = roots['episode']
+        root = self.vertex(('roots', scope))
+        for name, value in roots.items():
+            self.atom(root, ('root', name), value, False)
+        while self.pending:
+            index, opaque, owner = self.pending.pop()
+            node = self.nodes[index]
+            tag = node['type']
+            if 'fields' in node:
+                ignored = {'Game': {'game_id', 'start_time', 'end_time', 'last_request_time', 'last_action_time'},
+                           'model/Configuration': {'name', 'arena'},
+                           'data/TimelineContext': {'episode_id', 'branch_id'}, 'Clock': {'started_at'}}
+                for name, value in node['fields']:
+                    if name not in ignored.get(tag, ()):
+                        self.atom(owner, ('field', name), value, opaque or tag == 'ComponentState' and name == 'state')
+            elif 'items' in node:
+                if tag in _MAPPINGS:
+                    for key, value in node['items']:
+                        if {'ref': index} == self.episode and key == '_manifest':
+                            continue
+                        entry = self.vertex(('entry',))
+                        self.edge(owner, ('entry',), entry)
+                        self.atom(entry, ('key',), key, opaque)
+                        self.atom(entry, ('value',), value, opaque)
+                else:
+                    for position, value in enumerate(node['items']):
+                        self.atom(owner, ('member',) if tag in _SETS else ('item', position), value, opaque)
+                if 'trajectory' in node:
+                    self.atom(owner, ('trajectory',), node['trajectory'], opaque)
+                if tag == 'array':
+                    self.literal(owner, ('array',), self.data([node['dtype'], node['shape']]))
+            elif tag == 'dice':
+                self.atom(owner, ('rng',), node['rng'], opaque)
+                self.literal(owner, ('dice',), self.data([node['queues'], node['strict']]))
+            else:  # MT19937's scalar arrays/index/cache are ordered metadata.
+                self.literal(owner, ('rng-state',), self.data([
+                    node['algorithm'], node['keys'], node['position'], node['has_gauss'], node['cached_gaussian']]))
+        # Finishing colors discards literal/field input order, preserving pairs
+        # and multiplicity. Graph edges retain incoming and outgoing incidence.
+        for index, (prefix, literals) in enumerate(self.colors):
+            self.work.spend(1 + len(literals))
+            groups = {}
+            for label, value in literals:
+                groups.setdefault(label, []).append(value)
+            pairs = []
+            for label in self.byte_order(groups):
+                for value in self.byte_order(groups[label]):
+                    pairs.append((label, value))
+            size = len(prefix) + sum(16 + len(a) + len(b) for a, b in pairs) + 8
+            self.allocate(2 * size)
+            self.colors[index] = self.pack([prefix] + [self.pack(pair) for pair in pairs])
 
-    def sort_key(atom, opaque=False):
-        # Fixed-size child digests keep a shared immutable DAG linear. Unordered
-        # children are recursively sorted; tuple order remains part of identity.
-        work.spend()
-        if type(atom) is not dict or 'ref' not in atom:
-            value = identities.get(atom, atom) if type(atom) is str and not opaque else atom
-            return _digest(value)
-        index = atom['ref']
-        cache_key = (index, opaque)
-        if cache_key in sort_memo:
-            return sort_memo[cache_key]
-        node = nodes[index]
-        tag = node['type']
-        if cache_key in sorting or tag == 'Game':
-            return _digest(['cycle', tag])
-        sorting.add(cache_key)
-        if tag in ('model/Player', 'model/Team'):
-            key = 'player_id' if tag == 'model/Player' else 'team_id'
-            identity = dict(node['fields'])[key]
-            value = identities.get(identity, identity)
-        elif tag == 'model/Square':
-            data = dict(node['fields'])
-            value = [data['x'], data['y']]
-        elif 'fields' in node:
-            value = [[k, sort_key(v, opaque or tag == 'ComponentState' and k == 'state')]
-                     for k, v in sorted(node['fields']) if k not in ignored.get(tag, ()) and k != '_trajectory']
-        elif 'items' in node:
-            if tag in _MAPPINGS:
-                value = ordered([[sort_key(k, opaque), sort_key(v, opaque)] for k, v in node['items']], lambda v: v)
+    def allocate(self, size):
+        """Account auxiliary record/buffer storage before allocating it."""
+        self.work.spend((size + 63) // 64)
+        self.storage += size
+        self.space(0)
+
+    def space(self, scratch):
+        if self.storage + scratch > self.work.limits.max_bytes:
+            raise SnapshotLimitError('Canonical graph workspace byte limit exceeded')
+
+    def data(self, value):
+        # Variable-sized scalar processing is prepaid in 64-byte work units.
+        # The estimate includes worst-case JSON escaping, before encoding.
+        pending, size = [value], 0
+        while pending:
+            item = pending.pop()
+            self.work.spend()
+            if type(item) is str:
+                size += 12 * len(item) + 2
+            elif type(item) is int:
+                size += item.bit_length() // 3 + 3
+            elif type(item) is dict:
+                self.work.spend(2 * len(item))
+                pending.extend(item.keys())
+                pending.extend(item.values())
+                size += 2 + 2 * len(item)
+            elif type(item) in (list, tuple):
+                self.work.spend(len(item))
+                pending.extend(item)
+                size += 2 + len(item)
             else:
-                value = [sort_key(v, opaque) for v in node['items']]
-                if tag in _SETS:
-                    value = ordered(value, lambda v: v)
-        else:
-            value = {k: v for k, v in node.items() if k != 'id'}
-        result = _digest([tag, value])
-        sort_memo[cache_key] = result
-        sorting.remove(cache_key)
+                size += 32
+        self.work.spend((size + 63) // 64)
+        self.space(size)
+        return _json(value)
+
+    @staticmethod
+    def pack(parts):
+        return b''.join(len(part).to_bytes(8, 'big') + part for part in parts)
+
+    def ordered(self, values, byte_size=0):
+        # Full mergesort allowance, independent of existing order or ties.
+        # Signatures are shallow tuples of integer pairs, never expanded DAGs.
+        n = len(values)
+        levels = (n - 1).bit_length() if n else 0
+        self.work.spend(n + n * levels + ((byte_size + 63) // 64) * levels)
+        return sorted(values)
+
+    def byte_order(self, values):
+        # Length is an exact deterministic signature component. Only equal-size
+        # buffers need byte comparisons; large scalar colors do not incur the
+        # comparison budget of unrelated short colors.
+        self.work.spend(len(values))
+        groups = {}
+        for value in values:
+            groups.setdefault(len(value), []).append(value)
+        result = []
+        for size in self.ordered(list(groups)):
+            group = groups[size]
+            result.extend(self.ordered(group, size * len(group)) if len(group) > 1 else group)
         return result
-    def visit(atom, opaque=False):
-        work.spend()
-        if type(atom) is str and not opaque and atom in identities:
-            return {'entity': identities[atom]}
+
+    def label(self, value):
+        self.work.spend()
+        if value not in self.labels:
+            encoded = self.data(value)
+            self.allocate(64 + len(encoded))
+            self.labels[value] = encoded
+        return self.labels[value]
+
+    def vertex(self, prefix):
+        self.work.spend()
+        self.allocate(192)
+        index = len(self.colors)
+        if prefix not in self.prefixes:
+            self.prefixes[prefix] = self.data(prefix)
+        self.colors.append((self.prefixes[prefix], []))
+        self.outgoing.append([])
+        self.incoming.append([])
+        return index
+
+    def edge(self, source, label, target):
+        self.work.spend()
+        encoded = self.label(label)
+        self.allocate(128)
+        self.outgoing[source].append((encoded, target))
+        self.incoming[target].append((encoded, source))
+
+    def literal(self, owner, label, encoded):
+        self.work.spend()
+        self.allocate(64 + len(encoded))
+        self.colors[owner][1].append((self.label(label), encoded))
+
+    def atom(self, owner, label, atom, opaque):
+        self.work.spend()
         if type(atom) is not dict or 'ref' not in atom:
-            return atom
-        index = atom['ref']
-        if index in memo:
-            return {'ref': memo[index]}
-        memo[index] = len(memo)
-        node = nodes[index]
-        tag = node['type']
-        result = {'id': memo[index], 'type': tag}
-        if 'fields' in node:
-            result['fields'] = [[key, visit(value, opaque or tag == 'ComponentState' and key == 'state')]
-                                for key, value in sorted(node['fields']) if key not in ignored.get(tag, ())]
-        elif 'items' in node:
-            items = node['items']
-            if tag in _MAPPINGS:
-                if atom == episode:
-                    items = [pair for pair in items if pair[0] != '_manifest']
-                result['items'] = [[visit(k, opaque), visit(v, opaque)] for k, v in
-                                   ordered(items, lambda pair: sort_key(pair[0], opaque))]
+            # Membership and literal memo lookup themselves hash the scalar;
+            # charge its size before either operation, even on cache hits.
+            scalar = atom.get('bytes', '') if type(atom) is dict else atom
+            size = len(scalar) if type(scalar) is str else scalar.bit_length() // 8 if type(scalar) is int else 0
+            self.work.spend((size + 63) // 64)
+            if type(atom) is str and not opaque and atom in self.identities:
+                token = ('entity', *self.identities[atom])
+            elif type(atom) is dict:
+                token = ('enum', *atom['enum']) if 'enum' in atom else ('bytes', atom['bytes'])
             else:
-                result['items'] = [visit(v, opaque) for v in
-                                   (ordered(items, lambda value: sort_key(value, opaque)) if tag in _SETS else items)]
-            for key in ('shape', 'dtype'):
-                if key in node:
-                    result[key] = node[key]
-            if 'trajectory' in node:
-                result['trajectory'] = visit(node['trajectory'])
-        elif tag == 'dice':
-            result.update(rng=visit(node['rng']), queues=node['queues'], strict=node['strict'])
-        else:
-            result.update({key: value for key, value in node.items() if key not in ('id', 'type')})
-        return result
-    return _digest([scope, {key: visit(value) for key, value in sorted(roots.items())}])
+                token = ('literal', type(atom).__name__, atom.hex() if type(atom) is float else atom)
+            if token not in self.literals:
+                self.literals[token] = self.data(token)
+            self.literal(owner, label, self.literals[token])
+            return
+        index = atom['ref']
+        key = (index, opaque)
+        if key not in self.views:
+            target = self.vertex(('object', self.nodes[index]['type'], opaque))
+            self.views[key] = target
+            self.pending.append((index, opaque, target))
+            other = self.views.get((index, not opaque))
+            if other is not None:
+                # Both context projections retain a common identity. Which view
+                # was discovered first contributes neither color nor edge label.
+                identity = self.vertex(('identity',))
+                self.edge(target, ('identity',), identity)
+                self.edge(other, ('identity',), identity)
+        self.edge(owner, label, self.views[key])
+
+    def refine(self, partition, scratch):
+        vertices = len(self.colors)
+        # Colors, new partition, signatures and sort buffers fit this charged
+        # workspace; no ancestor candidates or candidate encodings are copied.
+        for _ in range(vertices):
+            self.work.spend(1 + vertices)
+            active = [v for members in partition if len(members) > 1 for v in members]
+            active_edges = sum(len(self.outgoing[v]) + len(self.incoming[v]) for v in active)
+            workspace = 32 * vertices + 64 * len(active) + 64 * active_edges
+            self.space(scratch + workspace)
+            self.work.spend((workspace + 63) // 64)
+            colors = [0] * vertices
+            for color, members in enumerate(partition):
+                for vertex in members:
+                    colors[vertex] = color
+            refined = []
+            for members in partition:
+                if len(members) == 1:
+                    refined.append(members)
+                    continue  # A singleton cannot split; this is exact.
+                signatures = []
+                widths = 0
+                for vertex in members:
+                    outgoing, incoming = self.outgoing[vertex], self.incoming[vertex]
+                    self.work.spend(1 + len(outgoing) + len(incoming))
+                    a = self.ordered([(label, colors[target]) for label, target in outgoing], 16 * len(outgoing))
+                    b = self.ordered([(label, colors[source]) for label, source in incoming], 16 * len(incoming))
+                    signature = (tuple(a), tuple(b))
+                    signatures.append((signature, vertex))
+                    widths += 16 * (len(a) + len(b)) + 16
+                # Sort exact signatures only. Vertex IDs are never a tie rule.
+                self.work.spend(len(members) * len(members).bit_length() +
+                                ((widths + 63) // 64) * len(members).bit_length())
+                signatures.sort(key=lambda pair: pair[0])
+                previous = None
+                for signature, vertex in signatures:
+                    if signature != previous:
+                        refined.append([])
+                        previous = signature
+                    refined[-1].append(vertex)
+            if len(refined) == len(partition):
+                return refined
+            partition = refined
+        raise SnapshotLimitError('Canonical refinement depth limit exceeded')
+
+    def normal_form(self):
+        vertices = len(self.colors)
+        color_size = sum(map(len, self.colors))
+        self.work.spend(vertices + (color_size + 63) // 64)
+        self.space(64 * vertices + color_size)
+        unique_colors = list(set(self.colors))
+        color_palette = self.byte_order(unique_colors)
+        label_palette = self.byte_order(list(set(self.labels.values())))
+        color_ranks = {value: i for i, value in enumerate(color_palette)}
+        label_ranks = {value: i for i, value in enumerate(label_palette)}
+        initial = [[] for _ in color_palette]
+        self.work.spend(vertices + len(label_palette))
+        for vertex, value in enumerate(self.colors):
+            initial[color_ranks[value]].append(vertex)
+        # Integer edge labels speed exact refinement; their entire palette is
+        # included in the final encoding, so labels cannot be erased by ranks.
+        for edges in (self.outgoing, self.incoming):
+            for i, row in enumerate(edges):
+                self.work.spend(len(row))
+                edges[i] = [(label_ranks[label], target) for label, target in row]
+        prefix_size = 64 + sum(8 + len(v) for v in color_palette + label_palette)
+        self.allocate(2 * prefix_size)
+        prefix = self.pack([b'SIM-03-semantic-3', self.pack(color_palette), self.pack(label_palette)])
+        width = max(1, (max(vertices, len(label_palette), len(color_palette)).bit_length() + 7) // 8)
+        edge_count = sum(map(len, self.outgoing))
+        size = len(prefix) + 1 + vertices * (width + 8) + 2 * width * edge_count
+        candidate_scratch = 128 * (vertices + edge_count) + 3 * size
+        partition_bytes = 64 * vertices
+        best, stack, partition = None, [], initial
+        while True:
+            # Invariant, conservative allocation/comparison charges apply even
+            # when a candidate does not improve best; traversal order cannot
+            # change completion versus a work-limit outcome.
+            scratch = (len(stack) + 2) * partition_bytes + candidate_scratch
+            self.space(scratch)
+            partition = self.refine(partition, scratch)
+            ambiguous = next((i for i, members in enumerate(partition) if len(members) > 1), None)
+            if ambiguous is not None:
+                if len(stack) >= vertices:
+                    raise SnapshotLimitError('Canonical search depth limit exceeded')
+                stack.append([partition, ambiguous, 0])
+            else:
+                self.work.spend(1 + vertices + edge_count + (candidate_scratch + 63) // 64)
+                ranks = [0] * vertices
+                for rank, members in enumerate(partition):
+                    ranks[members[0]] = rank
+                pieces = [prefix, bytes([width])]
+                for members in partition:
+                    vertex = members[0]
+                    pieces.append(color_ranks[self.colors[vertex]].to_bytes(width, 'big'))
+                    row = self.ordered([(label, ranks[target]) for label, target in self.outgoing[vertex]],
+                                       16 * len(self.outgoing[vertex]))
+                    pieces.append(len(row).to_bytes(8, 'big'))
+                    for label, rank in row:
+                        pieces.extend((label.to_bytes(width, 'big'), rank.to_bytes(width, 'big')))
+                candidate = b''.join(pieces)
+                if best is None or candidate < best:
+                    best = candidate
+            while stack:
+                parent, cell, offset = stack[-1]
+                members = parent[cell]
+                if offset == len(members):
+                    stack.pop()
+                    continue
+                self.work.spend(1 + vertices + (partition_bytes + 63) // 64)
+                self.space((len(stack) + 2) * partition_bytes + candidate_scratch)
+                chosen = members[offset]
+                stack[-1][2] += 1
+                partition = parent[:cell] + [[chosen], [v for v in members if v != chosen]] + parent[cell + 1:]
+                break
+            else:
+                return best
+
+
+def _semantic_hash(payload, scope, *, limits=SnapshotLimits(), work=None):
+    """Hash an exact, bounded canonical labeling after the causal projection."""
+    work = _Work(limits) if work is None else work
+    _GraphKeys(payload['nodes'], work).validate()
+    graph = _CanonicalGraph(payload, scope, work)
+    normal = graph.normal_form()
+    work.spend((len(normal) + 63) // 64)
+    return 'sha256:' + hashlib.sha256(normal).hexdigest()
 
 
 def _descriptor(game):
@@ -957,11 +1207,12 @@ def write_snapshot(path, snapshot, *, adapters=None, limits=SnapshotLimits(), pr
             ('game', snapshot._game), ('episode', snapshot._episode), ('components', snapshot._components))}
         payload = {'roots': roots, 'nodes': graph.nodes}
         validator = _Validator(payload, limits, adapters)
+        semantic = _semantic_hash(payload, snapshot.scope, work=validator.work)
         memory.clone_from_snapshot(snapshot, adapters=adapters)
         document = dict(format='SnapshotFileV1', version=1, descriptor=_descriptor(snapshot._game),
                         scope=snapshot.scope, component_versions=_versions(adapters, validator.names),
                         payload=payload, provenance={} if provenance is None else provenance,
-                        semantic_state_hash=_semantic_hash(payload, snapshot.scope, work=validator.work))
+                        semantic_state_hash=semantic)
         _require(type(document['provenance']) is dict, 'Provenance must be JSON data')
         document['payload_digest'] = _digest(document)
         raw = _json(document) + b'\n'

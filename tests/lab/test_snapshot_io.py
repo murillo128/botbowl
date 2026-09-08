@@ -451,3 +451,15 @@ def test_restore_rebuilds_paths_trajectory_and_new_undo_origin(tmp_path, fm):
     game.advance(bb.Action(bb.ActionType.END_PLAYER_TURN))
     assert executable(game) == after
     assert_references(game)
+
+
+@pytest.mark.parametrize('case', ('foul', 'stab-block', 'stab-blitz'))
+@pytest.mark.parametrize('fm', (False, True))
+@pytest.mark.parametrize('side', ('home', 'away'))
+def test_process_a_to_b_playable_armor_targets(tmp_path, case, fm, side):
+    multiprocess(tmp_path, case, fm=fm, side=side)
+
+
+@pytest.mark.parametrize('case', ('frenzy-stakes', 'path-handoff', 'path-foul'))
+def test_process_a_to_b_frenzy_and_flat_pathfinder_targets(tmp_path, case):
+    multiprocess(tmp_path, case)

@@ -20,6 +20,10 @@ from tests.lab.test_timeline import fresh, players, turn, until
 
 
 def actions(case, game):
+    if case in ('foul', 'stab-block', 'stab-blitz', 'frenzy-stakes', 'path-handoff', 'path-foul'):
+        target = bb.ActionType.HANDOFF if case == 'path-handoff' else bb.ActionType.FOUL if 'foul' in case else bb.ActionType.STAB
+        return [lambda g: bb.Action(target, position=next(c for c in g.state.available_actions
+                                                          if c.action_type == target).positions[0]), progress_action]
     if case in ('reroll', 'route'):
         return [lambda g: bb.Action(bb.ActionType.USE_REROLL),
                 lambda g: bb.Action(bb.ActionType.END_PLAYER_TURN)]
@@ -35,6 +39,8 @@ def actions(case, game):
 
 
 def create(case, size, fm, side):
+    if case in ('foul', 'stab-block', 'stab-blitz', 'frenzy-stakes', 'path-handoff', 'path-foul'):
+        return armor_boundary(case, fm, side)
     if case in ('reroll', 'push', 'interception', 'apothecary'):
         return boundary(case, fm, side)[0]
     if case == 'episode':
@@ -140,5 +146,183 @@ def main():
     (directory / (mode + '-evidence.json')).write_text(json.dumps(evidence, sort_keys=True), encoding='utf-8')
 
 
+
+
+# Finite design-decision fixtures. These are direct supported context graphs,
+# not claims that every identity-key topology arises from ordinary gameplay.
+def armor_boundary(case, fm=False, side='home'):
+    game = logical(turn(size=3, rounds=2, pathfinding=case.startswith('path-')))
+    until(game, lambda g: type(g.get_procedure()) is proc.Turn and
+          g.active_team is getattr(g.state, side + '_team'))
+    own = [(3, 3), (4, 3)] if case == 'path-handoff' else [(3, 3)]
+    placed = players(game, own, [(6, 5)] if case == 'path-handoff' else [(4, 3)], ball=(3, 3))
+    attacker, defender = placed[0], placed[-1]
+    for team in game.state.teams:
+        team.state.rerolls = 0
+        team.state.apothecaries = 0
+    if 'foul' in case:
+        defender.state.up = False
+        start = bb.ActionType.START_FOUL
+    elif case == 'path-handoff':
+        start = bb.ActionType.START_HANDOFF
+    else:
+        attacker.extra_skills.append(bb.Skill.STAB)
+        start = bb.ActionType.START_BLITZ if case == 'stab-blitz' else bb.ActionType.START_BLOCK
+    if case == 'frenzy-stakes':
+        attacker.extra_skills.extend((bb.Skill.FRENZY, bb.Skill.STAKES))
+        defender.team.race = 'Undead'
+        role = next(r for r in game.ruleset.races if r.name == 'Undead').roles[0]
+        for player in defender.team.players:
+            player.role = role
+    if fm:
+        game.enable_forward_model()
+    game.advance(bb.Action(start, player=attacker))
+    if case == 'frenzy-stakes':
+        game.dice.fix(bb.BBDie, *([bb.BBDieResult.PUSH] * 6))
+        game.advance(bb.Action(bb.ActionType.BLOCK, position=defender.position))
+        game.advance(bb.Action(bb.ActionType.SELECT_PUSH))
+        game.advance(bb.Action(bb.ActionType.PUSH, position=bb.Square(5, 3)))
+        assert type(game.get_procedure()) is proc.Frenzy
+    target = bb.ActionType.HANDOFF if case == 'path-handoff' else bb.ActionType.FOUL if 'foul' in case else bb.ActionType.STAB
+    choice = next(c for c in game.state.available_actions if c.action_type == target)
+    assert choice.rolls
+    if case.startswith('path-'):
+        assert all(type(v) is int for v in choice.rolls) and choice.paths
+    game.dice.fix(bb.D6, *([6] * 12 if case == 'path-handoff' else [1, 2] * 6))
+    return game
+
+
+def identity_graph(family, reverse=False):
+    from botbowl.core.forward_model import ReversibleSet
+    game = logical(fresh())
+    count = 3 if family in ('cycle3', 'symmetric3') else 10 if family == 'symmetric10' else 2
+    keys = []
+    for _ in range(count):
+        keys.append(proc.Procedure(game))
+        game.state.stack.pop()
+    shared = ['shared']
+    values = [{'equal': 7} for _ in keys]
+    if family == 'primitive':
+        values = ['first', 'second']
+    elif family.startswith('symmetric'):
+        values = [7] * count
+    order = list(reversed(range(count))) if reverse else list(range(count))
+    mapping = {keys[i]: values[i] for i in order}
+    context = {'map': mapping}
+    if family == 'anchored':
+        context.update(anchors=keys, values=values)
+    elif family.startswith('cycle'):
+        for i, key in enumerate(keys):
+            key.context = {'mapping': mapping, 'self': key, 'next': keys[(i + 1) % count], 'shared': shared}
+            values[i].update(owner=key, shared=shared)
+        context.update(anchors=keys, shared=shared)
+    elif family in ('set', 'rset', 'frozenset'):
+        cls = {'set': set, 'rset': ReversibleSet, 'frozenset': frozenset}[family]
+        context.update(anchors=keys, members=cls(keys[i] for i in order), shared=shared,
+                       composites={('ordered', frozenset(keys)): shared, (keys[0], keys[1]): shared},
+                       key_values={keys[i]: keys[i] for i in order})
+    game.get_procedure().context = context
+    return game
+
+
+def identity_receipt(game, family):
+    context = game.get_procedure().context
+    mapping = context['map']
+    keys = list(mapping)
+    count = 3 if family in ('cycle3', 'symmetric3') else 2
+    assert len(keys) == count and len({id(k) for k in keys}) == count
+    assert all(type(k) is proc.Procedure and k.game is game for k in keys)
+    receipt = {'family': family, 'cardinality': count}
+    if family == 'primitive':
+        assert sorted(mapping.values()) == ['first', 'second']
+        assert all(k.context is None for k in keys)
+        receipt['values'] = sorted(mapping.values())
+    elif family == 'mutable':
+        assert all(v == {'equal': 7} for v in mapping.values())
+        assert len({id(v) for v in mapping.values()}) == count
+        receipt['distinct_equal_values'] = count
+    elif family.startswith('symmetric'):
+        assert list(mapping.values()) == [7] * count
+        assert all(k.context is None for k in keys)
+        receipt['interchangeable'] = count
+    else:
+        anchors = context['anchors']
+        assert set(anchors) == set(keys)
+        if family == 'anchored':
+            assert all(mapping[key] is context['values'][i] for i, key in enumerate(anchors))
+            receipt['associations'] = list(range(count))
+        elif family.startswith('cycle'):
+            for i, key in enumerate(anchors):
+                assert key.context['self'] is key
+                assert key.context['next'] is anchors[(i + 1) % count]
+                assert key.context['mapping'] is mapping
+                assert key.context['shared'] is context['shared'] is mapping[key]['shared']
+                assert mapping[key]['owner'] is key
+            receipt['next'] = list(range(1, count)) + [0]
+        else:
+            assert set(context['members']) == set(anchors)
+            assert type(context['members']).__name__ == {'rset': 'ReversibleSet'}.get(family, family)
+            composites = context['composites']
+            assert composites[('ordered', frozenset(anchors))] is context['shared']
+            assert composites[tuple(anchors)] is context['shared']
+            assert all(context['key_values'][key] is key for key in anchors)
+            receipt['members'] = list(range(count))
+            receipt['ordered_composite'] = list(range(count))
+    return receipt
+
+
+class SharedPolicy:
+    def __init__(self, state):
+        self.state = state
+
+    def act(self, view, control, rng):
+        return {'action_type': control['choices'][0]['action_type']}
+
+
+def graph_registry():
+    return registry().register('shared-data-v1', SharedPolicy, lambda p, r: p.state,
+                               lambda state, r: SharedPolicy(state))
+
+
+def projection_graph():
+    context = episode(size=1, policies={'home': SharedPolicy(None)})
+    logical(context.game)
+    Timeline(context.game)
+    shared = [context.game.state.home_team.team_id, {'module': 'inert.never.import'}]
+    shared.append(shared)
+    # Install inert shared fixture data without asking the forward-model setter
+    # to recursively convert a cyclic plain list into reversible containers.
+    object.__setattr__(context.game.get_procedure(), 'context', shared)
+    context._policies['home'].state = shared
+    return context
+
+
+def graph_process(mode, directory, family, reverse=False):
+    codecs = graph_registry()
+    if mode == 'graph-produce':
+        subject = projection_graph() if family == 'projection' else identity_graph(family, reverse)
+        envelope = write_snapshot(directory / 'snapshot.json', capture_snapshot(
+            subject, scope='episode' if family == 'projection' else 'engine', adapters=codecs), adapters=codecs)
+    else:
+        def forbidden(*args, **kwargs):
+            raise AssertionError('Consumer constructed a game/source fixture')
+        bb.Game.init = forbidden
+        subject = clone_from_snapshot(read_snapshot(directory / 'snapshot.json', adapters=codecs), adapters=codecs)
+        envelope = write_snapshot(directory / 'resaved.json', capture_snapshot(
+            subject, scope='episode' if family == 'projection' else 'engine', adapters=codecs), adapters=codecs)
+    if family == 'projection':
+        shared = subject.game.get_procedure().context
+        assert shared is subject._policies['home'].state and shared[2] is shared
+        receipt = {'family': family, 'literal': shared[0], 'shared_cyclic_views': True}
+    else:
+        receipt = identity_receipt(subject, family)
+    (directory / (mode + '-receipt.json')).write_text(json.dumps({
+        'pid': os.getpid(), 'hash_seed': os.environ.get('PYTHONHASHSEED'),
+        'semantic_state_hash': envelope.semantic_state_hash, 'incidence': receipt}, sort_keys=True), encoding='utf-8')
+
+
 if __name__ == '__main__':
-    main()
+    if sys.argv[1].startswith('graph-'):
+        graph_process(sys.argv[1], Path(sys.argv[2]), sys.argv[3], len(sys.argv) > 4)
+    else:
+        main()

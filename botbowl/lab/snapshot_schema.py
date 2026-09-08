@@ -89,6 +89,21 @@ JSON = 'json'  # Data records only; no engine references, bytes, enums or cycles
 EMPTY_PATHS = ('empty', 'dict rdict')
 
 
+# The finite producer contract from issue #39's design closure. These are
+# thresholds, not die outcomes; path HANDOFF/FOUL annotations are flat.
+D6_TARGET = integer(2, 6)
+FOUL_TARGET = integer(2, 12)
+ARMOR_TARGET = integer(1, 12)
+EMPTY_TARGETS = ('empty', 'list rlist tuple')
+ACTION_TARGETS = {
+    **dict.fromkeys(('MOVE STAND_UP LEAP PICKUP_TEAM_MATE BLOCK PASS THROW_TEAM_MATE '
+                     'THROW_BOMB HYPNOTIC_GAZE SELECT_PLAYER').split(), sequence(sequence(D6_TARGET))),
+    'HANDOFF': choice(sequence(sequence(D6_TARGET)), sequence(D6_TARGET)),
+    'FOUL': choice(sequence(sequence(FOUL_TARGET)), sequence(FOUL_TARGET)),
+    'STAB': sequence(('suffix', D6_TARGET, ARMOR_TARGET)),
+}
+
+
 LOCAL = {
     'Reversible': {'_trajectory': optional('Trajectory'), '_ignored_keys': sequence(TEXT, 'set')},
     'Piece': {'position': optional(SQUARE)},
@@ -135,8 +150,8 @@ LOCAL = {
               'width': integer(3, 100), 'height': integer(3, 100)},
     'ActionChoice': {
         'action_type': enum('ActionType'), 'positions': sequence(optional(SQUARE)), 'players': PLAYERS,
-        'team': TEAM, 'rolls': sequence(sequence(integer(1, 6))),
-        'block_dice': sequence(integer(-3, 3)), 'disabled': BOOL, 'skill': optional(SKILL),
+        'team': TEAM, 'rolls': ('action-targets',),
+        'block_dice': sequence(literal(-3, -2, 1, 2, 3)), 'disabled': BOOL, 'skill': optional(SKILL),
         'paths': ('empty', 'list rlist'),
     },
     'Action': {'action_type': enum('ActionType'), 'position': optional(SQUARE), 'player': optional(PLAYER)},
