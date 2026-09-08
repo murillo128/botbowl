@@ -2,10 +2,10 @@ name: Tests
 
 on:
   pull_request:
-    paths-ignore:
-      - "**/*.md"
-      - "docs/**"
-      - "README*"
+  push:
+    branches:
+      - main
+      - 'codex/**'
 
 permissions:
   contents: read
@@ -14,24 +14,66 @@ concurrency:
   group: tests-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+# Untrusted pull-request code is never scheduled on the local runner. Public PRs
+# receive the hosted lint gate only; functional core validation is triggered by
+# trusted pushes to repository-owned codex/** branches (and main).
 jobs:
-  test:
+  lint:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
-
     steps:
-      - uses: actions/checkout@v5
-
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          python-version: "3.11"
-          cache: pip
-          cache-dependency-path: requirements.txt
-
-      - name: Install dependencies
-        run: python -m pip install -r requirements.txt
-
-      - name: Test
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.11'
+      - run: python -m pip install --upgrade -c requirements/core.txt -r requirements/public-types.txt pip setuptools wheel ruff
+      - name: Python errors
+        run: python -m ruff check --select E9,F63,F7,F82 botbowl tests examples tools setup.py
+      - name: Bounded public API types and negative calls
+        run: python tools/ci/check_public_types.py
+      - name: Bounded lab protocol types and negative signatures
+        run: python tools/ci/check_lab_types.py
+      - name: Core selection negative controls
+        run: python tools/ci/check_core_selection.py
+      - name: Parallel shard process controls
+        run: python tests/ci/check_parallel_shards.py
+      - name: Validate Actions YAML and expressions
         run: |
-          python -m compileall -q botbowl tests
-          python -m pytest -q
+          curl -fsSL https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz -o "$RUNNER_TEMP/actionlint.tar.gz"
+          echo "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8  $RUNNER_TEMP/actionlint.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/actionlint.tar.gz" -C "$RUNNER_TEMP" actionlint
+          "$RUNNER_TEMP/actionlint" -shellcheck='' -pyflakes=''
+
+  core:
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/codex/'))
+    name: core / ${{ matrix.python }} / ${{ matrix.backend }}
+    runs-on: [self-hosted, codex]
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.11']
+        backend: [python, native]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python -m pip install --upgrade -c requirements/core.txt pip setuptools wheel build
+      - name: Installed unit and integration tests
+        run: python tools/ci/run_profile.py suite --backend '${{ matrix.backend }}' --output '${{ runner.temp }}/evidence'
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: core-${{ matrix.python }}-${{ matrix.backend }}
+          path: |
+            ${{ runner.temp }}/evidence/*.json
+            ${{ runner.temp }}/evidence/*.xml
+            ${{ runner.temp }}/evidence/*.log
+          retention-days: 14

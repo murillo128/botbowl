@@ -13,7 +13,7 @@ the exact same result as the python implementation.
 import botbowl.core.table as table
 import botbowl.core.model as model
 import botbowl.core.forward_model as forward_model
-from .python_pathfinding import _alter_state, _reset_state
+from .python_pathfinding import _temporary_state
 
 from libcpp.map cimport map as mapcpp
 from libcpp.vector cimport vector
@@ -222,7 +222,7 @@ cdef class Pathfinder:
             Square start_square
             NodePtr node
             int ma, gfis_used
-            bint can_dodge, can_sure_feet, can_sure_hands
+            bint can_dodge, can_sure_feet, can_sure_hands, can_handoff
 
         self.carries_ball = self.player is self.game.get_ball_carrier()
         self.endzone_x = 1 if self.player.team is self.game.state.home_team else self.game.arena.width - 2
@@ -235,9 +235,10 @@ cdef class Pathfinder:
         can_dodge = self.player.has_skill(table.Skill.DODGE) and table.Skill.DODGE not in self.player.state.used_skills
         can_sure_feet = self.player.has_skill(table.Skill.SURE_FEET) and table.Skill.SURE_FEET not in self.player.state.used_skills
         can_sure_hands = self.player.has_skill(table.Skill.SURE_HANDS)
+        can_handoff = self.can_handoff and self.game.has_ball(self.player)
 
         # Create root node
-        node = make_shared[Node](start_square, self.ma, self.gfis, 0, self.trr, can_dodge, can_sure_feet, can_sure_hands, self.can_foul, self.can_block, self.can_handoff)
+        node = make_shared[Node](start_square, self.ma, self.gfis, 0, self.trr, can_dodge, can_sure_feet, can_sure_hands, self.can_foul, self.can_block, can_handoff)
 
         if not self.player.state.up:
             node = self._expand_stand_up(node)
@@ -279,7 +280,8 @@ cdef class Pathfinder:
             parent = NULL
 
         if self.has_target:
-            if self.target_is_square and self.target_square.distance(node.get().position) > node.get().moves_left + node.get().gfis_left:
+            # The recipient's square is a terminal handoff, not a movement step.
+            if self.target_is_square and self.target_square.distance(node.get().position) > node.get().moves_left + node.get().gfis_left + int(node.get().can_handoff):
                 return
             if self.target_is_int and abs(self.target_x - node.get().position.x) > node.get().moves_left + node.get().gfis_left:
                 return
@@ -576,7 +578,7 @@ cdef class Pathfinder:
         return paths
 
 
-def get_safest_path(game, player, position, from_position=None, allow_team_reroll=False, num_moves_used=0, blitz=False):
+def get_safest_path(game, player, position, from_position=None, allow_team_reroll=False, num_moves_used=None, blitz=False):
     """
     :param game:
     :param player: the player to move
@@ -586,14 +588,12 @@ def get_safest_path(game, player, position, from_position=None, allow_team_rerol
     :return a path containing the list of squares that forms the safest (and thereafter shortest) path for the given player to the
     given position and the probability of success.
     """
-    if from_position is not None and num_moves_used != 0:
-        orig_player, orig_ball = _alter_state(game, player, from_position, num_moves_used)
-    can_handoff = game.is_handoff_available() and game.get_ball_carrier() == player
-    finder = Pathfinder(game, player, trr=allow_team_reroll, can_block=blitz, can_handoff=can_handoff)
-    path = finder.get_path(target=position)
-    if from_position is not None and num_moves_used != 0:
-        _reset_state(game, player, orig_player, orig_ball)
-    return path
+    with _temporary_state(game, player, from_position, num_moves_used):
+        # Handoff action-start detection from upstream #234, Mattias Bermell.
+        can_handoff = (game.is_handoff_available() or
+                       game.get_player_action_type() is table.PlayerActionType.HANDOFF) and game.has_ball(player)
+        finder = Pathfinder(game, player, trr=allow_team_reroll, can_block=blitz, can_handoff=can_handoff)
+        return finder.get_path(target=position)
 
 
 def get_safest_path_to_endzone(game, player, from_position=None, allow_team_reroll=False, num_moves_used=None):
@@ -606,14 +606,10 @@ def get_safest_path_to_endzone(game, player, from_position=None, allow_team_rero
     :return: a path containing the list of squares that forms the safest (and thereafter shortest) path for the given player to
     a position in the opponent endzone.
     """
-    if from_position is not None and num_moves_used != 0:
-        orig_player, orig_ball = _alter_state(game, player, from_position, num_moves_used)
-    x = game.get_opp_endzone_x(player.team)
-    finder = Pathfinder(game, player, trr=allow_team_reroll)
-    path = finder.get_path(target=x)
-    if from_position is not None and num_moves_used != 0:
-        _reset_state(game, player, orig_player, orig_ball)
-    return path
+    with _temporary_state(game, player, from_position, num_moves_used):
+        x = game.get_opp_endzone_x(player.team)
+        finder = Pathfinder(game, player, trr=allow_team_reroll)
+        return finder.get_path(target=x)
 
 
 def get_all_paths(game, player, from_position=None, allow_team_reroll=False, num_moves_used=None, blitz=False):
@@ -627,11 +623,6 @@ def get_all_paths(game, player, from_position=None, allow_team_reroll=False, num
     :return a path containing the list of squares that forms the safest (and thereafter shortest) path for the given player to
     a position that is adjacent to the other player and the probability of success.
     """
-    if from_position is not None and num_moves_used != 0:
-        orig_player, orig_ball = _alter_state(game, player, from_position, num_moves_used)
-    finder = Pathfinder(game, player, trr=allow_team_reroll, can_block=blitz)
-    paths = finder.get_paths()
-    if from_position is not None and num_moves_used != 0:
-        _reset_state(game, player, orig_player, orig_ball)
-
-    return paths
+    with _temporary_state(game, player, from_position, num_moves_used):
+        finder = Pathfinder(game, player, trr=allow_team_reroll, can_block=blitz)
+        return finder.get_paths()
