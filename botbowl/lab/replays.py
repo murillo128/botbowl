@@ -1106,6 +1106,10 @@ class ReplayReader:
         index = bisect_right(choices, decision) - 1
         _require(index >= 0, "Decision predates replay")
         metadata = self._manifest["checkpoints"][index]
+        return self._load_checkpoint(metadata)
+
+    @_read_boundary(lambda self, metadata: metadata["decision_seq"])
+    def _load_checkpoint(self, metadata):
         path = _path(self.directory, metadata["path"])
         raw = _read_file(path, self.limits.max_bytes)
         _require(

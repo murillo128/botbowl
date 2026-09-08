@@ -290,6 +290,21 @@ def test_cut_files_incompatible_version_and_invalid_index_are_rejected(
             ReplayReader(tmp_path, "replay")
 
 
+@pytest.mark.parametrize("checkpoint,requested", ((0, 1), (3, 5)))
+def test_corrupt_checkpoint_reports_its_boundary_not_seek_target(
+    tmp_path, checkpoint, requested
+):
+    _, manifest, _, _, _ = record(tmp_path, decisions=6, interval=3)
+    metadata = next(
+        item for item in manifest["checkpoints"] if item["decision_seq"] == checkpoint
+    )
+    path = tmp_path / "replay" / metadata["path"]
+    path.write_bytes(path.read_bytes()[:-7])
+    with pytest.raises(ReplayFormatError) as caught:
+        ReplayReader(tmp_path, "replay").seek_decision(requested)
+    assert caught.value.decision_seq == checkpoint
+
+
 def test_first_hash_divergence_reports_exact_decision(tmp_path):
     _, manifest, _, _, _ = record(tmp_path, decisions=4, interval=4)
     block_meta = manifest["blocks"][0]
