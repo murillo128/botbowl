@@ -5,6 +5,7 @@ and dedicated callback streams go to policies. See docs/lab/randomness.md.
 """
 from copy import deepcopy
 from dataclasses import dataclass
+from functools import wraps
 import platform
 
 import numpy as np
@@ -16,6 +17,17 @@ from .observations import ObservationControl, observe
 from .randomness import (DERIVATION_ALGORITHM, GENERATOR, PURPOSES, SeedSpec,
                          _canonical, _identifier, capture_stream)
 from .rules import describe_rules
+
+
+def _snapshot_idle(method):
+    @wraps(method)
+    def guarded(self, *args, **kwargs):
+        self._snapshot_busy += 1
+        try:
+            return method(self, *args, **kwargs)
+        finally:
+            self._snapshot_busy -= 1
+    return guarded
 
 
 class EpisodeCompatibilityError(ValueError):
@@ -77,12 +89,14 @@ class EpisodeContext:
         self._max_decisions = max_decisions
         self._max_steps = max_steps
         self.game = None
+        self._snapshot_busy = 0
         self.reset()
 
     @property
     def master_seed(self):
         return self._seed.master_seed
 
+    @_snapshot_idle
     def reset(self):
         """Rebuild from the recorded seed and copied initial inputs.
 
@@ -159,6 +173,7 @@ class EpisodeContext:
     def observe(self, side):
         return observe(self.game, self._control, side).to_json()
 
+    @_snapshot_idle
     def transform(self, observer, side):
         """Invoke only with the public view and the observation-owned stream."""
         return observer.transform(self.observe(side), self._streams["observation"])
@@ -201,6 +216,7 @@ class EpisodeContext:
     def _result(self, events=()):
         return EpisodeResult(tuple(events), self.game.state.game_over, self.truncated, self.decisions)
 
+    @_snapshot_idle
     def step(self, action):
         """Apply one supplied detached action; retain #16 engine error semantics.
 
@@ -225,6 +241,7 @@ class EpisodeContext:
                            "n": event.n, "skill": None if event.skill is None else event.skill.name})
         return self._result(events)
 
+    @_snapshot_idle
     def act(self):
         """Call the declared active policy with no engine/context/engine-RNG alias."""
         if self.game.closed:
