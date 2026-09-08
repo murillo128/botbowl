@@ -28,7 +28,7 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - name: Resolve exact review-ready target
+      - name: Resolve current review-ready target
         id: target
         shell: bash
         env:
@@ -85,7 +85,7 @@ jobs:
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
               output.write(f"issue_number={number}\npr_number={pr['number']}\n")
               output.write(f"head_sha={pr['head']['sha']}\nbase_sha={pr['base']['sha']}\n")
-          print(f"Resolved issue #{number} to PR #{pr['number']} at {pr['head']['sha']}.")
+          print(f"Resolved issue #{number} to PR #{pr['number']} at current head {pr['head']['sha']}.")
           PY
 
       - name: Launch isolated PR audit through shared Codex App Server
@@ -95,6 +95,7 @@ jobs:
           PR_NUMBER: ${{ steps.target.outputs.pr_number }}
           REVIEW_HEAD_SHA: ${{ steps.target.outputs.head_sha }}
           REVIEW_BASE_SHA: ${{ steps.target.outputs.base_sha }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           umask 077
@@ -174,7 +175,59 @@ jobs:
             git -C "$repo_root" show "${GITHUB_SHA}:${path}" > "${state_dir}/control/${path}"
           done
 
-          task_prompt="Audit PR #${PR_NUMBER} for controlling issue #${ISSUE_NUMBER}. Load ${state_dir}/control/AGENTS.md and ${state_dir}/control/skills/codex-pr-audit/SKILL.md, with sibling review/operations skills from that same control snapshot. You are already in the fresh isolated audit session: this is a new audit-only App Server thread with a dedicated detached worktree, not the issue executor. Apply codex-independent-review directly yourself in this same session; do not spawn, delegate to, or wait for another reviewer or subagent. Your isolated worktree is ${worktree}, detached at audit_head=${REVIEW_HEAD_SHA}; audit_base=${REVIEW_BASE_SHA}. Re-read GitHub and stop without state mutations if either ref differs from this pair. During the technical review phase remain read-only: do not inherit or resume the executor conversation, use its worktree, edit implementation, switch branches, merge, label, or close anything. Once the technical verdict is fixed, leave the reviewer role and resume codex-pr-audit controller duties. For PASS or PASS_WITH_NOTES final-capable on the unchanged exact head/base, follow the skill's automatic merge -> completed -> close sequence; for FAIL/BLOCKED follow its return mapping. Recheck BOTH head and base before recording and again before applying the verdict. Use existing persistent GitHub authentication, never Actions tokens. Preserve the review worktree and evidence for inspection."
+          # A fresh audit is always of the PR's current head. Revalidate the
+          # control-plane state immediately before spending a Codex turn so a
+          # label/PR/ref race fails here rather than producing a stale review.
+          python3 - <<'PY'
+          import json
+          import os
+          import urllib.parse
+          import urllib.request
+
+          repo = os.environ["GITHUB_REPOSITORY"]
+          number = os.environ["ISSUE_NUMBER"]
+          expected_pr = int(os.environ["PR_NUMBER"])
+          expected_head = os.environ["REVIEW_HEAD_SHA"]
+          expected_base = os.environ["REVIEW_BASE_SHA"]
+          states = {"queued", "execution-ready", "in-progress", "review-ready",
+                    "design-required", "investigation-required", "blocked", "completed"}
+
+          def get_json(path):
+              request = urllib.request.Request(
+                  f"https://api.github.com/repos/{repo}/{path}",
+                  headers={
+                      "Accept": "application/vnd.github+json",
+                      "Authorization": "Bearer " + os.environ["GITHUB_TOKEN"],
+                      "X-GitHub-Api-Version": "2022-11-28",
+                      "User-Agent": "botbowl-review-ready-prelaunch-guard",
+                  },
+              )
+              with urllib.request.urlopen(request, timeout=30) as response:
+                  return json.load(response)
+
+          issue = get_json(f"issues/{number}")
+          labels = {entry["name"] for entry in issue.get("labels", [])}
+          if issue.get("state") != "open" or "pull_request" in issue or labels & states != {"review-ready"}:
+              raise SystemExit("Pre-launch guard: issue is no longer solely review-ready")
+
+          owner = repo.split("/", 1)[0]
+          branch = f"codex/issue-{number}"
+          query = urllib.parse.urlencode({"state": "open", "head": f"{owner}:{branch}", "per_page": 100})
+          pulls = get_json("pulls?" + query)
+          if len(pulls) != 1:
+              raise SystemExit(f"Pre-launch guard: expected exactly one open PR; found {len(pulls)}")
+          current = pulls[0]
+          if (current["number"] != expected_pr or current.get("draft")
+                  or current["head"]["ref"] != branch
+                  or current["head"]["repo"]["full_name"] != repo
+                  or current["base"]["repo"]["full_name"] != repo
+                  or current["head"]["sha"] != expected_head
+                  or current["base"]["sha"] != expected_base):
+              raise SystemExit("Pre-launch guard: PR identity/readiness/head/base changed; require a fresh audit launch")
+          print(f"Pre-launch guard passed for current PR #{expected_pr} head {expected_head}.")
+          PY
+
+          task_prompt="Audit PR #${PR_NUMBER} for issue #${ISSUE_NUMBER} as the isolated audit controller. Use trusted instructions at ${state_dir}/control/AGENTS.md and ${state_dir}/control/skills/codex-pr-audit/SKILL.md."
           ready_file="${state_dir}/app-server-ready"
           error_file="${state_dir}/app-server-error"
           thread_file="${state_dir}/app-server-thread-id"
