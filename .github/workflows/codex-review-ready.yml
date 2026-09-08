@@ -162,7 +162,7 @@ jobs:
           # Test the exact published transport/workflow, without installing the
           # game or running any model request. All inputs come from trusted main.
           validation="${state_dir}/validation"
-          for path in .github/workflows/codex-execute-ready.yml .github/workflows/codex-review-ready.yml .github/scripts/prepare_pr_audit.py tests/workflows/test_pr_audit_isolation.py; do
+          for path in .github/workflows/codex-execute-ready.yml .github/workflows/codex-review-ready.yml .github/scripts/prepare_pr_audit.py tests/workflows/test_pr_audit_isolation.py tests/workflows/test_pr_audit_direct_review.py; do
             mkdir -p "${validation}/$(dirname "$path")"
             git -C "$repo_root" show "${GITHUB_SHA}:${path}" > "${validation}/${path}"
           done
@@ -174,7 +174,7 @@ jobs:
             git -C "$repo_root" show "${GITHUB_SHA}:${path}" > "${state_dir}/control/${path}"
           done
 
-          task_prompt="Audit PR #${PR_NUMBER} for controlling issue #${ISSUE_NUMBER}. Load ${state_dir}/control/AGENTS.md and ${state_dir}/control/skills/codex-pr-audit/SKILL.md, with sibling review/operations skills from that same control snapshot. This is a fresh audit-only session, not the issue executor. Your isolated worktree is ${worktree}, detached at audit_head=${REVIEW_HEAD_SHA}; audit_base=${REVIEW_BASE_SHA}. Re-read GitHub and stop without state mutations if either ref differs from this pair. Invoke a fresh independent reviewer in this isolated worktree; do not inherit or resume the executor conversation, use its worktree, edit implementation, switch branches, merge, or enable auto-merge. Recheck BOTH head and base before recording or applying the verdict. Use existing persistent GitHub authentication, never Actions tokens. Preserve the review worktree and evidence for inspection."
+          task_prompt="Audit PR #${PR_NUMBER} for controlling issue #${ISSUE_NUMBER}. Load ${state_dir}/control/AGENTS.md and ${state_dir}/control/skills/codex-pr-audit/SKILL.md, with sibling review/operations skills from that same control snapshot. You are already the fresh isolated independent reviewer: this is a new audit-only App Server thread with a dedicated detached worktree, not the issue executor. Apply codex-independent-review directly yourself in this same session; do not spawn, delegate to, or wait for another reviewer or subagent. Your isolated worktree is ${worktree}, detached at audit_head=${REVIEW_HEAD_SHA}; audit_base=${REVIEW_BASE_SHA}. Re-read GitHub and stop without state mutations if either ref differs from this pair. Review in this isolated worktree; do not inherit or resume the executor conversation, use its worktree, edit implementation, switch branches, merge, or enable auto-merge. Recheck BOTH head and base before recording or applying the verdict. Use existing persistent GitHub authentication, never Actions tokens. Preserve the review worktree and evidence for inspection."
           ready_file="${state_dir}/app-server-ready"
           error_file="${state_dir}/app-server-error"
           thread_file="${state_dir}/app-server-thread-id"
