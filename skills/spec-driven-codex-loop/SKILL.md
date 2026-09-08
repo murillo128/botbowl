@@ -18,7 +18,7 @@ The executor's terminal delivery state is a PR that is **ready for review** and 
 Load once:
 
 1. `AGENTS.md` when present;
-2. the controlling issue;
+2. the controlling issue and its top-level comments needed to resolve execution context;
 3. only the exact plan, decision, source, test, build, configuration, dependency, artifact, or external input needed by the active outcome;
 4. only the workflow or utility skill that owns the current action.
 
@@ -26,7 +26,70 @@ Do not weaken the issue, reconstruct its intent from broad history, or choose be
 
 Do not silently promote exploratory notes, hypotheses, brainstorming, or provisional chat conclusions into requirements. Use them only when the controlling issue or an authoritative repository source explicitly adopts them.
 
-On resume, verify branch, `HEAD`, worktree, the controlling issue's single authoritative state label, and new material issue or PR discussion since the last handoff. Reuse unchanged inspected context rather than replaying history.
+On resume, verify branch, `HEAD`, worktree, the controlling issue's single authoritative state label, the canonical execution context when present, and new material issue or PR discussion since the last handoff. Reuse unchanged inspected context rather than replaying history.
+
+## Canonical execution context
+
+An epic scheduler may materialize the execution target into one top-level issue comment identified by the exact marker:
+
+```text
+<!-- codex-execution-context:v1 -->
+```
+
+Before editing, search the controlling issue's top-level comments for that exact marker.
+
+### No canonical context
+
+If there are zero matches, treat the issue as standalone for branch-target purposes:
+
+- the repository default branch is the intended PR target;
+- preserve the normal local-runner behavior for the issue branch;
+- do not search epics or infer a parent merely from links, prose, labels, milestones, or issue numbers.
+
+### One canonical context
+
+If there is exactly one match, parse its fenced YAML. It must contain exactly one usable value for each of:
+
+```yaml
+epic_issue: 3
+integration_branch: codex/epic-issue-3
+base_sha: 0123456789abcdef0123456789abcdef01234567
+```
+
+Treat this execution context as authoritative **only for execution base and PR target**:
+
+- `integration_branch` is the intended PR base branch;
+- `base_sha` is the exact integration snapshot selected for this activation;
+- stale branch/base references in the child issue body or older comments are non-authoritative;
+- the child issue body remains authoritative for technical scope, acceptance, and invariants.
+
+Validate before editing that:
+
+- `base_sha` is a full 40-character hexadecimal commit in this repository;
+- `integration_branch` exists in this repository;
+- the current `integration_branch` history still contains `base_sha` as an ancestor or exact head;
+- the declared `epic_issue` exists and is not the controlling child itself.
+
+The integration branch may have advanced after scheduling; that does not invalidate the activation as long as it still contains the pinned `base_sha`. A rewritten branch that no longer contains `base_sha` invalidates the context. Fail closed without implementation edits and surface the control-plane inconsistency rather than guessing a replacement base.
+
+If there are more than one canonical-marker comments, fail closed. Do not choose the newest comment or infer which duplicate is authoritative.
+
+### Prepare the issue branch from the pinned base
+
+The implementation branch remains the executor-owned `codex/issue-N` branch supplied by the launcher. The execution context changes its base, not its branch name.
+
+Before the first implementation edit of an activation with canonical context:
+
+1. fetch the exact `integration_branch` and verify `base_sha`;
+2. require a clean worktree before any automatic base reconciliation; pre-existing uncommitted issue work must be inspected and preserved, never discarded;
+3. if the issue branch has no issue-owned commits beyond its launch base and can fast-forward to `base_sha`, fast-forward it to `base_sha`;
+4. if the issue branch already contains preserved issue work and `base_sha` is not already an ancestor of `HEAD`, merge the exact `base_sha` into the issue branch before new implementation edits; do not reset or rewrite the issue's valid published history merely to change bases;
+5. resolve merge conflicts only within the controlling issue's authority. A semantic conflict requiring a new product/design decision returns to `design-required` rather than being guessed locally;
+6. verify after reconciliation that `base_sha` is an ancestor of the issue branch `HEAD`.
+
+A retry or reactivation may therefore adopt a newer scheduler-pinned base while preserving previous issue commits. Never reset an existing issue branch to `base_sha` when doing so would discard issue-owned work.
+
+Use `codex-github-operations` for PR creation/reuse/retargeting. When canonical context exists, the PR must target its `integration_branch`; when none exists, it targets the repository default branch.
 
 ## Skillforge local-runner entry
 
@@ -60,6 +123,7 @@ Before editing, confirm:
 - exactly one state label exists;
 - it is `execution-ready` or `in-progress`;
 - branch and worktree are safe;
+- canonical execution context is either absent or uniquely valid and its pinned base has been adopted as required above;
 - scope, invariants, failure semantics, acceptance, and required inputs are clear;
 - no competing branch or PR creates ambiguous ownership.
 
@@ -75,13 +139,13 @@ Use label replacements for execution-time returns:
 
 `review-ready` is the successful executor handoff state. Set it only when the complete implementation has passed required validation and final-capable independent review, the PR is marked ready for review, and the final handoff is being made. `completed` is a post-merge state. The Codex executor must not set `completed` or close the controlling issue as part of implementation delivery. After an explicit user-facing review accepts and merges the ready PR, the merge workflow may replace `review-ready` with `completed` and close the issue after observing the merge.
 
-By default, add comments only when a material reason, technical finding, contract amendment, exact checkpoint target/verdict, blocker capability, or final handoff must be preserved. A calling workflow may explicitly request additional progress-observability comments; when it does, follow that narrow reporting policy without treating progress comments as checkpoints or technical evidence.
+By default, add comments only when a material reason, technical finding, contract amendment, exact checkpoint target/verdict, blocker capability, or final handoff must be preserved. The scheduler-owned canonical execution-context comment is the deliberate exception: it is control-plane input and must not be rewritten by the executor.
 
 ## Execution loop
 
 ### 1. Establish the bounded outcome
 
-Confirm intended behavior, permitted subsystem, invariants, required validation/evidence, and next checkpoint. Do not combine unrelated work.
+Confirm intended behavior, permitted subsystem, invariants, required validation/evidence, execution base/target, and next checkpoint. Do not combine unrelated work.
 
 Do not invent project-wide roadmaps, phases, schemas, frameworks, or process machinery as a side effect of executing one issue. Create durable structure only when the controlling issue or an explicit repository decision requires it.
 
@@ -121,6 +185,8 @@ Do not add workflow bookkeeping to technical artifacts unless it is itself relev
 ### 6. Publish intentionally
 
 Publish when remote preservation, collaboration, a checkpoint, or PR review requires it. Exact SHAs are useful for review targets and dependency pins, not routine progress prose.
+
+When canonical execution context exists, verify before publication that the PR target equals its `integration_branch`. If an existing PR still targets a stale branch, retarget it through `codex-github-operations` before relying on its diff, CI, or review state.
 
 Update durable repository documents only when the durable content they own changes. Do not edit architecture, plans, decision records, guidelines, or knowledge documents merely to mirror workflow state.
 
@@ -185,6 +251,8 @@ After two consecutive failures in substantially the same validation, attestation
 
 Use one PR per controlling issue unless the issue explicitly decomposes delivery. Keep it draft while required implementation, validation, or independent technical review remains incomplete.
 
+The intended PR base is resolved only from the canonical execution context when present, otherwise from the repository default branch. Do not let a stale target named in the child issue body override this rule.
+
 When the complete final diff has passed the required validation and final-capable independent review, update the PR description with the final technical state, mark the PR **ready for review**, use `codex-github-operations` to replace the controlling issue's `in-progress` label with `review-ready`, and then stop execution and hand it off. The label transition and PR readiness are one logical handoff: do not advertise `review-ready` while the PR is still draft or required technical work remains.
 
 The Codex executor must never:
@@ -200,6 +268,7 @@ Include only what the next actor cannot derive cheaply:
 
 - controlling issue, now labeled `review-ready`, and current bounded outcome;
 - ready-for-review PR and exact final reviewed target when useful;
+- intended integration branch when canonical execution context exists;
 - last accepted checkpoint;
 - material evidence;
 - unresolved non-blocking note or finding;
