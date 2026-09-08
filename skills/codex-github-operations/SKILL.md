@@ -45,6 +45,7 @@ A failure of one replaceable transport is not a technical blocker when another p
 
 The controlling issue's current workflow state is authoritative only through exactly one state label:
 
+- `queued`
 - `execution-ready`
 - `in-progress`
 - `review-ready`
@@ -54,6 +55,8 @@ The controlling issue's current workflow state is authoritative only through exa
 - `completed`
 
 Every non-trivial controlling issue must carry exactly one of those labels. Preserve unrelated labels, but replace the previous state label instead of adding another.
+
+`queued` means a fully defined epic child is waiting for scheduler selection. Normal dependency waiting uses `queued`, not `blocked`; reserve `blocked` for a real impediment. Only `codex-epic-scheduler` may automatically replace `queued` with `execution-ready`. An actor that has explicitly resolved a child's `blocked`, `design-required`, or `investigation-required` condition may return it to `queued`.
 
 Use state-only label mutations without comments. Add comments only when material technical information must be preserved, such as a contract amendment, exact checkpoint target or verdict, blocker cause, failed evidence, or final handoff.
 
