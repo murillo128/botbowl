@@ -53,7 +53,10 @@ def ancestor(trace, parent, child):
 
 def assert_trace(trace):
     assert trace.status['complete'], trace.status
-    validate_rule_graph(trace.events, rules=trace.rules)
+    sports = [dict(e.to_json(), schema_version=1, payload_version=1,
+                   event_id=[e.context.episode_id, e.context.branch_id, e.context.event_seq])
+              for e in trace.timeline.events]
+    validate_rule_graph(trace.events, rules=trace.rules, sports_events=sports)
     # Every sports/phase report has exactly one contemporaneous trace anchor.
     assert [e['data']['event_ref'] for e in trace.events if e['data']['event_ref'] is not None] == [
         [e.context.episode_id, e.context.branch_id, e.context.event_seq] for e in trace.timeline.events]
@@ -419,7 +422,7 @@ def test_bounded_overhead_corpus_no_timing_gate(tmp_path):
         assert baseline['sports_events'] == traced['sports_events']
 
 
-@pytest.mark.parametrize('family', ['move_reroll', 'pass', 'block_injury'])
+@pytest.mark.parametrize('family', ['move_reroll', 'pass', 'block_injury', 'block_claws'])
 @pytest.mark.parametrize('forward', [False, True])
 def test_instrumented_play_on_off_preserves_state_rolls_counters_execution_and_rewards(family, forward):
     game = semantic_game(3)
@@ -435,6 +438,9 @@ def test_instrumented_play_on_off_preserves_state_rolls_counters_execution_and_r
             player.extra_skills = []
             player.team.state.rerolls = 0
             player.team.state.apothecaries = 0
+        if family == 'block_claws':
+            roster[0].extra_skills = [bb.Skill.CLAWS]
+            roster[1].extra_av = 9 - roster[1].get_av()
         if forward:
             g.enable_forward_model()
 
@@ -452,7 +458,8 @@ def test_instrumented_play_on_off_preserves_state_rolls_counters_execution_and_r
                 g.advance(bb.Action(bb.ActionType.PASS, position=bb.Square(7, 3)))
         else:
             g.advance(bb.Action(bb.ActionType.START_BLOCK, player=own))
-            with g.dice.force(block_dice=[bb.BBDieResult.DEFENDER_DOWN], d6=[6, 6, 5, 5, 3], d8=[1], strict=True):
+            rolls = {'d6': [4, 4, 2, 2]} if family == 'block_claws' else {'d6': [6, 6, 5, 5, 3], 'd8': [1]}
+            with g.dice.force(block_dice=[bb.BBDieResult.DEFENDER_DOWN], **rolls, strict=True):
                 g.advance(bb.Action(bb.ActionType.BLOCK, position=bb.Square(4, 3)))
                 g.advance(bb.Action(bb.ActionType.SELECT_DEFENDER_DOWN))
                 g.advance(bb.Action(bb.ActionType.PUSH, position=bb.Square(5, 3)))
@@ -466,6 +473,24 @@ def test_instrumented_play_on_off_preserves_state_rolls_counters_execution_and_r
         reward, expected = A2C_Reward(side), A2C_Reward(side)
         assert reward(game) == expected(baseline)
         assert reward(game) == expected(baseline) == 0
+    if family == 'block_claws':
+        armor = events(trace, 'Armor', 'ARMOR_BROKEN')[0]
+        injury = events(trace, 'Injury', 'stunned')[0]
+        data = armor['data']
+        assert dice(armor) == [4, 4] and dice(injury) == [2, 2]
+        assert data['participants'] == {'player': 'away:0', 'inflictor': 'home:0', 'opponent': 'home:0'}
+        assert data['modifiers'] == 0
+        assert data['threshold'] == {'target': 10, 'target_higher': True, 'target_lower': False,
+                                     'highest_succeed': False, 'lowest_fail': False}
+        assert data['conditions'] == {'armor_broken': True, 'armor_total': 8,
+            'mighty_blow_used': False, 'dirty_player_used': False, 'foul': False,
+            'claws': True, 'claws_total': 8, 'claws_threshold': 8,
+            'claws_comparison': '>=', 'claws_threshold_met': True}
+        report = next(e for e in game.timeline.events if e.kind == 'report' and
+                      e.data['outcome_type'] == 'ARMOR_BROKEN')
+        assert data['rolls'] == report.data['rolls']  # Preserve historical DiceRoll fields, too.
+        assert ancestor(trace, events(trace, 'KnockDown', 'KNOCKED_DOWN')[0], armor)
+        assert ancestor(trace, armor, injury)
     assert_trace(trace)
 
 
@@ -510,6 +535,76 @@ def test_persistence_rejects_graph_corruption_with_truthful_counts_and_hashes(tm
         (tmp_path / 'episode/manifest.json').write_bytes(encode_json(manifest))
         with pytest.raises(RecordError):
             EpisodeReader(tmp_path, 'episode').read_episode()
+
+
+@pytest.mark.parametrize('boundary', ['writer', 'reader'])
+@pytest.mark.parametrize('corrupt', ['report_type', 'report_site', 'report_n', 'report_position',
+                                    'report_skill', 'phase_site', 'phase_n', 'phase_condition'])
+def test_persistence_rejects_explanation_contradicting_sports_anchor(tmp_path, boundary, corrupt):
+    game = semantic_game(3)
+    recorder = attach_record(game, tmp_path)
+    game.init()
+    until(game, lambda g: type(g.get_procedure()) is proc.Turn)
+    player = players(game, [(3, 3)])[0]
+    # Explicit scenario boundaries for fixture mutations, as required by DATA-02.
+    game.report(bb.Outcome(bb.OutcomeType.PLAYER_PLACED, player=player, position=player.position))
+    game.advance(bb.Action(bb.ActionType.START_MOVE, player=player))
+    player.state.moves = player.get_ma()
+    game.report(bb.Outcome(bb.OutcomeType.PLAYER_PLACED, player=player, position=player.position))
+    game.set_available_actions()
+    with game.dice.force(d6=[6], strict=True):
+        game.advance(bb.Action(bb.ActionType.MOVE, position=bb.Square(3, 4)))
+    complete(game, recorder)
+    reader = EpisodeReader(tmp_path, 'episode')
+    inputs = reader.read_inputs()
+    episode = reader.read_episode()
+    manifest, rows = episode['manifest'], episode['channels']
+    row = next(e for e in rows['rule_traces'] if e['data'].get('rule_id') ==
+               ('BB2016:movement.gfi' if corrupt.startswith('report_') else 'BB2016:timeline.activation_started'))
+    data = row['data']
+    if corrupt == 'report_type':
+        assert data['outcome']['type'] == 'SUCCESSFUL_GFI'
+        assert dice(row) == [6] and data['threshold']['target'] == 2
+        anchor = next(e for e in rows['events'] if e['event_id'] == data['event_ref'])
+        assert anchor['data']['outcome_type'] == 'SUCCESSFUL_GFI'
+        data['outcome']['type'] = 'FAILED_GFI'
+    elif corrupt == 'report_site':
+        data.update(emitter='Move', rule_id='BB2016:movement.move')
+        data['outcome']['type'] = 'moved'  # Valid explicit signal, not this report site.
+    elif corrupt == 'phase_site':
+        data['rule_id'] = 'BB2016:timeline.activation_ended'
+        data['outcome']['type'] = 'activation_ended'
+    elif corrupt == 'phase_condition':
+        data['conditions']['action_type'] = 'START_BLOCK'
+    else:
+        field = corrupt.split('_', 1)[1]
+        data['outcome'][field] = {'n': 99, 'position': {'x': 1, 'y': 1}, 'skill': 'CLAWS'}[field]
+    EventV1(row)  # Each contradictory explanation is structurally valid in isolation.
+    status = rows['rule_trace_status'][0]
+    status['retained_bytes'] = sum(len(encode_json(r)) + 1 for r in rows['rule_traces'])
+    if boundary == 'writer':
+        from botbowl.lab.recording import JsonlEpisodeWriter
+        writer = JsonlEpisodeWriter(tmp_path, 'corrupt')
+        for name, records in rows.items():
+            for record in records:
+                writer.append((name, record))
+        with pytest.raises(RecordingError) as error:
+            writer.confirm(manifest, list(rows))
+        assert isinstance(error.value.__cause__, RecordError)
+        assert 'sports anchor' in str(error.value.__cause__)
+        writer.close()
+        assert not (tmp_path / 'corrupt').exists()
+    else:
+        for name in ('rule_traces', 'rule_trace_status'):
+            info = manifest['files'][name]
+            payload = b''.join(encode_json(record) + b'\n' for record in rows[name])
+            (tmp_path / 'episode' / info['path']).write_bytes(payload)
+            info.update(bytes=len(payload), rows=len(rows[name]), sha256=hashlib.sha256(payload).hexdigest())
+        (tmp_path / 'episode/manifest.json').write_bytes(encode_json(manifest))
+        reader = EpisodeReader(tmp_path, 'episode')
+        assert reader.read_inputs() == inputs  # Selective reads still ignore the trace channels.
+        with pytest.raises(RecordError, match='sports anchor'):
+            reader.read_episode()
 
 
 def test_reusing_dodge_roll_with_break_tackle_is_not_another_consumption():

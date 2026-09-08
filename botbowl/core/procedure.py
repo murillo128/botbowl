@@ -233,7 +233,9 @@ class Armor(Procedure):
 
         if not self.foul:
             # Armor broken - Claws
-            if roll.sum >= 8 and self.inflictor is not None and self.inflictor.has_skill(Skill.CLAWS):
+            claws_threshold_met = roll.sum >= 8
+            claws = claws_threshold_met and self.inflictor is not None and self.inflictor.has_skill(Skill.CLAWS)
+            if claws:
                 armor_broken = True
 
             # Armor broken
@@ -265,8 +267,16 @@ class Armor(Procedure):
 
         # Break armor - roll injury
         if self.game.rule_trace is not None:
-            self.game.rule_trace.conditions('Armor', {'armor_broken': armor_broken,
-                'mighty_blow_used': mighty_blow_used, 'dirty_player_used': dirty_player_used})
+            conditions = {'armor_broken': armor_broken, 'armor_total': result,
+                'mighty_blow_used': mighty_blow_used, 'dirty_player_used': dirty_player_used}
+            if not self.foul:
+                conditions.update(claws=claws, claws_total=roll.sum, claws_threshold=8,
+                                  claws_comparison='>=', claws_threshold_met=claws_threshold_met)
+            # Armor uses direct comparisons, not DiceRoll's default automatic
+            # success/failure flags. Keep those historical roll fields untouched.
+            self.game.rule_trace.conditions('Armor', conditions, threshold={
+                'target': roll.target, 'target_higher': True, 'target_lower': False,
+                'highest_succeed': False, 'lowest_fail': False})
         if armor_broken:
             Injury(self.game, self.player, self.inflictor, foul=self.foul,
                    mighty_blow_used=mighty_blow_used, dirty_player_used=dirty_player_used)

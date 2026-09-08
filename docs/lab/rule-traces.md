@@ -24,7 +24,10 @@ bounded JSONL writer, hashes, atomic confirmation and full reader. Both files
 must be present together. The complete validator checks their contexts against
 DATA-02 admission/phase boundaries, participants against the initial roster,
 anchors against reports and accepted decisions, and the rule descriptor against
-manifest provenance. A trace failure can accompany a successfully recorded game:
+manifest provenance. Supported report/phase anchors must match the declared site,
+mirrored outcome fields and participants; phase conditions must match as well.
+This compares existing records without re-evaluating rules or equating reused
+report dice with newly consumed rolls. A trace failure can accompany a successfully recorded game:
 its status explicitly says incomplete. A writer failure still fails episode
 confirmation; no action is retried.
 
@@ -68,9 +71,19 @@ a partial procedure supports only its enumerated sites.
 | Movement | Move checks/displacement; dodge, GFI, pickup attempts and movement decisions | Dodge captures actual tackle-zone/tail/ignore inputs; weather and evaluated modifier totals are retained. Tentacles, Shadowing, Leap and other skill procedures remain unsupported. |
 | Block | Block dice and selection, resolved face, push choices/displacement/stops, follow-up choices/staying/movement | Skill reports outside the allowlist remain unsupported. Die selection creates no new consumed die, even though the legacy report constructs a synthetic die. |
 | Pass | Ball pass, interception candidate choice/attempt, catch | Bombs and thrown players remain unsupported. Safe Throw skill reports are unsupported; an initial interception is an attempt result, not a promise of final possession. |
-| Injury | Knockdown, armor result, injury-table branch, casualty/decay, KO, Apothecary choices/re-roll/selection/application, regeneration | Armor modifier totals and flags do not constitute a complete per-skill derivation. Injury captures the tested niggling total before the legacy report projection. Fixed casualty outcomes still disclose the D68 actually consumed by the engine. |
+| Injury | Knockdown, armor result, injury-table branch, casualty/decay, KO, Apothecary choices/re-roll/selection/application, regeneration | Armor captures its ordinary comparison and the evaluated Claws predicate/threshold; this is not a complete per-skill derivation. Injury captures the tested niggling total before the legacy report projection. Fixed casualty outcomes still disclose the D68 actually consumed by the engine. |
 | Rerolls | Coach choice (including Pro decline), automatic resolution, Pro and Loner rolls | Failed attempt → optional choice → resolution → next attempt remains reconstructible. Automatic skill rerolls share the original decision. |
 | Turn/drive | API-02 phase boundaries, turn choices, turnover and touchdown | Phase counters retain #52 semantics. Other kickoff/pregame/end-game reports are marked unsupported. |
+
+Armor's `threshold` describes the direct ordinary `armor_total >= target`
+comparison, with no automatic success/failure extremes. On non-fouls,
+`claws_total`, `claws_comparison`, `claws_threshold` and `claws_threshold_met`
+record the evaluated raw-roll comparison (`>= 8`); `claws` is the full
+short-circuited predicate, including the inflictor/skill check when reached.
+Those Claws fields are absent on fouls, where that predicate is not evaluated.
+For Claws against AV9 with dice `[4,4]`, the ordinary target stays 10 while the
+Claws predicate succeeds at 8. The historical roll remains unchanged, including
+its legacy DiceRoll flags; those flags are not armor's evaluated semantics.
 
 The graph describes **operational antecedents in the simulator**: report order
 inside a procedure, scheduling of children, and continuation after children.

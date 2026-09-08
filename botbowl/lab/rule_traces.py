@@ -205,7 +205,31 @@ _CONDITIONS = frozenset('weather accurate handoff diving pass_distance ttm blitz
     'fend frenzy taken_root apothecaries outcome decay decay_roll blood_lust always_hungry '
     'interceptor_count action target_higher target_lower highest_succeed lowest_fail '
     'reason turn_kind action_type tackle_zones ignore_opp_mods prehensile_tails '
-    'include_diving_tackle interception armor_broken claws'.split())
+    'include_diving_tackle interception armor_broken armor_total claws claws_total '
+    'claws_threshold claws_comparison claws_threshold_met'.split())
+
+
+def _validate_sports_anchor(row, anchor):
+    """Compare mirrored facts only; report roll reuse is not new consumption."""
+    data, sports = row['data'], anchor['data']
+    require(row['kind'] == 'rule', 'Optional decision has a sports anchor')
+    if anchor['kind'] == 'report':
+        entry = _REPORTS.get(data['emitter'])
+        require(entry is not None and data['rule_id'].split(':', 1)[1] == entry[0] and
+                sports['outcome_type'] in entry[1].split(), 'Rule site mismatches sports anchor')
+        outcome = {'type': sports['outcome_type'], 'n': sports['n'],
+                   'position': sports['pos'], 'skill': sports['skill']}
+    else:
+        require(data['emitter'] == 'timeline' and anchor['kind'] in _PHASES and
+                data['rule_id'].split(':', 1)[1] == 'timeline.' + anchor['kind'],
+                'Rule site mismatches sports anchor')
+        outcome = {'type': anchor['kind'], 'n': None, 'position': None, 'skill': None}
+        require(data['conditions'] == {k: v for k, v in sports.items() if k in _CONDITIONS},
+                'Phase conditions mismatch sports anchor')
+    require(data['outcome'] == outcome, 'Realized outcome mismatches sports anchor')
+    for source, role in (('player_id', 'player'), ('opp_player_id', 'opponent'), ('team_id', 'team')):
+        if sports.get(source) is not None:
+            require(data['participants'].get(role) == sports[source], 'Participant mismatches sports anchor')
 
 
 def validate_rule_graph(events, *, rules=None, sports_events=None, decisions=None, players=None):
@@ -233,6 +257,8 @@ def validate_rule_graph(events, *, rules=None, sports_events=None, decisions=Non
                     anchor['decision_seq'] == row['decision_seq'], 'Missing or inconsistent sports anchor')
             require(tuple(data['event_ref']) not in seen_anchors, 'Duplicate sports anchor')
             seen_anchors.add(tuple(data['event_ref']))
+            if data['coverage'] == 'instrumented':
+                _validate_sports_anchor(row, anchor)
         if row['kind'] == 'rule_decision':
             require(tuple(data['decision_id']) not in seen_decisions, 'Duplicate optional decision event')
             seen_decisions.add(tuple(data['decision_id']))
@@ -381,7 +407,7 @@ class RuleTrace:
             self.consumer(deepcopy(row))
 
     def _emit(self, emitter, rule, outcome, *, conditions=None, rolls=(), participants=None,
-              kind='rule', event_ref=None, n=None, position=None, skill=None):
+              kind='rule', event_ref=None, n=None, position=None, skill=None, threshold=None):
         if len(self._events) >= self.max_events:
             self._stop('event_limit')
             return
@@ -403,8 +429,9 @@ class RuleTrace:
                         participants=participants or self._participants(self._active),
                         conditions=conditions or {}, modifiers=None if tested is None or
                         tested['roll_type'] == 'BLOCK_ROLL' else tested['modifiers'],
-                        threshold=None if tested is None or tested['target'] is None else {key: tested[key] for key in (
-                            'target', 'target_higher', 'target_lower', 'highest_succeed', 'lowest_fail')},
+                        threshold=threshold if threshold is not None else (
+                            None if tested is None or tested['target'] is None else {key: tested[key] for key in (
+                                'target', 'target_higher', 'target_lower', 'highest_succeed', 'lowest_fail')}),
                         rolls=consumed, outcome={'type': outcome, 'n': n, 'position': position, 'skill': skill})
         row = {'schema_version': 1, 'payload_version': 2, 'kind': kind, 'context': ctx,
                'event_id': [ctx['episode_id'], ctx['branch_id'], 'rule', len(self._events) + 1],
@@ -454,17 +481,23 @@ class RuleTrace:
             rolls = [proc.roll]  # Fixed results still consume D68 in this engine.
         ctx = self.timeline.context
         self._emit(emitter, rule, name, conditions=conditions, rolls=rolls,
+                   threshold=self._node(proc).pop('threshold', None),
                    participants=self._participants(proc, outcome) if rule else {},
                    event_ref=[ctx.episode_id, ctx.branch_id, ctx.event_seq],
                    n=outcome.n.name if hasattr(outcome.n, 'name') else outcome.n,
                    position=None if outcome.position is None else outcome.position.to_json(),
                    skill=None if outcome.skill is None else outcome.skill.name)
 
-    def conditions(self, emitter, values):
+    def conditions(self, emitter, values, *, threshold=None):
         # Modifier helpers also serve queries/observations. Capture only during
         # this exact procedure's execution, never while inspecting legal moves.
         if type(self._active).__name__ == emitter:
-            self._capture(lambda: self._node(self._active).setdefault('conditions', {}).update(values))
+            def capture():
+                node = self._node(self._active)
+                node.setdefault('conditions', {}).update(values)
+                if threshold is not None:
+                    node['threshold'] = threshold
+            self._capture(capture)
 
     def signal(self, proc, name, conditions, rolls):
         def emit():
