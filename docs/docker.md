@@ -1,6 +1,40 @@
 # Botbowl :heart: docker
 [Docker](http://docker.com) is a platform designed to help developers build, share, and run modern applications. 
 
+## Verified application image
+
+The root `Dockerfile` installs only a wheel that has passed the release verifier.
+It does not copy or install the checkout, use `requirements.txt`, run as root, or
+need a compiler, display, GPU, host data file or Docker socket.
+
+```bash
+python -m pip install '.[dev]'
+python tools/release/verify_artifacts.py --output dist/release --install-smoke
+docker build --target headless -t botbowl-headless .
+docker run --rm --read-only --tmpfs /tmp botbowl-headless
+```
+
+The default/final target is `headless`; it advances three decisions and exits
+successfully. Verify the runtime identity with:
+
+```bash
+docker run --rm --entrypoint python botbowl-headless -c \
+  'import os; assert os.getuid() == 10001; import botbowl; print(botbowl.__version__)'
+```
+
+The optional web image is a separate explicit target. The container binding is
+explicitly `0.0.0.0` so Docker can publish it; keep the host publication on
+loopback unless a separately authenticated deployment is designed:
+
+```bash
+docker build --target web -t botbowl-web .
+docker run --rm --read-only --tmpfs /tmp -p 127.0.0.1:5000:5000 botbowl-web
+```
+
+Debug and reload are disabled. Neither image mounts `/var/run/docker.sock`.
+The competition-bot mechanism below is a different trusted-local facility and
+must not be inferred from the application image.
+
 ## Trust and resource boundary
 
 The legacy socket protocol uses Python pickle and is only for mutually trusted

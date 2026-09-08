@@ -1,4 +1,5 @@
 """The headless engine; optional AI integrations are resolved on first use."""
+from ._version import __version__ as __version__
 from .core import *
 from . import ai as _ai
 from .api import create_game as create_game

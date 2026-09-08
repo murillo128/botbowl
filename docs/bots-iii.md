@@ -8,7 +8,7 @@ setup formation While it is infeasible to describe a ruleset that can adapt the 
 In this tutorial, we do not attempt to solve the challenges of adapting to the opponent. Instead, we start developing a technique for fixed setup formations that, however, can adapt to missing players as some will be injured or knocked out during the game.
 
 ## Formation syntax
-We use a simple syntax to describe kick-off formations in a similar style to [https://fumbbl.com/help:Offensive+Setups](FUMBBL's setup guides).
+We use a simple syntax to describe kick-off formations in a similar style to [FUMBBL's setup guides](https://fumbbl.com/help:Offensive+Setups).
 An example of an offensive setup formation looks like this:
 
 ```
