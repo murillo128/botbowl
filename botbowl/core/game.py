@@ -178,6 +178,7 @@ class Game:
         self.trajectory = Trajectory()
         self.square_shortcut = self.state.pitch.squares
         self.timeline = None
+        self.rule_trace = None
         self._snapshot_busy = 0
         self._snapshot_ready = False
 
@@ -711,7 +712,8 @@ class Game:
             print("Action={}".format(action.action_type if action is not None else "None"))
             print("Players on Field={}".format(len(self.get_players_on_pitch())))
 
-        proc.done = proc.step(action)
+        proc.done = (proc.step(action) if self.rule_trace is None else
+                     self.rule_trace._call(proc, 'step', action))
 
         if self.config.debug_mode:
             print("Done={}".format(proc.done))
@@ -738,7 +740,10 @@ class Game:
                 print("--Proc={}".format(self.state.stack.peek()))
             # Call end before removing
             proc_end = self.state.stack.peek()
-            proc_end.end()
+            if self.rule_trace is None:
+                proc_end.end()
+            else:
+                self.rule_trace._call(proc_end, 'end')
             self.state.stack.remove(proc_end)
 
         # Record state
@@ -761,7 +766,10 @@ class Game:
         # Initialize if not
         if not self.state.stack.peek().started:
             proc = self.state.stack.peek()
-            proc.start()
+            if self.rule_trace is None:
+                proc.start()
+            else:
+                self.rule_trace._call(proc, 'start')
             proc.started = True
 
         # Update available actions
@@ -1523,6 +1531,9 @@ class Game:
         for opp_player in self.get_opp_team(catcher.team).players:
             if opp_player.has_skill(Skill.DISTURBING_PRESENCE) and opp_player.position and opp_player.position.distance(catcher.position) <= 3:
                 modifiers -= 1
+        if self.rule_trace is not None:
+            self.rule_trace.conditions('Intercept' if interception else 'Catch',
+                                       {'accurate': accurate, 'handoff': handoff, 'interception': interception})
         return modifiers
 
     def get_pass_modifiers(self, passer: Player, pass_distance: PassDistance, ttm: bool = False) -> int:
@@ -1560,6 +1571,9 @@ class Game:
         for opp_player in self.get_opp_team(passer.team).players:
             if opp_player.has_skill(Skill.DISTURBING_PRESENCE) and opp_player.position and opp_player.position.distance(passer.position) <= 3:
                 modifiers -= 1
+
+        if self.rule_trace is not None:
+            self.rule_trace.conditions('PassAttempt', {'tackle_zones': tackle_zones, 'ttm': ttm})
 
         return modifiers
 
@@ -1605,6 +1619,10 @@ class Game:
             if len(diving_tacklers) > 0:
                 modifiers -= 2
 
+        if self.rule_trace is not None:
+            self.rule_trace.conditions('Dodge', {'tackle_zones': tackle_zones_to,
+                'ignore_opp_mods': ignore_opp_mods, 'prehensile_tails': len(prehensile_tailers),
+                'include_diving_tackle': include_diving_tackle})
         return modifiers
 
     def get_pickup_modifiers(self, player: Player, position: Square) -> int:
@@ -1628,6 +1646,8 @@ class Game:
         if player.has_skill(Skill.EXTRA_ARMS):
             modifiers += 1
 
+        if self.rule_trace is not None:
+            self.rule_trace.conditions('Pickup', {'tackle_zones': tackle_zones})
         return modifiers
 
     def num_tackle_zones_in(self, player: Player) -> int:

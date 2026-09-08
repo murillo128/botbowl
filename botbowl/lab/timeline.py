@@ -198,6 +198,8 @@ class Timeline:
         if 'player' in data:
             data['player_id'] = self._entities._player(data.pop('player'))
         self._emit(kind, data)
+        if self._game.rule_trace is not None:
+            self._game.rule_trace.phase(kind, data)
 
     def _report(self, outcome):
         data = outcome.to_json()
@@ -205,6 +207,8 @@ class Timeline:
                     opp_player_id=self._entities._player(outcome.opp_player),
                     team_id=self._entities._team(outcome.team))
         self._emit('report', data)
+        if self._game.rule_trace is not None:
+            self._game.rule_trace.report(outcome)
         if outcome.outcome_type.name in ('END_OF_FIRST_HALF', 'END_OF_SECOND_HALF'):
             self._phase('drive_ended', reason='half_end')
 
@@ -245,6 +249,8 @@ class Timeline:
     def restore(self, checkpoint):
         """Restore with matching engine state; owner must validate engine first."""
         self._validate_checkpoint(checkpoint)
+        if self._game.rule_trace is not None:
+            self._game.rule_trace._stop('timeline_restored')
         checkpoint = deepcopy(checkpoint)
         self._context = checkpoint.context
         self._events = list(checkpoint.events)
@@ -265,3 +271,5 @@ class Timeline:
         if self._pending is not None or self._parent != (None, None):
             raise ValueError('Fork only at a completed decision boundary')
         self._context = replace(self.context, branch_id=branch_id)
+        if self._game.rule_trace is not None:
+            self._game.rule_trace._nodes.clear()

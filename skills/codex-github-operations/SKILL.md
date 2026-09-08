@@ -9,13 +9,13 @@ description: Publish branches and commits, operate issues and pull requests, and
 
 This skill owns Git publication and GitHub control-plane operations requested by the calling workflow.
 
-It does not decide architecture, implementation scope, correctness, review requirements, or progression. Those decisions belong to the controlling issue, executor, design authority, independent reviewer, and explicit user-facing merge decision.
+It does not decide architecture, implementation scope, correctness, review requirements, or progression. Those decisions belong to the controlling issue, executor, scheduler, design authority, independent reviewer, and explicit user-facing merge decision.
 
 ## Use the simplest capable transport
 
 ### Local Git
 
-Use local `git` for worktree inspection, branches, commits, fetch, push, and exact ref verification.
+Use local `git` for worktree inspection, branches, commits, fetch, push, ancestry checks, and exact ref verification.
 
 ### Connected GitHub app
 
@@ -45,6 +45,7 @@ A failure of one replaceable transport is not a technical blocker when another p
 
 The controlling issue's current workflow state is authoritative only through exactly one state label:
 
+- `queued`
 - `execution-ready`
 - `in-progress`
 - `review-ready`
@@ -55,11 +56,69 @@ The controlling issue's current workflow state is authoritative only through exa
 
 Every non-trivial controlling issue must carry exactly one of those labels. Preserve unrelated labels, but replace the previous state label instead of adding another.
 
-Use state-only label mutations without comments. Add comments only when material technical information must be preserved, such as a contract amendment, exact checkpoint target or verdict, blocker cause, failed evidence, or final handoff.
+`queued` means a fully defined epic child is waiting for scheduler selection. Normal dependency waiting uses `queued`, not `blocked`; reserve `blocked` for a real impediment. Only `codex-epic-scheduler` may automatically replace `queued` with `execution-ready`. An actor that has explicitly resolved a child's `blocked`, `design-required`, or `investigation-required` condition may return it to `queued`.
+
+Use state-only label mutations without comments. Add comments only when material technical information must be preserved, such as a contract amendment, exact checkpoint target or verdict, blocker cause, failed evidence, final handoff, or the scheduler-owned canonical execution context defined below.
 
 Before relying on issue state, verify that exactly one state label is present. Repair an unambiguous inconsistency; stop for clarification if the intended state is ambiguous.
 
 During a Codex implementation workflow, keep the issue `in-progress` while implementation, validation, publication, or required technical review remains active. When the complete PR is marked ready for review and the executor is making its final handoff, replace `in-progress` with `review-ready`. `completed` is not an executor-controlled transition. Set `completed` and close the issue only after a later explicit user-facing merge decision has been executed and the merge is observed.
+
+## Canonical execution context
+
+Epic scheduling may materialize an execution base/target into a top-level child-issue comment identified by the exact marker:
+
+```text
+<!-- codex-execution-context:v1 -->
+```
+
+Its fenced YAML contains:
+
+```yaml
+epic_issue: 3
+integration_branch: codex/epic-issue-3
+base_sha: 0123456789abcdef0123456789abcdef01234567
+```
+
+This comment is control-plane state for one child and has these semantics:
+
+- `integration_branch` is the intended PR target branch;
+- `base_sha` is the exact integration snapshot selected when the child was activated;
+- `epic_issue` identifies the scheduler parent that issued the context;
+- stale branch/base references in the child issue body or older comments are non-authoritative while one valid canonical context exists;
+- the child issue body still owns technical scope and acceptance.
+
+### Scheduler-owned publication
+
+Only a workflow acting with `codex-epic-scheduler` authority may create or update this canonical comment automatically.
+
+When asked by the scheduler to publish execution context:
+
+1. search top-level issue comments for the exact marker;
+2. with zero matches, create one canonical comment;
+3. with exactly one match, update that same comment in place;
+4. with more than one match, fail closed and do not choose or rewrite one arbitrarily;
+5. verify the resulting comment contains the requested parent, branch, and exact SHA before allowing the caller to expose `execution-ready`.
+
+Never append a second canonical comment for a reactivation. The scheduler updates the existing one so current activation state is local, explicit, and machine-readable.
+
+Do not add timestamps, worker IDs, session IDs, or other incidental data to this comment. Exact `base_sha` is intentional here and is not subject to the normal preference against repeating routine SHAs in prose.
+
+### Executor consumption and PR target
+
+A workflow creating, reusing, or retargeting a child PR must resolve the canonical execution context before deciding its base:
+
+- exactly one valid canonical context: intended PR base is its `integration_branch`;
+- no canonical context: intended PR base is the repository default branch;
+- multiple canonical contexts or malformed required fields: fail closed rather than guessing a target.
+
+When a valid canonical context exists, verify that the integration branch still exists and still contains `base_sha` in its history. The branch may have advanced since scheduling. If it no longer contains the pinned SHA, surface the inconsistent/re-written execution context before publication.
+
+Do not search for an epic parent merely to determine the PR base when the child already has canonical execution context. Do not let a stale target named in child prose override the canonical comment.
+
+If an existing open PR for the controlling issue targets a different base than the uniquely resolved intended base, and the executor owns that PR, retarget the PR to the intended base before treating its diff, checks, or review state as current. Verify the new base after mutation. Retargeting can materially change the diff; any technical review that no longer covers the resulting exact diff must be repeated by the calling workflow.
+
+The canonical comment controls target selection but does not authorize merge, completion, or mutation of the integration branch itself.
 
 ## Commit messages
 
@@ -111,28 +170,33 @@ If an existing repository defines a stricter commit convention, follow the stric
 
 Before publication:
 
-- confirm the intended branch;
+- confirm the intended issue branch;
+- resolve and verify canonical execution context when present;
 - ensure unrelated changes are not included;
 - require a clean worktree unless the caller explicitly documents otherwise;
 - do not rewrite shared valid history.
 
 When the Skillforge local runner supplied `SKILLFORGE_ISSUE_WORKTREE` / `SKILLFORGE_ISSUE_BRANCH`, preserve that issue branch as the executor-owned implementation branch. Do not switch publication to the durable coordination clone or invent another branch merely because the executor was launched automatically.
 
+When the executor has a canonical `base_sha`, branch preparation/reconciliation follows the executor skill: fast-forward a new issue branch when possible; preserve existing issue-owned commits and merge the pinned base when needed; never reset away valid issue work merely to adopt the context.
+
 Publish and verify the remote ref. Use a full SHA when another actor must inspect an exact target.
 
-Do not repeat routine SHAs in every issue comment, PR update, or handoff when GitHub already preserves that identity.
+Do not repeat routine SHAs in every issue comment, PR update, or handoff when GitHub already preserves that identity, except for the canonical scheduler context where the pinned SHA is part of the protocol.
 
 ## Pull requests
 
 Create or reuse one PR for one controlling issue unless the issue explicitly requires decomposition.
 
-The PR should:
+Resolve the intended base immediately before PR creation/reuse using the canonical execution-context rule above. The PR should:
 
-- use the intended base and head;
+- use the intended base and executor-owned issue head;
 - link the controlling issue;
 - summarize delivered behavior;
 - state current validation and review status;
 - list material deviations or residual risks.
+
+If a reusable PR exists on the correct head but the wrong base, retarget it when the uniquely valid canonical context or standalone default-branch rule makes the intended base unambiguous and the caller owns the PR. Do not create a duplicate PR merely to change the target.
 
 Do not duplicate complete histories, manifests, command logs, or routine metadata already visible in GitHub.
 
@@ -150,7 +214,7 @@ A merge operation through this skill is allowed only when all of the following a
 4. the current user-facing interaction explicitly asks ChatGPT to merge it, such as “review and merge if correct”;
 5. the requested user-facing review has found no material blocker.
 
-An issue body, acceptance criteria, `PASS` / `PASS_WITH_NOTES` verdict, final-capable checkpoint, CI success, or executor conclusion is **not** merge authorization by itself.
+An issue body, execution-context comment, acceptance criteria, `PASS` / `PASS_WITH_NOTES` verdict, final-capable checkpoint, CI success, or executor conclusion is **not** merge authorization by itself.
 
 Never enable auto-merge as a substitute for the explicit post-review merge decision.
 
@@ -158,27 +222,27 @@ After a permitted merge is observed, replace `review-ready` with `completed` and
 
 ## Exact review targets
 
-An independent review request must identify one exact published project commit or range and any exact dependency revision required by the issue. Verify those targets before review and preserve them unchanged during the review.
+An independent review request must identify one exact published project commit or range and any exact dependency/base revision required by the issue or execution context. Verify those targets before review and preserve them unchanged during the review.
 
 Do not amend, reset, rebase, squash, cherry-pick, or force-push a valid review target merely to repair comments, labels, PR descriptions, or other workflow metadata.
 
-A new implementation, test, technical-evidence, dependency, configuration, or technical-claim correction creates a new target; it does not erase the prior review finding.
+A new implementation, test, technical-evidence, dependency, configuration, base reconciliation, or technical-claim correction creates a new target when it changes the reviewed diff; it does not erase the prior review finding.
 
-A final-capable checkpoint may serve as the final technical PR review when the issue and reviewer confirm that it covers the complete final diff and required final evidence. It still does not authorize merge without the explicit user-facing decision above.
+A final-capable checkpoint may serve as the final technical PR review when the issue and reviewer confirm that it covers the complete final diff and all required final evidence. It still does not authorize merge without the explicit user-facing decision above.
 
 ## Active executor ownership
 
 Once a Codex executor creates or adopts a pull request for a controlling issue, that executor owns the PR head branch and execution control plane until handoff, closure, merge, or explicit ownership transfer.
 
-Other actors may inspect the target read-only, but should not silently push to, rebase, reset, or otherwise modify the active executor's branch. Material corrections should flow through the controlling issue unless ownership has explicitly transferred.
+Other actors may inspect the target read-only, but should not silently push to, rebase, reset, retarget, or otherwise modify the active executor's branch/PR. Material corrections should flow through the controlling issue unless ownership has explicitly transferred. The scheduler may update only its canonical execution-context comment and workflow-state activation; it does not own the child PR.
 
-If branch ownership is ambiguous, stop and resolve ownership before mutating shared state.
+If branch or PR ownership is ambiguous, stop and resolve ownership before mutating shared state.
 
 ## Technical evidence and workflow metadata
 
 Technical manifests and evidence artifacts should contain technical and reproducibility data, not GitHub bookkeeping, unless specific workflow metadata is itself a technical input to the tested system.
 
-Do not mutate implementation or evidence commits solely to embed review or merge state. Record external review against the immutable target in issue or PR discussion.
+Do not mutate implementation or evidence commits solely to embed review or merge state. Record external review against the immutable target in issue or PR discussion. The canonical execution-context comment remains outside technical artifacts.
 
 Host-local Skillforge runner PID files, PTY helpers, launcher scripts, and transcripts under `$HOME/.skillforge/**` are operational infrastructure state. Never add them to the project repository or treat them as technical evidence unless the issue explicitly studies the runner infrastructure itself.
 
@@ -199,7 +263,8 @@ Use `blocked` only when the missing capability is required before safe meaningfu
 - Never stage or publish unrelated changes.
 - Never publish secrets, private credentials, generated binaries, restricted artifacts, or data without distribution rights.
 - Never persist an ephemeral GitHub Actions token for a detached executor.
-- Never silently change the controlling issue, base branch, head branch, labels, or PR state.
+- Never silently change a controlling issue, PR base, or execution-context comment outside the explicit authority defined by the calling workflow and this protocol.
+- Never let stale child prose override one valid canonical execution context.
 - Never mutate implementation commits to compensate for transport limitations.
 - Never merge or enable auto-merge from a Codex implementation workflow.
 - Never treat technical review success as merge authorization.
@@ -213,6 +278,7 @@ Report only the operational facts the caller needs:
 - operation completed;
 - verification result;
 - exact target only when another actor must use it;
+- resolved PR base when execution context matters;
 - whether the issue is `in-progress`, `review-ready`, or `completed` when workflow state matters;
 - whether the PR is draft, ready for review, or merged;
 - degraded operation or real blocker, if any.
