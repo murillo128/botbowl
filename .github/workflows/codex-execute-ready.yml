@@ -25,7 +25,6 @@ jobs:
   execute:
     if: inputs.issue_number != '' || github.event.label.name == 'execution-ready'
     runs-on: [self-hosted, codex]
-    timeout-minutes: 360
 
     steps:
       - name: Prepare persistent issue worktree
