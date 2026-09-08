@@ -19,6 +19,7 @@ CHANNEL_FILES = {
     'macros': 'control/macros.jsonl', 'events': 'events/events.jsonl',
     'diagnostics': 'diagnostics/operations.jsonl',
     'evaluation': 'evaluation/targets.jsonl', 'privileged': 'privileged/audit.jsonl',
+    'rule_traces': 'events/rules.jsonl', 'rule_trace_status': 'events/rule-status.jsonl',
 }
 SCHEMAS = {name: 1 for name in ('EpisodeManifestV1', 'TransitionV1', 'EventV1',
                               'ObservationV1', 'ActionV1', 'InputProfile', 'TimelineContext')}
@@ -167,6 +168,11 @@ class _Record:
 class EventV1(_Record):
     @staticmethod
     def _validate(data):
+        require(type(data) is dict, 'Expected event object')
+        if data.get('payload_version') == 2:
+            from .rule_traces import validate_rule_event
+            validate_rule_event(data)
+            return
         keys(data, ('schema_version', 'event_id', 'context', 'decision_seq', 'kind', 'payload_version', 'data'))
         require(type(data['schema_version']) is int and data['schema_version'] == 1, 'Unknown Event version')
         require(type(data['payload_version']) is int and data['payload_version'] == 1, 'Unknown event payload version')
@@ -345,6 +351,7 @@ class EpisodeManifestV1(_Record):
         files = data['files']
         require(type(files) is dict and not set(files) - set(CHANNEL_FILES), 'Unknown storage channels')
         require({'primary', 'transitions', 'events', 'macros', 'diagnostics'} <= set(files), 'Missing required files')
+        require(('rule_traces' in files) == ('rule_trace_status' in files), 'Missing rule trace status/data')
         total = 0
         for name, info in files.items():
             keys(info, ('path', 'schema_version', 'rows', 'bytes', 'sha256'))
@@ -367,6 +374,13 @@ def _validate_row(name, row):
         TransitionV1(row)
     elif name == 'events':
         EventV1(row)
+        require(row['payload_version'] == 1, 'Rule events belong in the rule trace channel')
+    elif name == 'rule_traces':
+        EventV1(row)
+        require(row['payload_version'] == 2, 'Expected explanation event')
+    elif name == 'rule_trace_status':
+        from .rule_traces import validate_trace_status
+        validate_trace_status(row)
     elif name in ('primary', 'derived', 'control'):
         keys(row, ('schema_version', 'observation_id', 'context', 'channel'))
         require(type(row['schema_version']) is int and row['schema_version'] == 1, 'Unknown observation row version')
@@ -604,6 +618,24 @@ def validate_episode(manifest, rows):
     for transition in transitions:
         if transition['macro_id'] is not None:
             require((transition['before']['branch_id'], transition['macro_id']) in parents, 'Missing macro parent')
+    if 'rule_traces' in rows:
+        from .rule_traces import validate_rule_graph
+        require(len(rows['rule_trace_status']) == 1, 'Expected one final trace status')
+        status = rows['rule_trace_status'][0]
+        require(status['context'] == data['final_context'] and status['rules'] == data['provenance']['rules'],
+                'Trace status/provenance mismatch')
+        require(status['retained_events'] == len(rows['rule_traces']) and status['retained_bytes'] ==
+                sum(len(encode_json(row)) + 1 for row in rows['rule_traces']), 'Trace retention mismatch')
+        validate_rule_graph(rows['rule_traces'], rules=status['rules'], sports_events=events,
+                            decisions=transitions, players=initial_players)
+        anchors = [row['data']['event_ref'] for row in rows['rule_traces'] if row['data']['event_ref'] is not None]
+        choice_ids = [row['data']['decision_id'] for row in rows['rule_traces'] if row['kind'] == 'rule_decision']
+        require(anchors == [row['event_id'] for row in events[:len(anchors)]], 'Rule sports anchors are not a prefix')
+        require(choice_ids == [row['transition_id'] for row in transitions[:len(choice_ids)]],
+                'Rule decision anchors are not a prefix')
+        if status['complete']:
+            require(len(anchors) == len(events) and len(choice_ids) == len(transitions),
+                    'Incomplete rule capture declared complete')
     for name in ('derived', 'control', 'evaluation', 'privileged'):
         seen = set()
         for row in rows.get(name, []):

@@ -31,7 +31,7 @@ VERSION = 1
 _GAME_DATA = ('game_id', 'config', 'arena', 'ruleset', 'state', 'action',
               'external_control', '_initialized', '_closed', '_end_notified',
               'start_time', 'end_time', 'last_request_time', 'last_action_time')
-_GAME_SPECIAL = ('home_agent', 'away_agent', 'dice', 'trajectory', 'timeline',
+_GAME_SPECIAL = ('home_agent', 'away_agent', 'dice', 'trajectory', 'timeline', 'rule_trace',
                  'time_source', 'square_shortcut', 'ff_map', 'replay',
                  'finalization_errors', '_snapshot_busy', '_snapshot_ready')
 _EPISODE_DATA = ('_seed', '_ids', '_inputs', '_max_decisions', '_max_steps',
@@ -539,6 +539,7 @@ class _Graph:
         result.finalization_errors = []
         result._snapshot_busy, result._snapshot_ready = 0, True
         result.timeline = None
+        result.rule_trace = None
         if source.timeline is not None:
             _check_fields(source.timeline)
             timeline = object.__new__(Timeline)
@@ -599,6 +600,8 @@ def _boundary(game):
     if game.timeline is not None and (type(game.timeline) is not Timeline or
             game.timeline._pending is not None or game.timeline._parent != (None, None)):
         raise SnapshotError('Timeline decision or macro is still resolving')
+    if game.rule_trace is not None:
+        raise SnapshotError('Live rule traces are not snapshot continuation data')
     unknown = set(vars(game)) - set(_GAME_DATA + _GAME_SPECIAL + ('seed',))
     if unknown:
         raise SnapshotError('Uninventoried Game fields: ' + ', '.join(sorted(unknown)))

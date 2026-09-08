@@ -36,6 +36,10 @@ class Procedure(Reversible):
         """
         pass
 
+    def _trace(self, name, conditions, rolls=()):
+        if self.game.rule_trace is not None:
+            self.game.rule_trace.signal(self, name, conditions, rolls)
+
     def end(self):
         """
         Is called when the procedure is done, i.e. right after step() returns True.
@@ -260,6 +264,9 @@ class Armor(Procedure):
                 self.ejected = True
 
         # Break armor - roll injury
+        if self.game.rule_trace is not None:
+            self.game.rule_trace.conditions('Armor', {'armor_broken': armor_broken,
+                'mighty_blow_used': mighty_blow_used, 'dirty_player_used': dirty_player_used})
         if armor_broken:
             Injury(self.game, self.player, self.inflictor, foul=self.foul,
                    mighty_blow_used=mighty_blow_used, dirty_player_used=dirty_player_used)
@@ -523,6 +530,8 @@ class Block(Procedure):
 
         die = BBDie.from_result(self.selected_die)
         self.game.report(Outcome(OutcomeType.ACTION_SELECT_DIE, team=self.favor, rolls=[DiceRoll([die])]))
+
+        self._trace('resolved_face', {'selected_die': self.selected_die.name})
 
         self.game.remove_secondary_clocks()
 
@@ -1219,6 +1228,9 @@ class Injury(Procedure):
         # CASUALTY
         roll.modifiers = stunty + mighty_blow + dirty_player + niggling
         if roll.get_result() >= 10:
+            self._trace('casualty', {'casualty_total': roll.get_result(), 'casualty_threshold': 10,
+                        'stunty': stunty, 'mighty_blow': mighty_blow, 'dirty_player': dirty_player,
+                        'niggling': niggling, 'foul': self.foul, 'stab': self.stab}, [roll])
             roll.modifiers = stunty + mighty_blow + dirty_player
             self.game.report(Outcome(OutcomeType.INJURY_CASUALTY, player=self.player,
                                      opp_player=self.inflictor, rolls=[roll]))
@@ -1229,11 +1241,22 @@ class Injury(Procedure):
         # KOD
         roll.modifiers = thick_skull + stunty + mighty_blow + dirty_player + niggling
         if roll.get_result() >= 8:
+            self._trace('knock_out', {'casualty_total': roll.get_sum() + stunty + mighty_blow + dirty_player + niggling,
+                        'casualty_threshold': 10, 'ko_total': roll.get_result(), 'ko_threshold': 8,
+                        'thick_skull': thick_skull, 'stunty': stunty, 'mighty_blow': mighty_blow,
+                        'dirty_player': dirty_player, 'niggling': niggling, 'foul': self.foul,
+                        'stab': self.stab}, [roll])
             KnockOut(self.game, self.player, roll=roll, inflictor=self.inflictor)
             return True
 
         # STUNNED
         roll.modifiers = thick_skull + stunty + mighty_blow + dirty_player + niggling
+        self._trace('ball_and_chain_ko' if self.player.has_skill(Skill.BALL_AND_CHAIN) else 'stunned',
+                    {'casualty_total': roll.get_sum() + stunty + mighty_blow + dirty_player + niggling,
+                     'casualty_threshold': 10, 'ko_total': roll.get_result(), 'ko_threshold': 8,
+                     'thick_skull': thick_skull, 'stunty': stunty, 'mighty_blow': mighty_blow,
+                     'dirty_player': dirty_player, 'niggling': niggling, 'foul': self.foul,
+                     'stab': self.stab}, [roll])
         if self.player.has_skill(Skill.BALL_AND_CHAIN):
             KnockOut(self.game, self.player, roll=roll, inflictor=self.inflictor)
         else:
@@ -1915,6 +1938,9 @@ class Move(Procedure):
             self.tentaclers.remove(next_tentacler)
             return False
 
+        if self.dodge or self.gfi:
+            self._trace('checks', {'dodge': self.dodge, 'gfi': self.gfi})
+
         if self.dodge:
             self.dodge_proc = Dodge(self.game, self.player, self.position)
 
@@ -1933,6 +1959,8 @@ class Move(Procedure):
         position = self.player.position
 
         self.game.move(self.player, self.position)
+        self._trace('moved', {'from_x': position.x, 'from_y': position.y,
+                             'to_x': self.position.x, 'to_y': self.position.y})
         if self.dodge_proc is not None and self.dodge_proc.diving_tackler:
             self.game.move(self.dodge_proc.diving_tackler, self.dodge_proc.from_position)
             KnockDown(self.game, self.dodge_proc.diving_tackler, armor_roll=False, injury_roll=False, turnover=False)
@@ -2284,6 +2312,7 @@ class PassAttempt(Procedure):
             if not self.interception_tried and self.piece.is_catchable():
                 interceptors = self.game.get_interceptors(self.passer.position, self.position, team=self.game.get_opp_team(self.passer.team))
                 if len(interceptors) > 0:
+                    self._trace('interceptors', {'interceptor_count': len(interceptors)})
                     Interception(self.game, interceptors[0].team, self.piece, interceptors, self.passer)
                     self.interception_tried = True
                     return False
@@ -3279,6 +3308,7 @@ class FollowUp(Procedure):
 
     def step(self, action):
         if self.defender.has_skill(Skill.FEND):
+            self._trace('stayed', {'fend': True})
             self.game.report(Outcome(OutcomeType.SKILL_USED, skill=Skill.FEND, player=self.defender))
             self.attacker.state.squares_moved.append(self.attacker.position)
         elif self.attacker.has_skill(Skill.FRENZY) or (action and action.position == self.pos_to):
@@ -3295,6 +3325,7 @@ class FollowUp(Procedure):
             if shadowers:
                 Shadowing(self.game, self.attacker, position, shadowers)
         else:
+            self._trace('stayed', {'fend': False, 'frenzy': False})
             self.attacker.state.squares_moved.append(self.attacker.position)
         return True
 
@@ -3448,6 +3479,8 @@ class Push(Procedure):
         raise Exception("Unknown push sequence")
 
     def finish_without_push(self):
+        self._trace('stopped', {'taken_root': self.player.state.taken_root,
+                              'knock_down': self.knock_down, 'chain': self.chain})
         # Cancelling displacement does not cancel the original block result.
         if self.knock_down:
             KnockDown(self.game, self.player, in_crowd=False, armor_roll=True, inflictor=self.pusher)
@@ -4398,6 +4431,10 @@ class Reroll(Procedure):
 
     def end(self):
         # Stop clock ff decision is opponent's
+        self._trace('resolved', {'use_reroll': self.use_reroll,
+                                'can_use_team_reroll': self.can_use_team_reroll,
+                                'can_use_pro': self.can_use_pro,
+                                'skill': None if self.skill is None else self.skill.name})
         if self.secondary_clock:
             self.game.remove_secondary_clocks()
 

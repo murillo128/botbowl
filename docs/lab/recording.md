@@ -229,3 +229,14 @@ never invents a terminal/truncated result or confirms an episode. There is no
 action retry on failure and no promise to roll back already executed engine work.
 This is a bounded reference format, with no columnar layout, sharding, advanced
 resume, mass generation, training, or executable snapshot codec (DATA-07).
+
+### Optional rule explanations
+
+EVAL-06 optionally extends `EventV1` with payload version 2 in the physically
+separate `rule_traces` channel, plus one required `rule_trace_status` row. The
+original `events` channel retains payload version 1 and its exact API-02 counts.
+Use `EpisodeRecorder(..., rule_trace=True)`; without that option neither trace
+file is required. The [rule trace contract](rule-traces.md) defines namespaced
+IDs, earlier same-branch parents, public historical rolls, coverage and explicit
+incompleteness. Full episode reading validates the extension; selective input
+reading does not open it. Existing V1 recordings remain valid.
