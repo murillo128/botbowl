@@ -4,12 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "botbowl"
-version = "1.1.0"
+dynamic = ["version"]
 description = "A framework for playing Blood Bowl and developing AI bots"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "Apache-2.0"
-license-files = ["LICENSE"]
+license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md", "botbowl/web/static/lib/wysiwyg/LICENCE"]
 authors = [{name = "Niels Justesen and Bot Bowl contributors"}]
 dependencies = ["numpy>=1.26.4,<3", "untangle>=1.2.1,<2"]
 classifiers = [
@@ -63,3 +63,6 @@ botbowl = [
     "static/lib/wysiwyg/js/wysihtml5-0.3.0.min.js",
     "static/lib/wysiwyg/LICENCE",
 ]
+
+[tool.setuptools.dynamic]
+version = {attr = "botbowl._version.__version__"}

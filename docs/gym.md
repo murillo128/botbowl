@@ -5,11 +5,11 @@ For Gymnasium v5 and updated runnable examples, see [the migration guide](gymnas
 This tutorial will introduce you to botbowl's implementations of the [Open AI Gym interface](https://arxiv.org/pdf/1606.01540.pdf) 
 that will allow for easy integration of reinforcement learning algorithms. 
 
-You can run [examples/gym_example.py](examples/gym_example.py) to see a random agent play Blood Bowl through the botbowl 
+You can run [`examples/gym_example.py`](../examples/gym_example.py) to see a random agent play Blood Bowl through the botbowl
 Gym environment. The rendering is simplified for faster execution and looks like this:
 ![botbowl Gym GUI](https://njustesen.github.io/botbowl/img/gym.png?raw=true "botbowl Gym GUI botbowl-3")
 
-[examples/multi_gym_example.py](examples/multi_gym_example.py) demonstrates how you can run multiple instance of the 
+[`examples/multi_gym_example.py`](../examples/multi_gym_example.py) demonstrates how you can run multiple instance of the
 environment in parallel. Notice, that the render() function doesn't work across multiple processes. Instead a custom 
 renderer is used in this example.
 
@@ -44,7 +44,7 @@ Now let's look at the types. In the next sections we'll dive deeper into these o
 * **done** is a bool.
 * **info** is a dict with two items
 
-Try running [examples/gym_example.py](examples/gym_example.py) while debugging in your favorite IDE 
+Try running [`examples/gym_example.py`](../examples/gym_example.py) while debugging in your favorite IDE
 (e.g. [PyCharm](https://www.jetbrains.com/pycharm/)). Set a break point in the line where the step function is called 
 and investigate the obs object. If you run with the rendering enabled it is easier to analyze the values in the feature 
 layers.
@@ -284,7 +284,7 @@ to the environment.
 ### EnvConf 
 The `EnvConf` class can be used to modify the default list above. There are three options: 
 1. use the argument when creating the `EnvConf`-object.  
-2. modify the default lists directly in [botbowl/ai/env.py](botbowl/ai/env.py). 
+2. modify the default lists directly in [`botbowl/ai/env.py`](../botbowl/ai/env.py).
 3. modify the `EnvConf`-object after creation but before creating the `BotBowlEnv`. 
 
 #### Pitch size 
@@ -309,7 +309,7 @@ follow [**Scripted bot III - Formation**](bots-iii.md) on how to create formatio
 ### Wrappers 
 By wrapping the environment in different wrappers we can change the behavior of the environement without modifying its 
 internals code. Here's the code for a wrapper that can add scripted behavior inside the env, it's located in 
-[botbowl/ai/env.py](botbowl/ai/env.py). 
+[`botbowl/ai/env.py`](../botbowl/ai/env.py).
 
 ```python
 class ScriptedActionWrapper(BotBowlWrapper):

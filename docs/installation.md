@@ -1,5 +1,10 @@
 # Installation
 
+The current maintained-fork pre-release proposal is `2.0.0a1`. The version has a
+single source and is available after installation with
+`python -m botbowl --version`; see [release preparation](releasing.md) and the
+[migration guide](migration.md). No package-index publication is implied.
+
 This fork's new packaging line requires CPython **3.11 or newer**, replacing the
 older 3.8 baseline. Use an isolated environment:
 
@@ -154,3 +159,8 @@ integration is supported merely because `requires-python` permits installation.
 The legacy Gym adapter still uses its old reset/step API and emits existing
 warnings. The [v5 adapter](gymnasium.md) has separate IDs, spaces and wrappers;
 its runtime evidence does not expand the legacy adapter boundary.
+
+Choose a bounded path from the [core](quickstart-core.md),
+[bots](quickstart-bots.md), [Gymnasium](quickstart-gymnasium.md), or
+[web](quickstart-web.md) quickstart. Rules, RNG, replay and snapshot claims are
+summarized in [support boundaries](support.md).

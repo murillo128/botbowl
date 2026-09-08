@@ -223,7 +223,7 @@ To play against you agent in the web interface, add the following the your bot s
 
 ```python
 register_bot('my-random-bot', MyRandomBot)
-server.start_server(debug=True, use_reloader=False)
+server.start_server(host="127.0.0.1", debug=False, use_reloader=False)
 ```
 
 ## A Procedure-based Bot
