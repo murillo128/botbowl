@@ -275,14 +275,19 @@ class TransitionV1(_Record):
             integer(data['primitive_order'])
 
 
-def validate_provenance(provenance):
-    keys(provenance, ('rules', 'policies', 'seed_plan'))
-    keys(provenance['rules'], ('ruleset_id', 'ruleset_version', 'engine_version', 'config_id',
+def validate_rules_descriptor(rules):
+    """Validate the inert descriptor shared by episode and evaluation records."""
+    keys(rules, ('ruleset_id', 'ruleset_version', 'engine_version', 'config_id',
                                'config_digest', 'backend_id', 'capabilities_version'))
-    for value in provenance['rules'].values():
+    for value in rules.values():
         require(type(value) is str and bool(re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.:/+-]{0,255}', value)),
                 'Invalid rules descriptor field')
-    require(bool(re.fullmatch(r'sha256:[0-9a-f]{64}', provenance['rules']['config_digest'])), 'Invalid config digest')
+    require(bool(re.fullmatch(r'sha256:[0-9a-f]{64}', rules['config_digest'])), 'Invalid config digest')
+
+
+def validate_provenance(provenance):
+    keys(provenance, ('rules', 'policies', 'seed_plan'))
+    validate_rules_descriptor(provenance['rules'])
     keys(provenance['policies'], ('home', 'away'))
     for policy in provenance['policies'].values():
         keys(policy, ('id', 'version'))

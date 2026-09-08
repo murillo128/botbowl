@@ -4,6 +4,8 @@ from typing import Tuple
 
 from botbowl import Agent
 from botbowl.core.driver import Policy as LegacyPolicy
+from botbowl.lab.evaluation import (EvaluationContext as OracleContext, EvaluationOracle,
+                                    EvaluationRecord, LabelSpec)
 from botbowl.lab import Evaluator, LegacyBotAdapter, Observer, Policy, Recorder, Simulation
 from examples.lab_protocols import (Control, EvaluationContext, Increment, IncrementPolicy,
                                    MemorySimulation, StepResult, View)
@@ -37,3 +39,18 @@ def boundaries(bot: Agent) -> None:
     evaluator: Evaluator[EvaluationContext, int] = AnyInput()
     wide_result: Policy[View, Control, Random, object] = IncrementPolicy()
     simulation: Simulation[object, Control, Increment, object, Tuple[int, ...]] = MemorySimulation()
+
+
+# The concrete isolated oracle fits the existing structural evaluator boundary.
+oracle: Evaluator[OracleContext, Tuple[EvaluationRecord, ...]] = EvaluationOracle()
+
+
+def evaluate_labels(context: OracleContext) -> Tuple[EvaluationRecord, ...]:
+    records = oracle.evaluate(context)
+    for record in records:
+        spec: LabelSpec = record.spec
+        assert spec.visibility == 'evaluation_only'
+        if record.unavailability is not None:
+            reason: str = record.unavailability.reason
+            assert reason
+    return records
