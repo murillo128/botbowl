@@ -43,6 +43,7 @@ Load skills lazily by role:
 - optional local Codex runner provisioning/repair: `skills/codex-local-runner/SKILL.md`;
 - design authority: `skills/design-github-issue/SKILL.md`;
 - main executor: `skills/spec-driven-codex-loop/SKILL.md`;
+- pull-request audit controller: `skills/codex-pr-audit/SKILL.md`;
 - Git and GitHub mutation/publication: `skills/codex-github-operations/SKILL.md`;
 - independent checkpoint/final technical review: `skills/codex-independent-review/SKILL.md`;
 - multi-issue batch and executable epic-DAG orchestration: `skills/codex-issue-orchestrator/SKILL.md`;
