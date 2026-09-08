@@ -9,7 +9,7 @@ from torch.autograd import Variable
 
 import botbowl
 from botbowl.ai.env import EnvConf, BotBowlEnv
-from examples.a2c.a2c_env import a2c_scripted_actions
+from examples.a2c.a2c_env import a2c_scripted_actions, validate_action_mask
 from botbowl.ai.layers import *
 
 # Architecture
@@ -88,12 +88,8 @@ class CNNPolicy(nn.Module):
     def act(self, spatial_inputs, non_spatial_input, action_mask):
         values, action_probs = self.get_action_probs(spatial_inputs, non_spatial_input, action_mask=action_mask)
         actions = action_probs.multinomial(1)
-        # In rare cases, multinomial can  sample an action with p=0, so let's avoid that
-        for i, action in enumerate(actions):
-            correct_action = action
-            while not action_mask[i][correct_action]:
-                correct_action = action_probs[i].multinomial(1)
-            actions[i] = correct_action
+        if not action_mask.bool().gather(1, actions).all():
+            raise RuntimeError("Policy sampled a masked action")
         return values, actions
 
     def evaluate_actions(self, spatial_inputs, non_spatial_input, actions, actions_mask):
@@ -108,11 +104,16 @@ class CNNPolicy(nn.Module):
         return action_log_probs, value, dist_entropy
 
     def get_action_probs(self, spatial_input, non_spatial_input, action_mask):
+        if action_mask is not None:
+            validate_action_mask(action_mask)
+            action_mask = action_mask.bool()
         values, actions = self(spatial_input, non_spatial_input)
         # Masking step: Inspired by: http://juditacs.github.io/2018/12/27/masked-attention.html
         if action_mask is not None:
             actions[~action_mask] = float('-inf')
         action_probs = F.softmax(actions, dim=1)
+        if not torch.isfinite(action_probs).all():
+            raise ValueError("Policy produced non-finite action probabilities")
         return values, action_probs
 
 

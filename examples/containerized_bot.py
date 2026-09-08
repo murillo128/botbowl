@@ -4,8 +4,8 @@ from examples.scripted_bot_example import MyScriptedBot
 
 
 def run_bot_server(bot: Agent):
-    bot_server = PythonSocketServer(agent=bot)
-    bot_server.run()
+    with PythonSocketServer(agent=bot) as bot_server:
+        bot_server.run()
 
 
 if __name__ == "__main__":

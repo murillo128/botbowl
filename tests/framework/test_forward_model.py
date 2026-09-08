@@ -141,8 +141,9 @@ def get_game(fast_mode=True, human_agents=True):
 
 
 def get_random_action(game):
+    available_actions = [choice for choice in game.state.available_actions if not choice.disabled]
     while True:
-        action_choice = game.rng.choice(game.state.available_actions)
+        action_choice = game.rng.choice(available_actions)
         if action_choice.action_type != botbowl.ActionType.PLACE_PLAYER:
             break
     position = game.rng.choice(action_choice.positions) if len(action_choice.positions) > 0 else None

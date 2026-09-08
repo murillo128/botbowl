@@ -1,0 +1,3 @@
+# Existing issue-label launcher only; Tests jobs use explicit hosted images.
+self-hosted-runner:
+  labels: [codex]
