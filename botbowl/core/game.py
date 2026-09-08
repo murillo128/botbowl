@@ -1402,6 +1402,11 @@ class Game:
         assert piece_b.position is not None
         pos_a = piece_a.position
         pos_b = piece_b.position
+        # Positions and board cells bypass generic reversible assignment. Record
+        # both removals before either placement so undo restores occupied squares.
+        for piece, position in ((piece_a, pos_a), (piece_b, pos_b)):
+            if type(piece) is Player:
+                self.trajectory.log_state_change(MovementStep(self.state.pitch.board, piece, position, put=False))
         piece_a.position = pos_b
         piece_b.position = pos_a
         if type(piece_b) is Player:
@@ -1409,6 +1414,7 @@ class Game:
             if ball is not None:
                 self.move(ball, pos_a)
             self.state.pitch.board[pos_a.y][pos_a.x] = piece_b
+            self.trajectory.log_state_change(MovementStep(self.state.pitch.board, piece_b, pos_a))
         elif type(piece_b) is Catchable:
             piece_b.move_to(pos_a)
         if type(piece_a) is Player:
@@ -1416,6 +1422,7 @@ class Game:
             if ball is not None:
                 self.move(ball, pos_b)
             self.state.pitch.board[pos_b.y][pos_b.x] = piece_a
+            self.trajectory.log_state_change(MovementStep(self.state.pitch.board, piece_a, pos_b))
         elif isinstance(piece_a, Catchable):
             piece_a.move_to(pos_b)
 
