@@ -118,6 +118,10 @@ event returned by that advance. Dice outcomes and automatic consequences remain
 events, not invented coach decisions. The prefix is copied, so later mutation
 of a proposed remaining route cannot rewrite an action already recorded.
 
+With [timeline recording](timeline.md), each step also exposes `decision`, the
+API-02 envelope with logical contexts and the parent/primitive relation. The
+timeline retains a copied macro parent and its interruption boundary.
+
 Expansion stops before sending the remainder when the actor changes, the game
 terminates, the planned next action is no longer offered, or an unplanned
 optional prompt such as a reroll appears. The controller never answers a

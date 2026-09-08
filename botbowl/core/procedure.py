@@ -1142,10 +1142,12 @@ class Half(Procedure):
         if not self.kicked_off:
             self.game.state.half = self.half
             self.game.state.round = 0
+            self.game._timeline_phase('half_started')
             self.game.state.kicking_this_drive = self.game.get_kicking_team(self.half)
             self.game.state.receiving_this_drive = self.game.get_receiving_team(self.half)
             self.kicked_off = True
             self.game.set_turn_order_from(self.game.get_receiving_team(self.half))
+            self.game._timeline_phase('drive_started')
             Kickoff(self.game)
             Setup(self.game, team=self.game.get_receiving_team(self.half))
             Setup(self.game, team=self.game.get_kicking_team(self.half))
@@ -1156,6 +1158,7 @@ class Half(Procedure):
         # Add turn in round
         if self.game.state.round < self.game.config.rounds:
             self.game.state.round += 1
+            self.game._timeline_phase('round_started')
             for team in reversed(self.game.state.turn_order):
                 Turn(self.game, team, self.half, self.game.state.round)
             return False
@@ -2502,6 +2505,7 @@ class EndPlayerTurn(Procedure):
         self.player.state.used = True
         self.player.state.moves = 0
         self.game.report(Outcome(OutcomeType.END_PLAYER_TURN, player=self.player))
+        self.game._timeline_phase('activation_ended', player=self.player, reason='completed')
         self.game.state.active_player = None
         self.player.state.squares_moved.clear()
         self.game.state.player_action_type = None
@@ -2624,6 +2628,7 @@ class UndoPlayerAction(Procedure):
         self.player = player
 
     def step(self, action):
+        self.game._timeline_phase('activation_ended', player=self.player, reason='undo')
         self.game.state.player_action_type = None
         self.game.state.active_player = None
         return True
@@ -3208,6 +3213,9 @@ class EndGame(Procedure):
         super().__init__(game)
 
     def step(self, action):
+        self.game._timeline_phase('activation_ended', reason='terminal')
+        self.game._timeline_phase('team_turn_ended', reason='terminal')
+        self.game._timeline_phase('drive_ended', reason='terminal')
         self.game.state.game_over = True
         winner = self.game.get_winning_team()
         if winner is not None:
@@ -3857,6 +3865,11 @@ class EndTurn(Procedure):
 
     def step(self, action):
 
+        self.game._timeline_phase('activation_ended', reason='turn_end')
+        self.game._timeline_phase('team_turn_ended', team=self.game.state.current_team)
+        if self.kickoff:
+            self.game._timeline_phase('drive_ended', reason='touchdown')
+
         # Remove all procs in the current turn - including the current turn proc.
         # In rare cases there is no Turn proc yet - e.g. during a kickoff
         if self.game.get_current_turn_proc() is not None:
@@ -3870,6 +3883,7 @@ class EndTurn(Procedure):
 
         # Add kickoff procedure - if there are more turns left
         if self.kickoff and self.game.get_opp_team(self.game.state.current_team).state.turn < self.game.config.rounds:
+            self.game._timeline_phase('drive_started')
             Kickoff(self.game)
 
             # Setup in turn order from after scoring team
@@ -3907,6 +3921,8 @@ class Turn(Procedure):
 
     def start(self):
         self.game.state.current_team = self.team
+        self.game._timeline_phase('team_turn_started', team=self.team,
+                                  turn_kind='blitz' if self.blitz else 'quick_snap' if self.quick_snap else 'regular')
         self.game.add_primary_clock(self.team)
         if self.blitz:
             self.game.report(Outcome(OutcomeType.BLITZ_START, team=self.team))
@@ -3935,6 +3951,8 @@ class Turn(Procedure):
         action.player.state.hypnotized = False
 
         self.game.state.active_player = action.player
+        self.game._timeline_phase('activation_started', player=action.player,
+                                  action_type=action.action_type.name)
             
         # Start movement action
         if action.action_type == ActionType.START_MOVE:

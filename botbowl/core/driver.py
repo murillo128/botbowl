@@ -1,6 +1,6 @@
 """Policy scheduling, separate from the engine's one-decision boundary."""
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import time
 from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Optional, Protocol, Tuple, Union
 
@@ -58,9 +58,11 @@ class PolicyDriver:
         budget = _step_budget(max_steps)
         result = DecisionResult(game.actor if not game.state.game_over else None, (), game.state.game_over)
         count = 0
+        decisions = []
         while not result.terminal and (max_decisions is None or count < max_decisions):
             if not game.state.available_actions:
                 result = game.advance(max_steps=budget)
+                decisions.extend(result.decisions)
                 continue
             team = game.active_team
             policy = self.policies.get(team.team_id)
@@ -74,12 +76,13 @@ class PolicyDriver:
             action = game._validated_action(action)
             submitted = deepcopy(action.to_json())
             result = game.advance(action, max_steps=budget)
+            decisions.extend(result.decisions)
             self.trace.append(DecisionTrace(
                 actor_id, team.team_id, choices, submitted,
                 deepcopy(tuple(event.to_json() for event in result.events)),
                 result.actor.agent_id if result.actor is not None else None, result.terminal))
             count += 1
-        return result
+        return replace(result, decisions=tuple(decisions))
 
 
 class LegacyPolicyDriver:
