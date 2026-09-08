@@ -11,6 +11,11 @@ from .protocols import Policy as Policy
 from .protocols import Recorder as Recorder
 from .protocols import Scenario as Scenario
 from .protocols import Simulation as Simulation
+from .replays import IndexedReplayEvent as IndexedReplayEvent
+from .replays import ReplayContinuation as ReplayContinuation
+from .replays import ReplayReader as ReplayReader
+from .replays import ReplayRecorder as ReplayRecorder
+from .replays import open_legacy_replay as open_legacy_replay
 from .splits import OriginSourceV1 as OriginSourceV1
 from .splits import SplitManifestV1 as SplitManifestV1
 from .splits import build_split_manifest as build_split_manifest
@@ -23,16 +28,21 @@ __all__ = [
     "ActionRequestV1",
     "ActionV1",
     "Evaluator",
+    "IndexedReplayEvent",
     "LegacyBotAdapter",
     "LegalActionsV1",
     "Observer",
     "OriginSourceV1",
     "Policy",
     "Recorder",
+    "ReplayContinuation",
+    "ReplayReader",
+    "ReplayRecorder",
     "Scenario",
     "Simulation",
     "SplitManifestV1",
     "build_split_manifest",
+    "open_legacy_replay",
     "origin_from_episode",
     "validate_split_manifest",
     "validate_window_membership",

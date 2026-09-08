@@ -1362,6 +1362,29 @@ def _descriptor(game):
                           game.state.home_team, game.state.away_team).to_json()
 
 
+def snapshot_hash(snapshot, *, adapters=None, limits=SnapshotLimits()):
+    """Return the persistent codec's validated semantic hash without writing.
+
+    This is the stable state identity used by executable replay transitions.
+    It covers the same bounded graph and compatibility checks as
+    :func:`write_snapshot` and never changes the supplied snapshot.
+    """
+    try:
+        _require(type(snapshot) is memory.Snapshot, 'Expected capture_snapshot() result')
+        graph = _Encoder(limits)
+        roots = {name: graph.atom(value) for name, value in (
+            ('game', snapshot._game), ('episode', snapshot._episode),
+            ('components', snapshot._components))}
+        payload = {'roots': roots, 'nodes': graph.nodes}
+        _, semantic = _validate_and_hash(payload, snapshot.scope, limits, adapters)
+        memory.clone_from_snapshot(snapshot, adapters=adapters)
+        return semantic
+    except memory.SnapshotError:
+        raise
+    except (TypeError, ValueError, KeyError, AttributeError, OverflowError, RecursionError) as error:
+        raise SnapshotFileError('Cannot hash snapshot data') from error
+
+
 def write_snapshot(path, snapshot, *, adapters=None, limits=SnapshotLimits(), provenance=None):
     """Atomically persist a SIM-02 Snapshot; return its data-only file envelope.
 
