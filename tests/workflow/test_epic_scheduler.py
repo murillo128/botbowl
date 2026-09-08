@@ -177,3 +177,5 @@ def test_wakeup_reuses_launcher_and_parent_scoped_concurrency():
     assert "github.event.label.name == 'execution-ready'" in launcher
     assert "inputs.issue_number != ''" in launcher
     assert "inputs.issue_number || github.event.issue.number" in launcher
+    assert "WAIT_FOR_EXISTING_TURN: ${{ inputs.issue_number != '' }}" in launcher
+    assert "waiting to serialize the requested follow-up turn" in launcher
