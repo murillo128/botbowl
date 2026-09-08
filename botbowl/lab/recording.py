@@ -227,6 +227,55 @@ class EpisodeReader:
     def read_channels(self, names):
         return _load_rows(self.directory, self.manifest, names)
 
+    def iter_channel(self, name):
+        """Yield validated rows with one bounded line in memory.
+
+        Authenticate the selected file before yielding, then validate each row.
+        Exhaust the iterator to check row count and the second-pass digest too.
+        No other channel is opened. Closing the generator releases its file.
+        """
+        manifest = self.manifest
+        require(name in manifest['files'], 'Missing requested channel')
+        info = manifest['files'][name]
+        path = _path(self.directory, info['path'])
+        try:
+            fd = os.open(str(path), os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0) |
+                         getattr(os, 'O_NONBLOCK', 0))
+            with os.fdopen(fd, 'rb') as stream:
+                require(stat.S_ISREG(os.fstat(stream.fileno()).st_mode), 'Expected a regular JSON file')
+                require(os.fstat(stream.fileno()).st_size == info['bytes'], 'Channel byte count mismatch')
+                digest = hashlib.sha256()
+                total = 0
+                while True:
+                    chunk = stream.read(65536)
+                    if not chunk:
+                        break
+                    total += len(chunk)
+                    require(total <= info['bytes'], 'Channel byte count mismatch')
+                    digest.update(chunk)
+                require(total == info['bytes'] and digest.hexdigest() == info['sha256'],
+                        'Channel byte count/hash mismatch')
+                stream.seek(0)
+                digest = hashlib.sha256()
+                count, total = 0, 0
+                while True:
+                    line = stream.readline(MAX_RECORD_BYTES + 2)
+                    if not line:
+                        break
+                    require(line.endswith(b'\n') and len(line) <= MAX_RECORD_BYTES + 1,
+                            'Partial or oversized JSONL line')
+                    count += 1
+                    total += len(line)
+                    require(count <= info['rows'] and total <= info['bytes'], 'Channel bounds exceeded')
+                    digest.update(line)
+                    row = decode_json(line[:-1])
+                    validate_row(name, row)
+                    yield row
+                require(count == info['rows'] and total == info['bytes'] and
+                        digest.hexdigest() == info['sha256'], 'Channel changed or row count mismatch')
+        except OSError as error:
+            raise RecordError('Cannot read recording file') from error
+
     def read_episode(self):
         manifest = self.manifest
         rows = self.read_channels(list(manifest['files']))
