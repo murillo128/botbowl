@@ -4,7 +4,8 @@
 independent continuations. This is a privileged controller API, not observation
 data or a persistent format. Keep the same process, engine implementation,
 NumPy generator, loaded rule configuration and pathfinding backend. SIM-03 owns
-cross-process persistence; snapshots explicitly reject pickling and foreign PIDs.
+cross-process persistence through [SnapshotFileV1](snapshot-files.md); in-memory
+snapshots explicitly reject pickling and foreign PIDs.
 
 ```python
 from botbowl.lab.snapshots import capture_snapshot, clone_from_snapshot, restore_snapshot
