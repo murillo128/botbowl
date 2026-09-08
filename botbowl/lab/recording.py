@@ -71,6 +71,8 @@ class JsonlEpisodeWriter:
     """
 
     def __init__(self, destination, relative_path):
+        safe_relative(relative_path)
+        require(not relative_path.endswith('.partial'), 'The .partial final suffix is reserved')
         self.root = Path(destination).resolve()
         self.root.mkdir(parents=True, exist_ok=True)
         self.final = _path(self.root, relative_path)

@@ -10,7 +10,8 @@ import names supplied by a file, or execute callbacks from data.
 
 Run `python -m examples.lab.recording` for one short CPU-only episode and an
 input-only read. Pass `--destination /tmp/my-recordings` to retain it. The output
-subdirectory `example-17` must not already exist.
+subdirectory `example-17` must not already exist. Final destination names ending
+in `.partial` are reserved and rejected before the writer creates any files.
 
 ## Capture and causation
 
@@ -72,13 +73,28 @@ automatic skills are events, never agent commands. Casualties are neither
 filtered nor duplicated. The current payload catalogue is closed; future
 explanatory annotations need a supported payload/schema revision (EVAL-06).
 
+Complete validation derives scope identities from the ordered API-02 phase
+stream. Activation, team-turn and drive IDs start at null, increment once per
+corresponding start event and retain their cumulative value after end events,
+half changes and forks. End events must close an opened scope. Half starts
+advance from null to 1 to 2 and set round to zero; round-start events increment
+within the current half. Reports and other events cannot change these counters.
+Every event, decision boundary, stored observation/diagnostic context, macro
+boundary, branch parent and manifest boundary must match the scope identities
+at its referenced event prefix. This checks the recorded counter contract;
+it does not simulate rules, adjudicate phase/gameplay legality or authenticate
+a fabricated but internally consistent trace.
+
 Macro rows retain the API-02 parent proposal, before/after context, status,
 ordered child decision sequences and interruption context/reason/next order.
 Snapshots occur around each primitive, not merely around the entire macro.
 If a budget stops a child midway, automatic `advance(None)` updates that same
 transition identity using its original pre-observation. The interrupted parent
 retains the original operational boundary, even if its pending child later
-resolves. A rejected action creates neither a transition nor a gameplay event.
+resolves. Confirmation and full reading require every interruption context to
+equal its parent's historical `after`, within the same episode and branch bounds;
+a resumed child's later `after` cannot replace it. A rejected action creates
+neither a transition nor a gameplay event.
 Diagnostics hold only a version, context, exception type name and stable code;
 exception messages, tracebacks and the rejected arbitrary payload are omitted.
 

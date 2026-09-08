@@ -486,3 +486,27 @@ def test_macro_parent_corruption_rejected(tmp_path, corrupt):
         rows['macros'][0]['status'] = 'interrupted'
     with pytest.raises(ValueError):
         validate_episode(episode['manifest'], rows)
+
+
+@pytest.mark.parametrize('path', ['episode.partial', 'nested/episode.partial'])
+def test_partial_suffix_is_reserved_before_creating_writer_files(tmp_path, path):
+    with pytest.raises(RecordError, match='reserved'):
+        JsonlEpisodeWriter(tmp_path, path)
+    assert list(tmp_path.iterdir()) == []
+
+
+@pytest.mark.parametrize('kind', ['blitz', 'quick_snap'])
+def test_recorded_special_turn_scopes_keep_round_zero(tmp_path, kind):
+    game, recorder = record_game(tmp_path)
+    until(game, lambda g: isinstance(g.get_procedure(), proc.PlaceBall))
+    with game.dice.force(d6=[1, 5, 5 if kind == 'blitz' else 4], d8=[1], strict=True):
+        recorder.advance(progress_action(game))
+    assert recorder.timeline.context.team_turn_seq == 1
+    assert recorder.timeline.context.round == 0
+    recorder.advance(bb.Action(bb.ActionType.END_TURN))
+    until(game, lambda g: type(g.get_procedure()) is proc.Turn)
+    recorder.finish(truncation_reason='fixture_limit')
+    events = EpisodeReader(tmp_path, 'episode').read_episode()['channels']['events']
+    turns = [e for e in events if e['kind'] == 'team_turn_started']
+    assert [e['data']['turn_kind'] for e in turns] == [kind, 'regular']
+    assert [(e['context']['team_turn_seq'], e['context']['round']) for e in turns] == [(1, 0), (2, 1)]

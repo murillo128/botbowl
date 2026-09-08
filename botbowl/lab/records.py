@@ -23,6 +23,7 @@ SCHEMAS = {name: 1 for name in ('EpisodeManifestV1', 'TransitionV1', 'EventV1',
                               'ObservationV1', 'ActionV1', 'InputProfile', 'TimelineContext')}
 _CONTEXT = ('episode_id', 'branch_id', 'event_seq', 'decision_seq', 'activation_seq',
             'team_turn_seq', 'drive_seq', 'half', 'round')
+_SCOPES = ('activation_seq', 'team_turn_seq', 'drive_seq', 'half', 'round')
 
 
 class RecordError(ValueError):
@@ -407,6 +408,35 @@ def validate_row(name, row):
         raise RecordError(str(error)) from error
 
 
+def _scope_prefixes(events):
+    """Fold only API-02 counter events; no rules, legality or game simulation."""
+    scopes = dict.fromkeys(_SCOPES)
+    prefixes = [scopes.copy()]
+    counters = {'activation': 'activation_seq', 'team_turn': 'team_turn_seq', 'drive': 'drive_seq'}
+    opened = dict.fromkeys(counters, False)
+    for event in events:
+        kind = event['kind']
+        if kind == 'half_started':
+            scopes['half'] = (scopes['half'] or 0) + 1
+            require(scopes['half'] <= 2, 'Half scope starts beyond second half')
+            scopes['round'] = 0
+        elif kind == 'round_started':
+            require(scopes['half'] is not None, 'Round scope starts before a half')
+            scopes['round'] += 1
+        else:
+            for name, field in counters.items():
+                if kind == name + '_started':
+                    scopes[field] = (scopes[field] or 0) + 1
+                    opened[name] = True
+                elif kind == name + '_ended':
+                    require(opened[name], 'Ending a closed or unstarted scope')
+                    opened[name] = False
+        require(all(event['context'][field] == scopes[field] for field in _SCOPES),
+                'Event scope context disagrees with phase stream')
+        prefixes.append(scopes.copy())
+    return prefixes
+
+
 def validate_episode(manifest, rows):
     """Check a complete causal trace, including detached observation references."""
     data = EpisodeManifestV1(manifest).to_json()
@@ -425,6 +455,17 @@ def validate_episode(manifest, rows):
         return next(b['branch_id'] for b in reversed(branches)
                     if seq > branch_starts[b['branch_id']][field])
 
+    for name, channel_rows in rows.items():
+        require(len(channel_rows) == data['files'][name]['rows'], 'Row count mismatch')
+        for row in channel_rows:
+            validate_row(name, row)
+    events = rows['events']
+    require([e['context']['event_seq'] for e in events] == list(range(1, data['final_context']['event_seq'] + 1)),
+            'Event IDs have gaps/duplicates')
+    scope_prefixes = _scope_prefixes(events)
+    branch_ends = {branch['branch_id']: branches[index + 1]['parent'] if index + 1 < len(branches)
+                   else data['final_context'] for index, branch in enumerate(branches)}
+
     def check_context(ctx):
         context(ctx)
         require(ctx['episode_id'] == data['episode_id'] and ctx['branch_id'] in branch_starts,
@@ -434,11 +475,20 @@ def validate_episode(manifest, rows):
                 'Context predates branch')
         require(ctx['event_seq'] <= data['final_context']['event_seq'] and
                 ctx['decision_seq'] <= data['final_context']['decision_seq'], 'Context beyond episode')
+        end = branch_ends[ctx['branch_id']]
+        require(ctx['event_seq'] <= end['event_seq'] and ctx['decision_seq'] <= end['decision_seq'],
+                'Context beyond branch')
+        expected = scope_prefixes[ctx['event_seq']]
+        require(all(ctx[field] == expected[field] for field in _SCOPES),
+                'Scope context disagrees with event prefix')
 
-    for name, channel_rows in rows.items():
-        require(len(channel_rows) == data['files'][name]['rows'], 'Row count mismatch')
+    check_context(data['initial_context'])
+    check_context(data['final_context'])
+    for branch in branches[1:]:
+        check_context(branch['parent'])
+
+    for channel_rows in rows.values():
         for row in channel_rows:
-            validate_row(name, row)
             if 'context' in row:
                 check_context(row['context'])
     observations = rows['primary']
@@ -453,9 +503,6 @@ def validate_episode(manifest, rows):
     require(len(initial_players) == len(set(initial_players)), 'Duplicate entity IDs')
     for row in observations:
         require([p['id'] for p in row['channel']['data']['players']] == initial_players, 'Entity binding changed')
-    events = rows['events']
-    require([e['context']['event_seq'] for e in events] == list(range(1, data['final_context']['event_seq'] + 1)),
-            'Event IDs have gaps/duplicates')
     transitions = rows['transitions']
     require([t['after']['decision_seq'] for t in transitions] == list(range(1, data['final_context']['decision_seq'] + 1)),
             'Decision IDs have gaps/duplicates')
@@ -518,6 +565,14 @@ def validate_episode(manifest, rows):
     for parent in rows['macros']:
         check_context(parent['before'])
         check_context(parent['after'])
+        require(parent['before']['branch_id'] == parent['after']['branch_id'] and
+                parent['before']['event_seq'] <= parent['after']['event_seq'] and
+                parent['before']['decision_seq'] <= parent['after']['decision_seq'], 'Invalid macro boundary')
+        if parent['interruption'] is not None:
+            interruption_context = parent['interruption']['context']
+            check_context(interruption_context)
+            # The child may have resumed. Its new after is not this historical boundary.
+            require(interruption_context == parent['after'], 'Macro interruption must match historical after')
         key = (parent['before']['branch_id'], parent['macro']['macro_id'])
         require(key not in parents, 'Duplicate macro ID')
         parents[key] = parent
