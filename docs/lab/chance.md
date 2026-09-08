@@ -63,7 +63,8 @@ Only consumed dice enter this output. Each row records:
 - zero-based index, die type, ordered physical-face domain and result;
 - semantic context: procedure/rule, roster-local participants, phase, causal
   decision/report position, procedure stack, and occurrence within that context;
-- mode, provenance, coupling scope and whether the draw was natural.
+- mode, provenance, coupling scope, whether the draw was natural, and
+  `rng_advance`: whether the engine die sampler was consumed.
 
 Domains are D3 `[1,2,3]`, D6 `[1,2,3,4,5,6]`, D8 `[1,2,3,4,5,6,7,8]`, and
 BBDie's six equiprobable physical faces. BBDie maps face 6 to PUSH, just as the
@@ -96,10 +97,12 @@ for action in recorded_actions:
 replayed.game.dice.chance.finish()
 ```
 
-For a natural replay row, the original die sampler advances the engine RNG once
-and its draw is discarded; the tape result is authoritative. This preserves the
-original RNG interleaving when seed/state and execution agree. Fabricated rows
-and `forced` mode do not advance RNG. Direct `Game.rng` calls (coin tosses and
+For a replay row with `rng_advance: true`, the original die sampler advances the
+engine RNG once and its draw is discarded; the tape result is authoritative.
+This preserves the original RNG interleaving when seed/state and execution agree.
+Natural matched reuse has `rng_advance: false`: replaying that row, including
+nested replay, must also leave RNG untouched. Fabricated rows and `forced` mode
+do not advance RNG. Direct `Game.rng` calls (coin tosses and
 random selection of positions/players) are **not dice tape events**. Exact
 whole-prefix execution therefore also needs the original RNG state, actions,
 resources, and relevant logical context. A dice tape alone is not a complete

@@ -63,7 +63,7 @@ def _event(event):
 
 
 def _roll(row, index):
-    _keys(row, 'index die domain context result mode provenance scope natural')
+    _keys(row, 'index die domain context result mode provenance scope natural rng_advance')
     _require(type(row['index']) is int and row['index'] == index, 'Invalid tape order/index')
     _require(type(row['die']) is str and row['die'] in DOMAINS and
              type(row['domain']) is list and row['domain'] == list(DOMAINS[row['die']]) and
@@ -75,6 +75,9 @@ def _roll(row, index):
              _text(row['provenance']) and row['scope'] in ('none', 'recorded-dice', 'declared-gfi'),
              'Invalid chance provenance')
     _require(row['mode'] != 'forced' or not row['natural'], 'Forced results are fabricated')
+    _require(type(row['rng_advance']) is bool and
+             (not row['rng_advance'] or row['natural']) and
+             (row['scope'] != 'declared-gfi' or not row['rng_advance']), 'Invalid sampler provenance')
 
 
 def validate_tape(tape):
@@ -226,7 +229,8 @@ class ChancePolicy:
             value = expected['result']
             value = BBDieResult[value] if die is BBDie else value
             natural = self.mode != 'forced' and expected['natural']
-            if self.mode == 'replay' and expected['natural']:
+            rng_advance = self.mode == 'replay' and expected['rng_advance']
+            if rng_advance:
                 # Preserve the original interleaving with direct Game.rng uses.
                 # The recorded result, not this discarded draw, is authoritative.
                 die(source.rng)
@@ -234,6 +238,7 @@ class ChancePolicy:
                           self.mode + ':' + str(self._cursor)) + ':' + expected['provenance']
         else:
             natural = not bool(source._queues[-1][die])
+            rng_advance = natural
             value = source._roll_unmanaged(die)
             provenance = 'independent-fallback' if self.mode == 'matched' else 'engine-MT19937'
             if not natural:
@@ -242,6 +247,7 @@ class ChancePolicy:
         row = {'index': len(self._rolls), 'die': name, 'domain': list(DOMAINS[name]),
                'context': event, 'result': value.name if die is BBDie else int(value),
                'mode': self.mode if natural else 'forced', 'provenance': provenance,
+               'rng_advance': rng_advance,
                'scope': 'declared-gfi' if matched_idx is not None else
                         'recorded-dice' if self.mode == 'replay' else 'none', 'natural': natural}
         self._rolls.append(row)
@@ -292,7 +298,8 @@ class ChancePolicy:
         if result.mode in ('replay', 'forced'):
             for row, original in zip(output, result._input['rolls']):
                 _require(all(row[k] == original[k] for k in ('die', 'domain', 'context', 'result')) and
-                         row['natural'] == (result.mode != 'forced' and original['natural']),
+                         row['natural'] == (result.mode != 'forced' and original['natural']) and
+                         row['rng_advance'] == (result.mode == 'replay' and original['rng_advance']),
                          'Consumed replay prefix diverges from input')
         matched_used = []
         for row in output:

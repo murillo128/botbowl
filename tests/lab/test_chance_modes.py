@@ -83,7 +83,7 @@ def test_wrong_die_shifted_event_exhausted_and_leftover_fail_without_consumption
 
 @pytest.mark.parametrize('field,value', [('result', 0), ('result', 7), ('result', True),
     ('result', 1.0), ('index', 1), ('die', 'D8'), ('domain', [1, 2, 3]),
-    ('domain', [True, 2, 3, 4, 5, 6]), ('mode', 'unknown')])
+    ('domain', [True, 2, 3, 4, 5, 6]), ('mode', 'unknown'), ('rng_advance', 1)])
 def test_invalid_tape_records(field, value):
     tape, _ = recorded((bb.D6,))
     tape['rolls'][0][field] = value
@@ -377,3 +377,26 @@ def test_episode_completion_checks_unconsumed_tape():
     context = episode(max_decisions=0, chance_policy=ChancePolicy('replay', tape=tape))
     with pytest.raises(ChanceError, match='suffix'):
         context.step(PREFIX[0])
+
+
+def test_matched_prefix_and_nested_replay_preserve_rng_consumption():
+    _, saved, tape, matches = matched_fixture()
+    matched = branch_from_snapshot(saved, branch_id='matched', policy=ChancePolicy(
+        'matched', tape=tape, matches=matches, unmatched='independent',
+        seed=SeedSpec(44, 'review', component_id='matched')))
+    origin = capture_snapshot(matched)
+    matched.step(MOVE)
+    expected_rng = capture_stream(matched.game.rng)
+    expected_view = matched.observe('home')
+    current_tape = matched.game.dice.chance.tape()
+    assert current_tape['rolls'][0]['natural']
+    assert not current_tape['rolls'][0]['rng_advance']
+    for _ in range(3):
+        repeated = clone_from_snapshot(origin)
+        install_chance(repeated.game, ChancePolicy('replay', tape=current_tape))
+        repeated.step(MOVE)
+        repeated.game.dice.chance.finish()
+        assert repeated.observe('home') == expected_view
+        assert capture_stream(repeated.game.rng) == expected_rng
+        current_tape = repeated.game.dice.chance.tape()
+        assert not current_tape['rolls'][0]['rng_advance']
