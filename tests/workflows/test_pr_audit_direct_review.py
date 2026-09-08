@@ -1,4 +1,9 @@
-"""Regression checks for review-vs-controller separation in PR audits."""
+"""Regression checks for the isolated PR-audit launch contract.
+
+These tests run from the workflow's copied validation snapshot, so they intentionally
+assert only launcher behavior and do not depend on repository skills being copied
+into that temporary directory.
+"""
 
 from pathlib import Path
 import unittest
@@ -6,8 +11,6 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOW = (ROOT / ".github/workflows/codex-review-ready.yml").read_text(encoding="utf-8")
-AUDIT_SKILL = (ROOT / "skills/codex-pr-audit/SKILL.md").read_text(encoding="utf-8")
-REVIEW_SKILL = (ROOT / "skills/codex-independent-review/SKILL.md").read_text(encoding="utf-8")
 
 
 class DirectAuditReviewTests(unittest.TestCase):
@@ -17,21 +20,17 @@ class DirectAuditReviewTests(unittest.TestCase):
         self.assertIn("do not spawn, delegate to, or wait for another reviewer or subagent", WORKFLOW)
         self.assertIn("During the technical review phase remain read-only", WORKFLOW)
         self.assertIn("leave the reviewer role and resume codex-pr-audit controller duties", WORKFLOW)
+
+    def test_positive_controller_path_is_merge_complete_close(self):
         self.assertIn("automatic merge -> completed -> close sequence", WORKFLOW)
+        self.assertIn("positive final-capable audit will be merged and completed by the audit controller", WORKFLOW)
+        self.assertIn("Recheck BOTH head and base before recording and again before applying the verdict", WORKFLOW)
 
-    def test_audit_controller_owns_positive_merge_and_completion(self):
-        self.assertIn("This skill is the audit **controller**", AUDIT_SKILL)
-        self.assertIn("`codex-independent-review` remains the technical-review authority and remains read-only", AUDIT_SKILL)
-        self.assertIn("Automatically merge the exact audited head", AUDIT_SKILL)
-        self.assertIn("replace `review-ready` with `completed`, then close the issue", AUDIT_SKILL)
-        self.assertIn("verify GitHub reports it merged", AUDIT_SKILL)
-        self.assertIn("intentionally wakes the event-driven epic scheduler", AUDIT_SKILL)
-
-    def test_reviewer_skill_remains_non_mutating(self):
-        self.assertIn("It does not implement fixes", REVIEW_SKILL)
-        self.assertIn("mutate workflow state", REVIEW_SKILL)
-        self.assertIn("authorize/perform merge", REVIEW_SKILL)
-        self.assertIn("remain read-only", REVIEW_SKILL)
+    def test_reviewer_phase_itself_has_no_mutation_authority(self):
+        self.assertIn(
+            "During the technical review phase remain read-only: do not inherit or resume the executor conversation, use its worktree, edit implementation, switch branches, merge, label, or close anything",
+            WORKFLOW,
+        )
 
 
 if __name__ == "__main__":
