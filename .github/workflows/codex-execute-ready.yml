@@ -61,24 +61,6 @@ jobs:
           repo_key="${GITHUB_REPOSITORY//\//-}"
           worktree="${worktree_base}/${repo_key}/issue-${ISSUE_NUMBER}"
           branch="codex/issue-${ISSUE_NUMBER}"
-          branch_ref="refs/heads/${branch}"
-
-          mapfile -t registered_worktrees < <(
-            git -C "$repo_root" worktree list --porcelain | awk -v ref="$branch_ref" '
-              /^worktree / { path = substr($0, 10) }
-              $0 == "branch " ref { print path }
-            '
-          )
-          if [ "${#registered_worktrees[@]}" -gt 1 ]; then
-            printf 'Branch %s is registered in multiple worktrees:\n' "$branch" >&2
-            printf '  %s\n' "${registered_worktrees[@]}" >&2
-            exit 1
-          fi
-          if [ "${#registered_worktrees[@]}" -eq 1 ]; then
-            worktree="${registered_worktrees[0]}"
-            echo "Adopting registered issue worktree: $worktree"
-          fi
-
           mkdir -p "$(dirname "$worktree")"
 
           if git -C "$worktree" rev-parse --is-inside-work-tree >/dev/null 2>&1; then

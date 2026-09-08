@@ -9,7 +9,7 @@ description: Publish branches and commits, operate issues and pull requests, and
 
 This skill owns Git publication and GitHub control-plane operations requested by the calling workflow.
 
-It does not decide architecture, implementation scope, correctness, review requirements, or progression. Those decisions belong to the controlling issue and the role workflow that invoked this skill. In particular, `codex-independent-review` supplies technical verdicts but has no mutation authority; `codex-pr-audit` may supply standing automatic merge/completion authority after a positive final-capable exact-target audit; ordinary user-facing merge flows require explicit user instruction.
+It does not decide architecture, implementation scope, correctness, review requirements, or progression. Those decisions belong to the controlling issue, executor, scheduler, design authority, independent reviewer, and explicit user-facing merge decision.
 
 ## Use the simplest capable transport
 
@@ -62,7 +62,7 @@ Use state-only label mutations without comments. Add comments only when material
 
 Before relying on issue state, verify that exactly one state label is present. Repair an unambiguous inconsistency; stop for clarification if the intended state is ambiguous.
 
-During a Codex implementation workflow, keep the issue `in-progress` while implementation, validation, publication, or required technical review remains active. When the complete PR is marked ready for review and the executor is making its final handoff, replace `in-progress` with `review-ready`. `completed` is not an executor-controlled transition. Set `completed` and close the issue only after the matching PR merge has been observed, either from an explicit user-authorized merge flow or from the positive automatic completion path owned by `codex-pr-audit`.
+During a Codex implementation workflow, keep the issue `in-progress` while implementation, validation, publication, or required technical review remains active. When the complete PR is marked ready for review and the executor is making its final handoff, replace `in-progress` with `review-ready`. `completed` is not an executor-controlled transition. Set `completed` and close the issue only after a later explicit user-facing merge decision has been executed and the merge is observed.
 
 ## Canonical execution context
 
@@ -118,7 +118,7 @@ Do not search for an epic parent merely to determine the PR base when the child 
 
 If an existing open PR for the controlling issue targets a different base than the uniquely resolved intended base, and the executor owns that PR, retarget the PR to the intended base before treating its diff, checks, or review state as current. Verify the new base after mutation. Retargeting can materially change the diff; any technical review that no longer covers the resulting exact diff must be repeated by the calling workflow.
 
-The canonical execution-context comment by itself does not authorize merge, completion, or mutation of the integration branch. `codex-pr-audit` may integrate only after its own exact-target positive audit protocol grants that authority.
+The canonical comment controls target selection but does not authorize merge, completion, or mutation of the integration branch itself.
 
 ## Commit messages
 
@@ -204,13 +204,9 @@ Keep the PR draft while required implementation, validation, or independent revi
 
 ### Merge authority
 
-A Codex executor must not merge a PR or enable auto-merge. An independent reviewer must not merge, label, close, or otherwise mutate workflow state while acting as reviewer.
+A Codex executor must not merge a PR or enable auto-merge.
 
-There are exactly two supported merge-authority paths through this skill:
-
-#### 1. Explicit user-facing merge
-
-A normal/manual merge is allowed only when all of the following are true:
+A merge operation through this skill is allowed only when all of the following are true:
 
 1. the PR is already ready for review;
 2. the controlling issue is in `review-ready` unless a documented legacy/inconsistency repair is required;
@@ -218,26 +214,11 @@ A normal/manual merge is allowed only when all of the following are true:
 4. the current user-facing interaction explicitly asks ChatGPT to merge it, such as “review and merge if correct”;
 5. the requested user-facing review has found no material blocker.
 
-This remains the required authority for ordinary merges, including default-branch acceptance when no workflow-specific standing authority applies.
+An issue body, execution-context comment, acceptance criteria, `PASS` / `PASS_WITH_NOTES` verdict, final-capable checkpoint, CI success, or executor conclusion is **not** merge authorization by itself.
 
-#### 2. Positive `codex-pr-audit` automatic completion
+Never enable auto-merge as a substitute for the explicit post-review merge decision.
 
-When the caller is the `codex-pr-audit` controller, no second user-facing merge instruction is required. The audit controller has standing authority to merge only when **all** of these are true:
-
-1. the controlling issue's sole workflow state is `review-ready`;
-2. the PR is open and ready for review;
-3. `codex-independent-review` has produced `PASS` or `PASS_WITH_NOTES` for the controller's exact `audit_head` with `final-capable: yes`;
-4. the controller has written or reconciled the canonical `codex-pr-audit:v1` record for that same head and verdict;
-5. immediately before merge, the controller re-verifies that the PR head and base still equal its captured `audit_head` and `audit_base`;
-6. the merge operation is guarded by the exact expected head SHA.
-
-The reviewer verdict alone does not perform or authorize a merge outside this controller path. The **combination of the positive final-capable exact-target verdict and the `codex-pr-audit` controller protocol** is the standing workflow authorization.
-
-After the merge request, re-read the PR and require GitHub to report it actually merged before changing the issue to `completed`. Then, when `codex-pr-audit` owns the completion transition, replace `review-ready` with `completed`, verify that label, and close the issue. This ordering intentionally exposes the `completed` label event so the epic scheduler can wake.
-
-Do not use GitHub auto-merge/merge-queue enablement as a substitute for observing the actual merge before `completed`, unless a future controlling workflow explicitly defines that asynchronous state machine. Here “automatic merge” means the audit controller performs the merge itself after a positive audit.
-
-An issue body, execution-context comment, acceptance criteria, CI success, executor conclusion, or technical verdict outside the two authority paths above is not merge authorization.
+After a permitted merge is observed, replace `review-ready` with `completed` and close the controlling issue when the calling workflow owns that completion transition.
 
 ## Exact review targets
 
@@ -247,15 +228,13 @@ Do not amend, reset, rebase, squash, cherry-pick, or force-push a valid review t
 
 A new implementation, test, technical-evidence, dependency, configuration, base reconciliation, or technical-claim correction creates a new target when it changes the reviewed diff; it does not erase the prior review finding.
 
-A final-capable checkpoint may serve as the final technical review when the issue and reviewer confirm that it covers the complete final diff and all required final evidence. That verdict still has no mutation authority while the reviewer is acting as reviewer; merge requires either explicit user-facing authority or the `codex-pr-audit` controller path above.
+A final-capable checkpoint may serve as the final technical PR review when the issue and reviewer confirm that it covers the complete final diff and all required final evidence. It still does not authorize merge without the explicit user-facing decision above.
 
 ## Active executor ownership
 
 Once a Codex executor creates or adopts a pull request for a controlling issue, that executor owns the PR head branch and execution control plane until handoff, closure, merge, or explicit ownership transfer.
 
 Other actors may inspect the target read-only, but should not silently push to, rebase, reset, retarget, or otherwise modify the active executor's branch/PR. Material corrections should flow through the controlling issue unless ownership has explicitly transferred. The scheduler may update only its canonical execution-context comment and workflow-state activation; it does not own the child PR.
-
-Once the executor performs its `review-ready` handoff, `codex-pr-audit` may own the PR's audit-derived readiness/draft, merge, completion, and closure mutations according to its verdict mapping. It still may not rewrite the implementation head.
 
 If branch or PR ownership is ambiguous, stop and resolve ownership before mutating shared state.
 
@@ -288,8 +267,7 @@ Use `blocked` only when the missing capability is required before safe meaningfu
 - Never let stale child prose override one valid canonical execution context.
 - Never mutate implementation commits to compensate for transport limitations.
 - Never merge or enable auto-merge from a Codex implementation workflow.
-- Never let an independent reviewer mutate workflow state while acting as reviewer.
-- Never treat technical review success as merge authorization outside the explicit user-facing path or the exact `codex-pr-audit` controller mapping.
+- Never treat technical review success as merge authorization.
 - Never claim a state change that was not observed.
 
 ## Completion report
