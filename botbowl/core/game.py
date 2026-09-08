@@ -296,6 +296,8 @@ class Game:
     def restore_rng_state(self, state: DiceSourceState) -> None:
         """Restore RNG and forced queues only, within the same test contexts."""
         self.dice.set_state(state)
+        if self.dice.chance is not None:
+            self.dice.chance._game = self
 
     def capture_checkpoint(self) -> GameCheckpoint:
         """Capture trajectory position plus RNG for repeatable action sequences.

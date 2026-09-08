@@ -7,12 +7,14 @@ from copy import deepcopy
 from dataclasses import dataclass
 from functools import wraps
 import platform
+import json
 
 import numpy as np
 
 from botbowl.core.game import Game, GameCheckpoint, InvalidActionError
 from botbowl.core.model import Action, Agent, Square
 from botbowl.core.table import ActionType
+from .chance import ChancePolicy, install_chance
 from .observations import ObservationControl, observe
 from .randomness import (DERIVATION_ALGORITHM, GENERATOR, PURPOSES, SeedSpec,
                          _canonical, _identifier, capture_stream)
@@ -42,6 +44,7 @@ class EpisodeResult:
     terminal: bool
     truncated: bool
     decisions: int
+    chance: dict
 
 
 @dataclass(frozen=True)
@@ -66,7 +69,7 @@ class EpisodeContext:
     def __init__(self, config, ruleset, arena, home_team, away_team, *,
                  episode_key, master_seed=None, derivation_version=1,
                  component_ids=None, max_decisions=1000, max_steps=100000,
-                 scenario=None, policies=None):
+                 scenario=None, policies=None, chance_policy=None):
         self._seed = SeedSpec(master_seed, episode_key, derivation_version=derivation_version)
         if type(max_decisions) is not int or max_decisions < 0:
             raise ValueError("max_decisions must be a nonnegative integer")
@@ -85,6 +88,10 @@ class EpisodeContext:
         if scenario is not None and not callable(scenario):
             raise ValueError("scenario must be a trusted callable or None")
         self._inputs = deepcopy((config, ruleset, arena, home_team, away_team))
+        policy = ChancePolicy() if chance_policy is None else chance_policy
+        if type(policy) is not ChancePolicy:
+            raise ValueError("Expected ChancePolicy")
+        self._chance_spec = _canonical(policy.to_json())
         self._scenario = scenario
         self._max_decisions = max_decisions
         self._max_steps = max_steps
@@ -117,11 +124,13 @@ class EpisodeContext:
         game = Game(self._seed.episode_key, home, away, Agent("home", human=True),
                     Agent("away", human=True), config, arena=arena, ruleset=ruleset,
                     seed=specs["engine"].seed_words(), external_control=True)
+        install_chance(game, ChancePolicy.from_json(json.loads(self._chance_spec)))
         game.init()
         control = ObservationControl(game)
         game.enable_forward_model()
         manifest = {
             "manifest_version": 1, "rules": descriptor.to_json(),
+            "chance": game.dice.chance.metadata(),
             "derivation_algorithm": DERIVATION_ALGORITHM,
             "generator": {"id": GENERATOR, "numpy_version": np.__version__,
                           "python_version": platform.python_version()},
@@ -214,7 +223,10 @@ class EpisodeContext:
             raise InvalidActionError("Malformed lab action", code="lab_action") from error
 
     def _result(self, events=()):
-        return EpisodeResult(tuple(events), self.game.state.game_over, self.truncated, self.decisions)
+        if self.game.state.game_over or self.truncated:
+            self.game.dice.chance.finish()
+        return EpisodeResult(tuple(events), self.game.state.game_over, self.truncated, self.decisions,
+                             self.game.dice.chance.metadata())
 
     @_snapshot_idle
     def step(self, action):
