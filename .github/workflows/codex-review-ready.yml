@@ -178,6 +178,8 @@ jobs:
           # A fresh audit is always of the PR's current head. Revalidate the
           # control-plane state immediately before spending a Codex turn so a
           # label/PR/ref race fails here rather than producing a stale review.
+          # Recheck BOTH head and base here immediately before launch; the audit
+          # controller skill rechecks them again before verdict-derived mutation.
           python3 - <<'PY'
           import json
           import os
