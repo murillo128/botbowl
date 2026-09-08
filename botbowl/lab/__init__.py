@@ -11,6 +11,11 @@ from .protocols import Policy as Policy
 from .protocols import Recorder as Recorder
 from .protocols import Scenario as Scenario
 from .protocols import Simulation as Simulation
+from .replays import IndexedReplayEvent as IndexedReplayEvent
+from .replays import ReplayContinuation as ReplayContinuation
+from .replays import ReplayReader as ReplayReader
+from .replays import ReplayRecorder as ReplayRecorder
+from .replays import open_legacy_replay as open_legacy_replay
 
 __all__ = [
     "ActionControl",
@@ -22,6 +27,11 @@ __all__ = [
     "Observer",
     "Policy",
     "Recorder",
+    "ReplayContinuation",
+    "ReplayReader",
+    "ReplayRecorder",
     "Scenario",
     "Simulation",
+    "IndexedReplayEvent",
+    "open_legacy_replay",
 ]
