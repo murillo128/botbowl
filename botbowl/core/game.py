@@ -7,6 +7,7 @@ This module contains the Game class, which is the main class and interface used 
 """
 from contextlib import contextmanager
 from dataclasses import dataclass, field
+from functools import wraps
 import itertools
 from numbers import Integral
 
@@ -18,10 +19,38 @@ from botbowl.core.probability import (
 )
 from botbowl.core.forward_model import Trajectory, MovementStep, Step
 from copy import deepcopy
-from typing import TYPE_CHECKING, Optional, Tuple, List, Union, Any
+from typing import TYPE_CHECKING, Optional, Tuple, List, Union, Any, Callable, TypeVar, cast
 
 if TYPE_CHECKING:
     from botbowl.lab.timeline import DecisionEnvelope
+
+
+_SnapshotMethod = TypeVar('_SnapshotMethod', bound=Callable[..., Any])
+
+
+def _snapshot_boundary(method: _SnapshotMethod) -> _SnapshotMethod:
+    """Expose only successfully settled public boundaries to lab snapshots."""
+    @wraps(method)
+    def guarded(self, *args, **kwargs):
+        was_ready = self._snapshot_ready
+        was_initialized = self._initialized
+        self._snapshot_busy += 1
+        succeeded = False
+        try:
+            result = method(self, *args, **kwargs)
+            succeeded = True
+            return result
+        except InvalidActionError:
+            succeeded = was_ready
+            raise
+        finally:
+            self._snapshot_busy -= 1
+            if not self._snapshot_busy and method.__name__ == 'init' and was_initialized:
+                self._snapshot_ready = was_ready
+            elif not self._snapshot_busy:
+                self._snapshot_ready = succeeded and self._initialized and (
+                    self.state.game_over or bool(self.state.available_actions))
+    return cast(_SnapshotMethod, guarded)
 
 
 class InvalidActionError(Exception):
@@ -149,6 +178,8 @@ class Game:
         self.trajectory = Trajectory()
         self.square_shortcut = self.state.pitch.squares
         self.timeline = None
+        self._snapshot_busy = 0
+        self._snapshot_ready = False
 
     @property
     def closed(self) -> bool:
@@ -244,13 +275,17 @@ class Game:
         :returns: list of the undone steps that can be used to redo the steps with function self.foward()
         """
         assert self.trajectory.enabled
-        return self.trajectory.revert(to_step)
+        steps = self.trajectory.revert(to_step)
+        if steps:
+            self._snapshot_ready = False
+        return steps
 
     def forward(self, steps: List[Step]) -> None:
         """
         :param steps: re-does previously reverted with function self.revert().
         """
         assert self.trajectory.enabled
+        self._snapshot_ready = False
         self.trajectory.step_forward(steps)
 
     def capture_rng_state(self) -> DiceSourceState:
@@ -310,6 +345,7 @@ class Game:
     def actor(self) -> Optional[Agent]:
         return self.get_team_agent(self.active_team)
 
+    @_snapshot_boundary
     def init(self, *, max_steps=100000) -> None:
         """
         Initialize once. External control always waits for START_GAME, even
@@ -363,6 +399,7 @@ class Game:
         """
         return self._advance(action, budget=_step_budget(max_steps))
 
+    @_snapshot_boundary
     def _advance(self, action, single_step=False, budget=None, *, internal=False) -> DecisionResult:
         # Reject public input before changing even self.action. Normalization only
         # writes a new Action, never the object owned by a caller or bot.
@@ -655,6 +692,7 @@ class Game:
         out = [sq.to_json() for sq in self.state.active_player.state.squares_moved]
         return out
 
+    @_snapshot_boundary
     def _one_step(self, action: Optional[Action]) -> bool:
         """
         Executes one step in the game if it is allowed.
