@@ -11,6 +11,8 @@ from botbowl.core import procedure as proc
 from botbowl.lab.actions import ActionControl, PositionV1, StaleDecisionError
 from botbowl.lab.timeline import Timeline, TimelineContext
 from tests.baseline import Scenario, place_players, progress_action
+from tests.framework.test_external_control import assert_equivalent, fresh as external_game
+from tests.framework.test_forced_action import FakeTime
 from tests.lab.test_semantic_actions import semantic_game
 
 
@@ -364,6 +366,70 @@ def test_instrumentation_preserves_full_game_rules_rng_reports_and_trajectory():
     assert_data(asdict(game.timeline.capture()))
 
 
+@pytest.mark.parametrize('human', [False, True])
+@pytest.mark.parametrize('boundary', ['coin_toss', 'setup', 'turn', 'activation'])
+def test_refresh_clock_forcing_keeps_events_without_coach_decisions(human, boundary):
+    game = external_game(human=human)  # Both seats fail if their act() is called.
+    game.time_source = FakeTime()
+    game.config.competition_mode = True
+    plain = deepcopy(game)
+    Timeline(game, episode_id='clock-test')
+    for candidate in (game, plain):
+        candidate.init()
+        target = {'coin_toss': proc.CoinTossFlip, 'setup': proc.Setup,
+                  'turn': proc.Turn, 'activation': proc.Turn}[boundary]
+        until(candidate, lambda g: type(g.get_procedure()) is target)
+        if boundary == 'activation':
+            player = candidate.get_players_on_pitch(candidate.active_team)[0]
+            candidate.advance(bb.Action(bb.ActionType.START_MOVE, player=player))
+    assert_equivalent(game, plain)
+    timeline = game.timeline
+    before, decisions = timeline.context, timeline.decisions
+    report_start = len(game.state.reports)
+    for candidate in (game, plain):
+        clock = candidate.get_agent_clock(candidate.actor)
+        assert clock.is_primary == (boundary != 'coin_toss')
+        assert not clock.is_done()
+        candidate.time_source.now += 10000
+        assert clock.is_done()
+        candidate.refresh(max_steps=100)
+        assert clock not in candidate.state.clocks
+    assert_equivalent(game, plain)
+    assert timeline.context.decision_seq == before.decision_seq
+    assert timeline.decisions == decisions
+    assert timeline.decisions_since(before.decision_seq) == ()
+    events = timeline.events[before.event_seq:]
+    assert events and all(event.decision_seq is None for event in events)
+    assert all(event.context.decision_seq == before.decision_seq for event in events)
+    assert [event.context.event_seq for event in events] == list(
+        range(before.event_seq + 1, timeline.context.event_seq + 1))
+    assert [event.data['outcome_type'] for event in events if event.kind == 'report'] == [
+        report.outcome_type.name for report in game.state.reports[report_start:]]
+    if boundary in ('turn', 'activation'):
+        assert timeline.context.team_turn_seq == before.team_turn_seq + 1
+        assert [event.kind for event in events if event.kind != 'report'] == (
+            (['activation_ended'] if boundary == 'activation' else []) +
+            ['team_turn_ended', 'team_turn_started'])
+    assert timeline.to_json()['operational_errors'] == []
+
+    # The same public submission remains a coach decision after clock forcing,
+    # whether supplied directly or by PolicyDriver; unowned events stay outside it.
+    driven = deepcopy(game)
+    result = game.advance(progress_action(game))
+    plain.advance(progress_action(plain))
+    driver = bb.PolicyDriver(driven, {team.team_id: progress_action for team in driven.state.teams})
+    aggregated = driver.run(max_decisions=1)
+    assert len(result.decisions) == len(aggregated.decisions) == 1
+    assert result.decisions == aggregated.decisions
+    decision = result.decisions[0]
+    assert decision.after.decision_seq == before.decision_seq + 1
+    assert decision.event_start == events[-1].context.event_seq + 1
+    assert all(event.decision_seq == decision.after.decision_seq for event in decision.events)
+    assert timeline.events == driven.timeline.events
+    assert_equivalent(game, plain)
+    assert_equivalent(game, driven)
+
+
 def test_trusted_checkpoint_double_and_real_checkpoint_restore_prefix_and_branch():
     game = fresh()
     game.enable_forward_model()
@@ -480,6 +546,7 @@ def test_macro_operational_failure_retains_parent_and_partial_child():
     assert trace['macros'][-1]['decision_seqs'] == [before.decision_seq + 1]
     assert trace['decisions'][-1]['status'] == 'pending'
     assert trace['decisions'][-1]['macro_id'] == route.macro_id
+    assert trace['macros'][-1]['interruption']['next_order'] == trace['decisions'][-1]['primitive_order'] == 0
     game.advance()
     assert game.timeline.decisions[-1].status == 'resolved'
     assert_integrity(game)

@@ -363,7 +363,7 @@ class Game:
         """
         return self._advance(action, budget=_step_budget(max_steps))
 
-    def _advance(self, action, single_step=False, budget=None) -> DecisionResult:
+    def _advance(self, action, single_step=False, budget=None, *, internal=False) -> DecisionResult:
         # Reject public input before changing even self.action. Normalization only
         # writes a new Action, never the object owned by a caller or bot.
         action = self._validated_action(action)
@@ -371,7 +371,8 @@ class Game:
             return DecisionResult(None, (), True)
         budget = _step_budget(100000 if budget is None else budget)
         timeline = self.timeline
-        semantic = None if timeline is None else timeline._prepare(action)
+        # Clock forcing executes normal rules but is not submitted coach input.
+        semantic = None if timeline is None or internal else timeline._prepare(action)
         report_start = len(self.state.reports)
         self.action = action
         first = True
@@ -427,7 +428,7 @@ class Game:
         budget = _step_budget(max_steps)
         while clock in self.state.clocks and not self.state.game_over:
             action = self._forced_action() if self.state.available_actions else None
-            self._advance(action, budget=budget)
+            self._advance(action, budget=budget, internal=True)
         self.action = None
         return True
 

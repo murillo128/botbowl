@@ -26,7 +26,7 @@ render frames, new action lists or actor changes.
 | `episode_id` | Supplied nonempty string, default `game.game_id` | Fixed across the episode's branches. The controller owns uniqueness. |
 | `branch_id` | Supplied nonempty string, default `root` | Explicit `fork(new_id)` only. |
 | `event_seq` | `0` | Once per emitted report or phase event, in emission order. |
-| `decision_seq` | `0` | Once after engine/ActionV1 validation and admission of the action's first engine step by the execution budget. |
+| `decision_seq` | `0` | Once after engine/ActionV1 validation and admission of a submitted coach action's first engine step by the execution budget. |
 | `activation_seq` | null | `Turn.step` accepts a player's `START_*` action and assigns the active player, before traits or optional prompts. |
 | `team_turn_seq` | null | `Turn.start`, including actual Blitz and Quick Snap kickoff turns. |
 | `drive_seq` | null | The engine schedules kickoff and both setups at half start or an eligible post-touchdown restart. |
@@ -92,6 +92,10 @@ is a new decision; this API adds no transport retry protocol. `None`/`CONTINUE`
 only advances automatic work and creates no decision. Repeated terminal queries
 return no decisions. Reports emitted by a trusted scenario outside an advance
 have null causation, never retroactive attribution to the last coach action.
+Competition clock enforcement through `refresh()` can synthesize forced actions.
+These retain ordinary reports and phase events but create no accepted decision
+or decision-counter increment. Events without an accepted causing decision have
+null causation, even when earlier coach decisions exist.
 
 ## Macros and aggregation
 
@@ -100,7 +104,10 @@ Each `MacroStepV1.decision` contains its accepted timeline envelope (null when
 disabled). Children carry parent `macro_id` and `primitive_order`.
 `Timeline.to_json()["macros"]` retains the copied proposal, before/after context,
 accepted child sequence IDs, status and interruption reason/context/next actor/
-next primitive order. The macro itself increments no game counter. Resume by
+next primitive order. Interruption `next_order` is the zero-based first unfinished
+primitive: if an accepted child is still pending after budget exhaustion, it
+identifies that child, not a later unsubmitted primitive. The macro itself
+increments no game counter. Resume by
 validating a new macro at the new API-05 decision token; prior records stay fixed.
 
 `PolicyDriver.run(...).decisions` returns every intermediate envelope; existing
