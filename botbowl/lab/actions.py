@@ -110,6 +110,34 @@ _FORMATION_TYPES = {
 }
 _PATH_TYPES = frozenset({"MOVE", "BLOCK", "STAB", "HANDOFF", "FOUL"})
 _PLAYER_POSITION_PRODUCT_TYPES = frozenset({"PLACE_PLAYER"})
+_PLAYER_TYPES = frozenset({
+    "START_MOVE", "START_BLOCK", "START_BLITZ", "START_PASS", "START_FOUL",
+    "START_HANDOFF", "START_THROW_BOMB",
+})
+_POSITION_TYPES = frozenset({
+    "PLACE_BALL", "MOVE", "PASS", "PUSH", "FOLLOW_UP", "LEAP",
+    "THROW_BOMB", "PICKUP_TEAM_MATE", "THROW_TEAM_MATE",
+})
+_TYPE_ONLY_TYPES = frozenset({
+    "START_GAME", "HEADS", "TAILS", "KICK", "RECEIVE", "END_SETUP",
+    "END_PLAYER_TURN", "USE_REROLL", "END_TURN", "USE_APOTHECARY",
+    "CONTINUE", "SELECT_NONE", "DONT_USE_APOTHECARY", "DONT_USE_REROLL",
+    "SELECT_FIRST_ROLL", "SELECT_SECOND_ROLL", "STAND_UP",
+    "SELECT_ATTACKER_DOWN", "SELECT_BOTH_DOWN", "SELECT_PUSH",
+    "SELECT_DEFENDER_STUMBLES", "SELECT_DEFENDER_DOWN", "USE_BRIBE",
+    "DONT_USE_BRIBE", "CATCH_BOMB", "DONT_CATCH_BOMB", "UNDO",
+}) | _FORMATION_TYPES.keys()
+
+# Payload names are an explicit family contract; choices supply values only.
+_PAYLOAD_SHAPES = {
+    **{name: {()} for name in _TYPE_ONLY_TYPES},
+    **{name: {("player_id",)} for name in _PLAYER_TYPES},
+    **{name: {("position",)} for name in _POSITION_TYPES},
+    **{name: {("target_id",)} for name in _TARGET_TYPES},
+    **{name: {(), ("player_id",)} for name in _SKILL_TYPES},
+    "SELECT_PLAYER": {("player_id",), ("position",)},
+    "PLACE_PLAYER": {("player_id",), ("player_id", "position")},
+}
 
 
 @dataclass(frozen=True)
@@ -168,12 +196,16 @@ class ActionV1:
             raise ActionSchemaError("options must be an object")
         if not raw_options:
             options = EmptyOptionsV1()
-        elif set(raw_options) == {"skill"} and value["type"] in _SKILL_TYPES:
+        elif set(raw_options) == {"skill"} and value["type"] in (
+            _SKILL_TYPES | {"HYPNOTIC_GAZE"}
+        ):
             if (
                 type(raw_options["skill"]) is not str
                 or raw_options["skill"] not in Skill.__members__
             ):
                 raise ActionSchemaError("skill option must be an enum name")
+            if value["type"] == "HYPNOTIC_GAZE" and raw_options["skill"] != "HYPNOTIC_GAZE":
+                raise ActionSchemaError("hypnotic gaze requires its own skill option")
             options = SkillOptionsV1(raw_options["skill"])
         elif set(raw_options) == {"path"} and value["type"] in _PATH_TYPES:
             if type(raw_options["path"]) is not list or not raw_options["path"]:
@@ -184,36 +216,14 @@ class ActionV1:
         else:
             raise ActionSchemaError("options are not valid for this action type")
         action_type = value["type"]
-        if action_type in _TARGET_TYPES:
-            if (
-                value["target_id"] is None
-                or value["player_id"] is not None
-                or position is not None
-            ):
-                raise ActionSchemaError(
-                    "target actions require only target_id as their entity payload"
-                )
-        elif value["target_id"] is not None:
-            raise ActionSchemaError("target_id is prohibited for this action type")
-        if (
-            value["player_id"] is not None
-            and position is not None
-            and action_type not in _PLAYER_POSITION_PRODUCT_TYPES
-        ):
-            raise ActionSchemaError(
-                "only PLACE_PLAYER may combine player_id and position"
-            )
-        if action_type == "PLACE_PLAYER" and value["player_id"] is None:
-            raise ActionSchemaError("PLACE_PLAYER requires player_id")
+        payload = tuple(
+            name for name in ("player_id", "target_id", "position")
+            if value[name] is not None
+        )
+        if payload not in _PAYLOAD_SHAPES.get(action_type, set()):
+            raise ActionSchemaError("payload is not valid for this action family")
         if action_type in _SKILL_TYPES and not isinstance(options, SkillOptionsV1):
             raise ActionSchemaError("skill decisions require a typed skill option")
-        if isinstance(options, PathOptionsV1) and (
-            (action_type in _TARGET_TYPES and value["target_id"] is None)
-            or (action_type not in _TARGET_TYPES and position is None)
-        ):
-            raise ActionSchemaError(
-                "path options require their final target or position"
-            )
         return cls(
             1,
             value["type"],
@@ -644,8 +654,14 @@ class ActionControl:
         return ActionRequestV1(1, self.decision_id, self.state_revision, action)
 
     def _validate_request(self, request: ActionRequestV1) -> None:
-        if not isinstance(request, ActionRequestV1) or request.schema_version != 1:
+        if not isinstance(request, ActionRequestV1):
             raise ActionSchemaError("expected an ActionRequestV1")
+        # Dataclass annotations are not runtime validation. Apply the wire
+        # contract also to callers constructing typed requests directly.
+        try:
+            ActionRequestV1.from_json(request.to_json())
+        except (AttributeError, TypeError) as error:
+            raise ActionSchemaError("malformed typed action request") from error
         if (
             request.decision_id != self.decision_id
             or request.state_revision != self.state_revision
@@ -685,7 +701,10 @@ class ActionControl:
             )
         # Rebuild against canonical episode objects; never return caller data.
         core = matches[0]
-        return Action(core.action_type, player=core.player, position=core.position)
+        decoded = Action(core.action_type, player=core.player, position=core.position)
+        if not self._game.is_action_allowed(decoded):
+            raise ActionNotOfferedError("engine no longer allows this action")
+        return decoded
 
     def encode(self, action: Action) -> ActionV1:
         if not self._game.is_action_allowed(action):
@@ -743,15 +762,21 @@ class ActionControl:
         squares = [self._resolve_position(position) for position in macro.path]
         actions = [Action(ActionType.MOVE, position=square) for square in squares]
         actions[-1] = Action(ActionType[macro.type], position=squares[-1])
+        player = self._game.state.active_player
+        if player is not None and not player.state.up and squares[0] == player.position:
+            actions[0] = Action(ActionType.STAND_UP)
         return actions
 
     def execute_macro(self, macro: MacroV1, *, max_steps=100000) -> MacroResultV1:
         """Execute only anticipated primitive decisions and retain every result."""
-        if (
-            not isinstance(macro, (FormationMacroV1, RouteMacroV1))
-            or macro.schema_version != 1
-        ):
+        if not isinstance(macro, (FormationMacroV1, RouteMacroV1)):
             raise ActionSchemaError("expected a supported version-1 macro")
+        if type(macro.schema_version) is not int or macro.schema_version != 1:
+            raise ActionSchemaError("unsupported macro schema_version")
+        try:
+            macro = macro_from_json(macro.to_json())
+        except (AttributeError, TypeError) as error:
+            raise ActionSchemaError("malformed typed macro") from error
         self._sync(self._game)
         actor = self._side(self._game.active_team)
         if macro.actor_id != actor:
@@ -779,6 +804,15 @@ class ActionControl:
             except SemanticActionError:
                 return MacroResultV1(
                     1, macro.macro_id, "interrupted", records, "unplanned_decision"
+                )
+            if isinstance(macro, RouteMacroV1) and isinstance(
+                semantic.options, PathOptionsV1
+            ) and semantic.options.path != [_position(core.position)]:
+                # A newly offered detour is a different plan, even if its
+                # endpoint is the anticipated next square. Never send it as
+                # one primitive or silently change pathfinding backends.
+                return MacroResultV1(
+                    1, macro.macro_id, "interrupted", records, "route_invalidated"
                 )
             request = self.request(semantic)
             decoded = self.decode(request)

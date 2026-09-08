@@ -43,18 +43,26 @@ rejected rather than ignored.
 | --- | --- | --- |
 | `{}` | Every family without special metadata | No additional option. |
 | `{"skill": "<Skill.name>"}` | `USE_SKILL`, `DONT_USE_SKILL` | The skill named by the cached choice. |
+| `{"skill": "HYPNOTIC_GAZE"}` | `HYPNOTIC_GAZE` | The skill metadata emitted by the engine's occupied-target choice. |
 | `{"path": [{"x": int, "y": int}, ...]}` | `MOVE`, `BLOCK`, `STAB`, `HANDOFF`, `FOUL` | Copied path selected by an engine pathfinding choice. No rolls, probabilities, or future state are exposed. |
 
 The explicit payload families are:
 
-- player selection: cached `ActionChoice.players`, represented by `player_id`;
+- player selection: `START_MOVE`, `START_BLOCK`, `START_BLITZ`, `START_PASS`,
+  `START_FOUL`, `START_HANDOFF`, and `START_THROW_BOMB`, represented by `player_id`;
 - occupied targets: `BLOCK`, `STAB`, `HANDOFF`, `FOUL`, and
   `HYPNOTIC_GAZE`, represented by `target_id` and resolved to the target's
   current square;
-- square selection: cached `ActionChoice.positions`, represented by `position`;
+- square selection: `PLACE_BALL`, `MOVE`, `PASS`, `PUSH`, `FOLLOW_UP`, `LEAP`,
+  `THROW_BOMB`, `PICKUP_TEAM_MATE`, and `THROW_TEAM_MATE`, represented by `position`;
+- `SELECT_PLAYER`: either `player_id` or `position`, according to its choice;
+- `USE_SKILL` / `DONT_USE_SKILL`: an optional `player_id` and the required skill option;
 - player plus square: only `PLACE_PLAYER`, whose engine contract authorizes
   the product of the offered players and positions;
-- type-only decisions: no player, target, or position.
+- all other type-only decisions: no player, target, or position. Enum aliases
+  retain the engine's canonical `.name`; this codec does not distinguish values
+  the legacy enum aliases together. `CONTINUE` advances automatic work and is
+  never enumerated as a coach decision.
 
 No other player/position product is inferred. Disabled choices are absent.
 Candidates are checked by `Game.is_action_allowed`, so the codec does not
@@ -78,6 +86,8 @@ schema versions. Runtime resolution uses typed `SemanticActionError` subclasses:
 `UnknownEntityError`, `InvalidPositionError`, `AmbiguousActionError`, and
 `ActionNotOfferedError`. Do not retry a stale request with a new revision;
 request the new legal-action envelope and choose again.
+Directly constructed requests and macros pass the same schema checks as wire
+data. Decode also rechecks current engine legality, including after game closure.
 
 `encode_action`/`decode_action` preserve historical engine `Action` objects.
 When the Gymnasium extra is installed, `gym_to_semantic` and
@@ -97,6 +107,10 @@ formation/path shortcut directly when an observable expansion is required.
 The controller replans no game rules. It expands the formation's pure `actions`
 plan or the declared route into ordinary actions, re-encodes and validates each
 one at the then-current decision, and sends it through `Game.advance`.
+A route's initial current-square entry for a prone player expands to `STAND_UP`.
+Every subsequent path choice must still describe exactly the anticipated single
+step; a newly offered detour to the same endpoint interrupts with
+`route_invalidated` before it is submitted.
 
 `MacroResultV1.steps` records `macro_id`, zero-based order, the exact
 decision/revision, copied semantic primitive action, accepted result, and every

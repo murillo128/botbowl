@@ -2,6 +2,7 @@
 
 import pickle
 from copy import deepcopy
+from dataclasses import replace
 
 import numpy as np
 import pytest
@@ -14,6 +15,7 @@ from botbowl.lab.actions import (
     ActionRequestV1,
     ActionSchemaError,
     ActionV1,
+    AmbiguousActionError,
     EmptyOptionsV1,
     InvalidPositionError,
     PathOptionsV1,
@@ -218,23 +220,23 @@ def test_stale_actor_foreign_ids_and_positions_reject_without_mutation():
         control.decode(control.request(wrong))
     unknown = ActionV1(
         1,
-        current.type,
+        "START_MOVE",
         current.actor_id,
         "home:999",
         None,
-        current.position,
-        current.options,
+        None,
+        EmptyOptionsV1(),
     )
     with pytest.raises(UnknownEntityError):
         control.decode(control.request(unknown))
     outside = ActionV1(
         1,
-        current.type,
+        "MOVE",
         current.actor_id,
-        current.player_id,
-        current.target_id,
+        None,
+        None,
         PositionV1(-1, 0),
-        current.options,
+        EmptyOptionsV1(),
     )
     with pytest.raises(InvalidPositionError):
         control.decode(control.request(outside))
@@ -267,6 +269,39 @@ def test_gym_index_semantic_engine_correspondence_for_both_sides(size, wanted_si
         assert not (terminated or truncated)
     else:
         pytest.fail("requested side never received a decision")
+    env.close()
+
+
+@pytest.mark.parametrize("size", SIZES)
+def test_gym_translation_at_every_episode_boundary_is_pure(size):
+    pytest.importorskip("gymnasium")
+    from botbowl.ai.gymnasium_env import GymnasiumEnv
+
+    env = GymnasiumEnv(size, config=semantic_game(size).config)
+    observation, _ = env.reset(seed=17)
+    control = ActionControl(env.game)
+    seen = set()
+    for _ in range(160):
+        before = pickle.dumps(env.game)
+        indices = np.flatnonzero(observation["action_mask"])
+        # Check every legal index in one representative decision per side and
+        # procedure, including the player/square placement product.
+        boundary = (env.game.active_team.team_id, type(env.game.get_procedure()))
+        if boundary not in seen:
+            seen.add(boundary)
+            for index in map(int, indices):
+                semantic = gym_to_semantic(env, index, control)
+                assert semantic_to_gym(env, semantic, control) == index
+                assert_round_trip(control, semantic)
+        assert pickle.dumps(env.game) == before
+        core = progress_action(env.game)
+        observation, _, terminated, truncated, _ = env.step(env.encode_action(core))
+        assert not truncated
+        if terminated:
+            break
+    else:
+        pytest.fail("Gym semantic episode did not terminate")
+    assert len(seen) >= 8
     env.close()
 
 
@@ -332,7 +367,6 @@ def test_route_stops_at_unplanned_reroll_and_freezes_recorded_prefix():
         for item in decision.macros
         if item.to_json()["kind"] == "route" and item.type == "MOVE"
     )
-    original_future = list(route.path)
     assert macro_from_json(route.to_json()) == route
     with game.dice.force(d6=[1], strict=True):
         result = control.execute_macro(route)
@@ -341,7 +375,7 @@ def test_route_stops_at_unplanned_reroll_and_freezes_recorded_prefix():
     assert len(result.steps) == 1
     assert game.get_procedure().__class__.__name__ == "Reroll"
     frozen = result.steps[0].to_json()
-    original_future.append(PositionV1(999, 999))
+    route.path.append(PositionV1(999, 999))
     assert result.steps[0].to_json() == frozen
     assert isinstance(result.steps[0].action.options, PathOptionsV1)
 
@@ -453,3 +487,269 @@ def test_request_parser_and_nonoffered_combination_are_typed():
     )
     with pytest.raises(ActionNotOfferedError):
         control.decode(control.request(altered))
+
+
+@pytest.mark.parametrize("size", SIZES)
+@pytest.mark.parametrize("home", (False, True))
+def test_all_engine_action_families_match_validated_choices(size, home):
+    game = semantic_game(size)
+    team = game.state.home_team if home else game.state.away_team
+    own, target = team.players[0], game.get_opp_team(team).players[0]
+    game.put(own, game.get_square(2, 2))
+    game.put(target, game.get_square(3, 2))
+    control = ActionControl(game)
+    player_types = {
+        "START_MOVE", "START_BLOCK", "START_BLITZ", "START_PASS", "START_FOUL",
+        "START_HANDOFF", "START_THROW_BOMB", "SELECT_PLAYER",
+    }
+    target_types = {"BLOCK", "STAB", "HANDOFF", "FOUL", "HYPNOTIC_GAZE"}
+    position_types = {
+        "PLACE_BALL", "MOVE", "PASS", "PUSH", "FOLLOW_UP", "LEAP",
+        "THROW_BOMB", "PICKUP_TEAM_MATE", "THROW_TEAM_MATE",
+    }
+    for action_type in bb.ActionType:
+        if action_type == bb.ActionType.CONTINUE:
+            continue  # Automatic advancement is not a coach decision.
+        kwargs = {}
+        if action_type.name in player_types:
+            kwargs["players"] = [own]
+        elif action_type.name in target_types:
+            kwargs["positions"] = [target.position]
+        elif action_type.name in position_types:
+            kwargs["positions"] = [game.get_square(2, 3)]
+        elif action_type == bb.ActionType.PLACE_PLAYER:
+            kwargs = {"players": [own], "positions": [None, game.get_square(2, 3)]}
+        if action_type.name in {"USE_SKILL", "DONT_USE_SKILL"}:
+            kwargs["skill"] = Skill.PRO
+        if action_type == bb.ActionType.HYPNOTIC_GAZE:
+            own.extra_skills.append(Skill.HYPNOTIC_GAZE)
+            choices = game.get_hypnotic_gaze_actions(own)
+        else:
+            choices = [bb.ActionChoice(action_type, team, **kwargs)]
+        game.state.available_actions = choices
+        before = pickle.dumps(game)
+        offered = control.legal_actions().actions
+        expected = [
+            bb.Action(action_type, player=p, position=s)
+            for choice in choices
+            for p in choice.players or [None]
+            for s in choice.positions or [None]
+        ]
+        assert len(offered) == sum(game.validate_action(a).allowed for a in expected)
+        for semantic in offered:
+            assert_round_trip(control, semantic)
+        assert pickle.dumps(game) == before
+    # SELECT_PLAYER also has a square-target shape (e.g. EatThrall).
+    game.state.available_actions = [
+        bb.ActionChoice(bb.ActionType.SELECT_PLAYER, team, positions=[target.position])
+    ]
+    assert_round_trip(control, control.legal_actions().actions[0])
+
+
+@pytest.mark.parametrize("field,value", [
+    ("schema_version", True), ("schema_version", 1.0),
+    ("state_revision", False), ("state_revision", 0.0), ("action", None),
+])
+def test_typed_requests_cannot_bypass_strict_parser(field, value):
+    game = semantic_game()
+    game.init()
+    control = ActionControl(game)
+    request = replace(control.request(control.legal_actions().actions[0]), **{field: value})
+    before = pickle.dumps(game), pickle.dumps(request)
+    with pytest.raises(ActionSchemaError):
+        control.decode(request)
+    assert (pickle.dumps(game), pickle.dumps(request)) == before
+
+
+@pytest.mark.parametrize("action_type,payload", [
+    ("END_TURN", {"player_id": "home:0"}),
+    ("USE_REROLL", {"position": {"x": 2, "y": 2}}),
+    ("START_MOVE", {}),
+    ("MOVE", {"player_id": "home:0"}),
+    ("SELECT_PLAYER", {}),
+])
+def test_family_parser_rejects_prohibited_or_missing_payload(action_type, payload):
+    wire = ActionV1(1, action_type, "home", None, None, None, EmptyOptionsV1()).to_json()
+    wire.update(payload)
+    before = deepcopy(wire)
+    with pytest.raises(ActionSchemaError):
+        ActionV1.from_json(wire)
+    assert wire == before
+
+
+def test_cached_decode_still_delegates_current_legality_to_engine():
+    game = semantic_game()
+    game.init()
+    control = ActionControl(game)
+    request = control.request(control.legal_actions().actions[0])
+    game.close()
+    before = pickle.dumps(game)
+    with pytest.raises(ActionNotOfferedError):
+        control.decode(request)
+    assert pickle.dumps(game) == before
+
+
+def test_joint_choices_are_not_crossed_and_queries_preserve_forward_model():
+    game = semantic_game(3)
+    game.init()
+    game.enable_forward_model()
+    game.replay = bb.Replay("semantic-purity")
+    team = game.active_team
+    players = team.players[:2]
+    positions = [game.get_square(2, 2), game.get_square(3, 2)]
+    game.state.available_actions = [
+        bb.ActionChoice(bb.ActionType.PLACE_PLAYER, team, players=[p], positions=[s])
+        for p, s in zip(players, positions)
+    ]
+    control = ActionControl(game)
+    before = pickle.dumps(game), game.capture_rng_state(), len(game.trajectory)
+    offered = control.legal_actions().actions
+    assert len(offered) == 2
+    for action in offered:
+        assert_round_trip(control, action)
+    crossed = replace(offered[0], position=offered[1].position)
+    with pytest.raises(ActionNotOfferedError):
+        control.decode(control.request(crossed))
+    assert (pickle.dumps(game), game.capture_rng_state(), len(game.trajectory)) == before
+    game.state.available_actions = [
+        bb.ActionChoice(bb.ActionType.START_MOVE, team, players=players, positions=positions)
+    ]
+    before = pickle.dumps(game)
+    with pytest.raises(AmbiguousActionError):
+        control.legal_actions()
+    assert pickle.dumps(game) == before
+
+
+@pytest.mark.parametrize("size", SIZES)
+@pytest.mark.parametrize("prone", (False, True))
+def test_completed_route_matches_primitives_and_retains_every_event(size, prone):
+    game = semantic_game(size, pathfinding=True)
+    probe = Scenario(game, 17, size)
+    game.init()
+    probe.until(lambda candidate: candidate.current_turn() is not None)
+    player = place_players(probe, [(2, 2)])[0]
+    player.state.up = not prone
+    probe.step(bb.Action(bb.ActionType.START_MOVE, player=player))
+    control = ActionControl(game)
+    route = next(
+        m for m in control.legal_actions().macros
+        if m.type == "MOVE" and len(m.path) == (3 if prone else 2)
+        and m.path[-1].x > 1 and m.path[-1].y > 1
+    )
+    manual = deepcopy(game)
+    report_start = len(game.state.reports)
+    expected = []
+    for order, position in enumerate(route.path):
+        action = (
+            bb.Action(bb.ActionType.STAND_UP)
+            if prone and order == 0
+            else bb.Action(bb.ActionType.MOVE, position=manual.get_square(position.x, position.y))
+        )
+        expected.append(action.to_json())
+        manual.advance(action)
+    result = control.execute_macro(route)
+    assert result.status == "completed" and result.interruption is None
+    assert len(result.steps) == len(expected)
+    assert [step.order for step in result.steps] == list(range(len(expected)))
+    assert {step.macro_id for step in result.steps} == {route.macro_id}
+    assert [step.action.type for step in result.steps] == [a["action_type"] for a in expected]
+    assert [event for step in result.steps for event in step.events] == [
+        event.to_json() for event in game.state.reports[report_start:]
+    ]
+    assert game.state.to_json(ignore_clocks=True) == manual.state.to_json(ignore_clocks=True)
+    assert game.capture_rng_state() == manual.capture_rng_state()
+    prefix = result.to_json()
+    route.path.clear()
+    assert result.to_json() == prefix
+
+
+def test_route_rejects_new_detour_to_the_same_endpoint(monkeypatch):
+    game = semantic_game(1, pathfinding=True)
+    probe = Scenario(game, 17, 1)
+    game.init()
+    probe.until(lambda candidate: candidate.current_turn() is not None)
+    player = place_players(probe, [(2, 2)])[0]
+    probe.step(bb.Action(bb.ActionType.START_MOVE, player=player))
+    control = ActionControl(game)
+    route = next(m for m in control.legal_actions().macros if m.type == "MOVE" and len(m.path) == 2)
+    encode = control.encode
+
+    def detour(action):
+        semantic = encode(action)
+        if game.state.active_player.position != game.get_square(2, 2):
+            return replace(semantic, options=PathOptionsV1([PositionV1(1, 1), semantic.position]))
+        return semantic
+
+    monkeypatch.setattr(control, "encode", detour)
+    result = control.execute_macro(route)
+    assert result.status == "interrupted" and result.interruption == "route_invalidated"
+    assert len(result.steps) == 1
+    assert player.position == game.get_square(route.path[0].x, route.path[0].y)
+
+
+def test_lazy_path_caches_and_forward_trajectory_survive_queries_and_rejections():
+    game = semantic_game(3, pathfinding=True)
+    probe = Scenario(game, 17, 3)
+    game.init()
+    probe.until(lambda candidate: candidate.current_turn() is not None)
+    player = place_players(probe, [(2, 2)])[0]
+    probe.step(bb.Action(bb.ActionType.START_MOVE, player=player))
+    game.enable_forward_model()
+    game.replay = bb.Replay("path-query-purity")
+    control = ActionControl(game)
+    paths = [path for choice in game.get_available_actions() for path in choice.paths]
+    assert paths
+    before = pickle.dumps(game), game.capture_rng_state(), len(game.trajectory)
+    # Serialization can itself materialize native paths. Restore lazy state
+    # after the snapshot so it cannot mask query-induced cache writes.
+    for path in paths:
+        path._steps = path._rolls = None
+    actions_ref = game.state.available_actions
+    path_map = game.get_procedure().paths
+    decision = control.legal_actions()
+    for semantic in decision.actions:
+        assert_round_trip(control, semantic)
+    with pytest.raises(WrongActorError):
+        control.decode(control.request(replace(decision.actions[0], actor_id="away")))
+    assert game.state.available_actions is actions_ref
+    assert game.get_procedure().paths is path_map
+    assert all(path._steps is None and path._rolls is None for path in paths)
+    # Match the snapshot's materialized representation only after checking
+    # exact cache identities above; both backends must leave the game intact.
+    assert (pickle.dumps(game), game.capture_rng_state(), len(game.trajectory)) == before
+
+
+def test_route_stops_before_sending_a_now_occupied_next_square(monkeypatch):
+    game = semantic_game(3, pathfinding=True)
+    probe = Scenario(game, 17, 3)
+    game.init()
+    probe.until(lambda candidate: candidate.current_turn() is not None)
+    player = place_players(probe, [(2, 2)])[0]
+    probe.step(bb.Action(bb.ActionType.START_MOVE, player=player))
+    control = ActionControl(game)
+    route = next(m for m in control.legal_actions().macros if m.type == "MOVE" and len(m.path) == 2)
+    advance = game.advance
+
+    def occupy_next(action, **kwargs):
+        result = advance(action, **kwargs)
+        game.put(game.get_opp_team(player.team).players[0],
+                 game.get_square(route.path[1].x, route.path[1].y))
+        game.set_available_actions()
+        return result
+
+    monkeypatch.setattr(game, "advance", occupy_next)
+    result = control.execute_macro(route)
+    assert result.status == "interrupted" and result.interruption == "unplanned_decision"
+    assert len(result.steps) == 1
+    assert player.position == game.get_square(route.path[0].x, route.path[0].y)
+
+
+@pytest.mark.parametrize("version", (True, 1.0, 2))
+def test_typed_macro_versions_reject_before_formation_mutation(version):
+    game = setup_game(size=1)
+    control = ActionControl(game)
+    macro = replace(control.legal_actions().macros[0], schema_version=version)
+    before = pickle.dumps(game)
+    with pytest.raises(ActionSchemaError):
+        control.execute_macro(macro)
+    assert pickle.dumps(game) == before
