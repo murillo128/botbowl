@@ -401,13 +401,12 @@ def _position(square: Square | None) -> PositionV1 | None:
 
 
 def _path_steps(path) -> list[Square]:
-    """Copy a path without populating its lazy step/roll caches."""
-    steps = []
-    node = path.final_node
-    while node.parent is not None:
-        steps.append(node.position)
-        node = node.parent
-    return list(reversed(steps))
+    """Copy backend-neutral path steps and restore its lazy-cache state."""
+    cached_steps, cached_rolls = path._steps, path._rolls
+    try:
+        return list(path.steps)
+    finally:
+        path._steps, path._rolls = cached_steps, cached_rolls
 
 
 class ActionControl:
