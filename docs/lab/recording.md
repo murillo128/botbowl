@@ -73,6 +73,18 @@ automatic skills are events, never agent commands. Casualties are neither
 filtered nor duplicated. The current payload catalogue is closed; future
 explanatory annotations need a supported payload/schema revision (EVAL-06).
 
+Complete validation first checks decisions in stored identity order: decision
+`i` has counters `i-1` before and `i` after, and event prefixes `b_i <= a_i`
+within the episode, with `a_i <= b_(i+1)`. Its cause interval is `[b_i+1,a_i+1)`;
+events outside all intervals have null cause. Equal admission prefixes retain
+every distinct decision, including empty intervals. For prefix `p`, let `L(p)`
+count admissions with `b_i < p` and `U(p)` count admissions with `b_i <= p`.
+An event at `e` must have context decision counter exactly `L(e)`, even with
+null cause: admission at prefix `e` occurs after event `e`. Every other stored
+context must satisfy `L(p) <= decision_seq <= U(p)`. This permits pending and
+historical contexts between emissions without resetting counters for scenario,
+clock or fork work. Resuming a pending decision retains its original admission.
+
 Complete validation derives scope identities from the ordered API-02 phase
 stream. Activation, team-turn and drive IDs start at null, increment once per
 corresponding start event and retain their cumulative value after end events,

@@ -189,7 +189,9 @@ def test_pending_decision_replaced_or_explicitly_truncated(tmp_path, resume):
         recorder.advance(bb.Action(bb.ActionType.START_GAME), max_steps=1)
     assert recorder.records['transitions'][0]['status'] == 'pending'
     assert len(recorder.records['diagnostics']) == 1
-    pre = recorder.records['transitions'][0]['pre_observation']
+    historical = recorder.records
+    pending = historical['transitions'][0]
+    pre = pending['pre_observation']
     if resume:
         recorder.advance()
     recorder.finish(truncation_reason='step_budget')
@@ -198,6 +200,10 @@ def test_pending_decision_replaced_or_explicitly_truncated(tmp_path, resume):
     assert rows['transitions'][0]['status'] == ('resolved' if resume else 'pending')
     assert rows['transitions'][0]['pre_observation'] == pre
     assert rows['transitions'][0]['end']['kind'] == 'truncated'
+    assert rows['transitions'][0]['before'] == pending['before']
+    assert rows['transitions'][0]['transition_id'] == pending['transition_id']
+    assert rows['diagnostics'] == historical['diagnostics']
+    assert rows['primary'][:len(historical['primary'])] == historical['primary']
 
 
 @pytest.mark.parametrize('terminal', [False, True])
@@ -259,11 +265,17 @@ def test_fork_uses_new_branch_and_rewind_rejected_before_engine_change(tmp_path)
         game.restore_checkpoint(checkpoint)
     assert before == (game.state.to_json(ignore_clocks=True), game.capture_rng_state())
     recorder.timeline.fork('alternative')
+    prefix = recorder.timeline.context
+    game.report(bb.Outcome(bb.OutcomeType.PLAYER_PLACED))
     recorder.advance(progress_action(game))
     recorder.finish(truncation_reason='fixture_limit')
     episode = EpisodeReader(tmp_path, 'episode').read_episode()
     assert [t['after']['branch_id'] for t in episode['channels']['transitions']] == ['root', 'alternative']
     assert episode['manifest']['branches'][1]['parent']['branch_id'] == 'root'
+    event = episode['channels']['events'][prefix.event_seq]
+    assert event['context']['branch_id'] == 'alternative'
+    assert event['context']['decision_seq'] == prefix.decision_seq == 1
+    assert event['decision_seq'] is None
 
 
 def test_leakage_canaries_selective_read_and_mutation_safety(tmp_path, monkeypatch):
@@ -436,6 +448,8 @@ def test_automatic_clock_terminal_has_no_invented_or_rewritten_coach_transition(
     assert episode['channels']['transitions'] == before
     assert episode['manifest']['end']['kind'] == 'terminal'
     assert episode['channels']['events'][-1]['decision_seq'] is None
+    suffix = episode['channels']['events'][before[-1]['after']['event_seq']:]
+    assert suffix and all(e['decision_seq'] is None and e['context']['decision_seq'] == count for e in suffix)
 
 
 def test_real_casualty_copied_once_with_exact_rolls_and_causation(tmp_path):
@@ -510,3 +524,45 @@ def test_recorded_special_turn_scopes_keep_round_zero(tmp_path, kind):
     turns = [e for e in events if e['kind'] == 'team_turn_started']
     assert [e['data']['turn_kind'] for e in turns] == [kind, 'regular']
     assert [(e['context']['team_turn_seq'], e['context']['round']) for e in turns] == [(1, 0), (2, 1)]
+
+
+def test_zero_decision_unowned_events_round_trip(tmp_path):
+    game, recorder = record_game(tmp_path)
+    game.report(bb.Outcome(bb.OutcomeType.PLAYER_PLACED))
+    recorder.finish(truncation_reason='scenario_limit')
+    rows = EpisodeReader(tmp_path, 'episode').read_episode()['channels']
+    assert rows['transitions'] == []
+    assert len(rows['events']) == 1
+    assert rows['events'][0]['context']['decision_seq'] == 0
+    assert rows['events'][0]['decision_seq'] is None
+
+
+def test_scenario_prefix_gap_and_completion_after_empty_pro_decline(tmp_path):
+    game, recorder = record_game(tmp_path, 3)
+    game.report(bb.Outcome(bb.OutcomeType.PLAYER_PLACED))  # Unowned prefix before D1.
+    until(game, lambda g: type(g.get_procedure()) is proc.Turn)
+    player, _ = scenario_players(game, [(3, 3)], [(4, 3)])  # Unowned work between admissions.
+    player.extra_skills = [bb.Skill.PRO]
+    player.team.state.rerolls = 1
+    recorder.advance(bb.Action(bb.ActionType.START_MOVE, player=player))
+    with game.dice.force(d6=[1], strict=True):
+        recorder.advance(bb.Action(bb.ActionType.MOVE, position=bb.Square(3, 4)))
+        recorder.advance(bb.Action(bb.ActionType.DONT_USE_SKILL))
+    before = recorder.records['transitions']
+    last = before[-1]
+    assert last['event_start'] == last['event_stop']
+    assert last['actor_id'] == before[-2]['actor_id']
+    game.state.game_over = True  # Trusted scenario completion, no additional coach action.
+    game.report(bb.Outcome(bb.OutcomeType.PLAYER_PLACED, player=player, position=player.position))
+    recorder.finish()
+    episode = EpisodeReader(tmp_path, 'episode').read_episode()
+    rows = episode['channels']
+    assert rows['transitions'] == before
+    assert episode['manifest']['end']['kind'] == 'terminal'
+    assert rows['events'][0]['decision_seq'] is None
+    assert rows['events'][0]['context']['decision_seq'] == 0
+    assert any(e['decision_seq'] is None and 0 < e['context']['decision_seq'] < last['after']['decision_seq']
+               for e in rows['events'])
+    suffix = rows['events'][last['after']['event_seq']:]
+    assert len(suffix) == 1 and suffix[0]['decision_seq'] is None
+    assert suffix[0]['context']['decision_seq'] == last['after']['decision_seq']

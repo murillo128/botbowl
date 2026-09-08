@@ -476,3 +476,118 @@ def test_unstarted_closed_and_excess_half_phases_rejected(tmp_path, scope_source
     event['kind'] = {'round-before-half': 'round_started', 'third-half': 'half_started'}.get(change, 'activation_ended')
     event['data'] = {'reason': 'completed'} if event['kind'] == 'activation_ended' else {}
     assert_persistence_rejects(tmp_path, scope_source, altered, boundary)
+
+
+@pytest.mark.parametrize('boundary', ['writer', 'reader'])
+@pytest.mark.parametrize('decision', [0, 27, 11])
+def test_event_31_null_cause_requires_exact_admitted_counter(tmp_path, scope_source, boundary, decision):
+    source = scope_source
+    transitions = source['channels']['transitions']
+    event = source['channels']['events'][30]
+    assert transitions[9]['after']['event_seq'] == 30
+    assert transitions[10]['before']['event_seq'] == 31
+    assert source['manifest']['final_context']['decision_seq'] >= 27
+    assert event['context']['event_seq'] == 31 and event['context']['decision_seq'] == 10
+    assert event['decision_seq'] is None
+    altered = deepcopy(source)
+    altered['channels']['events'][30]['context']['decision_seq'] = decision
+    assert_persistence_rejects(tmp_path, source, altered, boundary)
+
+
+@pytest.fixture
+def admission_table(episode):
+    """Small data-only boundary table from #65's finite design, not gameplay."""
+    source = deepcopy(episode)
+    rows, manifest = source['channels'], source['manifest']
+    transition = deepcopy(rows['transitions'][0])
+    observation = deepcopy(rows['primary'][transition['pre_observation'] - 1])
+    event = deepcopy(rows['events'][0])
+    for channel in rows:
+        rows[channel] = []
+
+    def context(prefix, decision):
+        return {**manifest['initial_context'], 'event_seq': prefix, 'decision_seq': decision}
+
+    def snapshot(ctx):
+        row = deepcopy(observation)
+        row.update(observation_id=len(rows['primary']) + 1, context=ctx)
+        rows['primary'].append(row)
+        return row['observation_id']
+
+    manifest['initial_observation'] = snapshot(context(0, 0))
+    for decision, (before, after) in enumerate([(1, 2), (2, 2), (2, 2), (4, 5)], 1):
+        row = deepcopy(transition)
+        row.update(before=context(before, decision - 1), after=context(after, decision),
+                   event_start=before + 1, event_stop=after + 1, end=None,
+                   next_actor_id=row['actor_id'])
+        row['transition_id'][-1] = decision
+        row['pre_observation'] = snapshot(row['before'])
+        row['post_observation'] = snapshot(row['after'])
+        rows['transitions'].append(row)
+    for seq, (decision, cause) in enumerate(zip([0, 1, 3, 3, 4, 4], [None, 1, None, None, 4, None]), 1):
+        row = deepcopy(event)
+        row.update(context=context(seq, decision), decision_seq=cause)
+        row['event_id'][-1] = seq
+        rows['events'].append(row)
+    # These are distinct retained contexts between emissions at duplicate admissions.
+    rows['diagnostics'] = [dict(schema_version=1, context=context(prefix, decision),
+                               error_type='GameTruncatedError', code='step_budget')
+                           for prefix, decision in [(2, 1), (2, 2), (2, 3), (4, 3), (4, 4)]]
+    manifest['final_context'] = context(6, 4)
+    manifest['final_observation'] = snapshot(manifest['final_context'])
+    for channel in rows:
+        manifest['files'][channel]['rows'] = len(rows[channel])
+    return source
+
+
+def test_explicit_admission_table_and_stored_context_bands_round_trip(tmp_path, admission_table):
+    persist_episode(tmp_path, 'table', admission_table)
+    result = EpisodeReader(tmp_path, 'table').read_episode()
+    rows = result['channels']
+    assert rows == admission_table['channels']
+    assert [(t['before']['event_seq'], t['after']['event_seq']) for t in rows['transitions']] == [
+        (1, 2), (2, 2), (2, 2), (4, 5)]
+    assert [e['context']['decision_seq'] for e in rows['events']] == [0, 1, 3, 3, 4, 4]
+    assert [e['decision_seq'] for e in rows['events']] == [None, 1, None, None, 4, None]
+    assert [(d['context']['event_seq'], d['context']['decision_seq']) for d in rows['diagnostics']] == [
+        (2, 1), (2, 2), (2, 3), (4, 3), (4, 4)]
+
+
+@pytest.mark.parametrize('boundary', ['writer', 'reader'])
+@pytest.mark.parametrize('event,decision', [(1, 1), (2, 2), (3, 2), (4, 4), (6, 3)])
+def test_admission_table_rejects_premature_and_stale_events(tmp_path, admission_table, boundary, event, decision):
+    altered = deepcopy(admission_table)
+    row = altered['channels']['events'][event - 1]
+    row['context']['decision_seq'] = decision
+    if event == 2:
+        # Keep this caused row locally well-shaped; complete validation owns its interval.
+        row['decision_seq'] = decision
+    assert_persistence_rejects(tmp_path, admission_table, altered, boundary)
+
+
+@pytest.mark.parametrize('boundary', ['writer', 'reader'])
+@pytest.mark.parametrize('prefix,decision', [(2, 0), (2, 4), (4, 2), (4, 5)])
+def test_admission_table_rejects_contexts_outside_bands(tmp_path, admission_table, boundary, prefix, decision):
+    altered = deepcopy(admission_table)
+    ctx = next(d['context'] for d in altered['channels']['diagnostics'] if d['context']['event_seq'] == prefix)
+    ctx['decision_seq'] = decision
+    assert_persistence_rejects(tmp_path, admission_table, altered, boundary)
+
+
+@pytest.mark.parametrize('boundary', ['writer', 'reader'])
+def test_admission_table_does_not_sort_invalid_decision_order(tmp_path, admission_table, boundary):
+    altered = deepcopy(admission_table)
+    rows = altered['channels']['transitions']
+    rows[1], rows[2] = rows[2], rows[1]
+    assert_persistence_rejects(tmp_path, admission_table, altered, boundary)
+
+
+@pytest.mark.parametrize('boundary', ['writer', 'reader'])
+def test_retained_pending_diagnostic_requires_historical_admission_band(tmp_path, interrupted_source, boundary):
+    altered = deepcopy(interrupted_source)
+    context = altered['channels']['diagnostics'][-1]['context']
+    child = altered['channels']['transitions'][-1]
+    assert context['event_seq'] < child['after']['event_seq']
+    assert context['decision_seq'] == child['after']['decision_seq']
+    context['decision_seq'] = child['before']['decision_seq'] - 1
+    assert_persistence_rejects(tmp_path, interrupted_source, altered, boundary)

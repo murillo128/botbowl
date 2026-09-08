@@ -1,4 +1,5 @@
 """Validated, inert DATA-02 records. See docs/lab/recording.md for the wire contract."""
+from bisect import bisect_left, bisect_right
 from dataclasses import dataclass
 import json
 import math
@@ -462,6 +463,18 @@ def validate_episode(manifest, rows):
     events = rows['events']
     require([e['context']['event_seq'] for e in events] == list(range(1, data['final_context']['event_seq'] + 1)),
             'Event IDs have gaps/duplicates')
+    transitions = rows['transitions']
+    require(len(transitions) == data['final_context']['decision_seq'], 'Decision count mismatch')
+    admissions = []
+    previous_after = 0
+    for decision, transition in enumerate(transitions, 1):
+        before, after = transition['before'], transition['after']
+        require(before['decision_seq'] == decision - 1 and after['decision_seq'] == decision,
+                'Decision IDs have gaps/duplicates or invalid order')
+        require(previous_after <= before['event_seq'] <= after['event_seq'] <= data['final_context']['event_seq'],
+                'Invalid ordered decision event intervals')
+        admissions.append(before['event_seq'])  # Retain distinct admissions at equal prefixes.
+        previous_after = after['event_seq']
     scope_prefixes = _scope_prefixes(events)
     branch_ends = {branch['branch_id']: branches[index + 1]['parent'] if index + 1 < len(branches)
                    else data['final_context'] for index, branch in enumerate(branches)}
@@ -478,6 +491,8 @@ def validate_episode(manifest, rows):
         end = branch_ends[ctx['branch_id']]
         require(ctx['event_seq'] <= end['event_seq'] and ctx['decision_seq'] <= end['decision_seq'],
                 'Context beyond branch')
+        require(bisect_left(admissions, ctx['event_seq']) <= ctx['decision_seq'] <=
+                bisect_right(admissions, ctx['event_seq']), 'Decision context outside admission band')
         expected = scope_prefixes[ctx['event_seq']]
         require(all(ctx[field] == expected[field] for field in _SCOPES),
                 'Scope context disagrees with event prefix')
@@ -503,9 +518,6 @@ def validate_episode(manifest, rows):
     require(len(initial_players) == len(set(initial_players)), 'Duplicate entity IDs')
     for row in observations:
         require([p['id'] for p in row['channel']['data']['players']] == initial_players, 'Entity binding changed')
-    transitions = rows['transitions']
-    require([t['after']['decision_seq'] for t in transitions] == list(range(1, data['final_context']['decision_seq'] + 1)),
-            'Decision IDs have gaps/duplicates')
     causes = {}
     previous = None
     for index, transition in enumerate(transitions):
@@ -533,7 +545,6 @@ def validate_episode(manifest, rows):
         require(terminal == (transition['end'] is not None and transition['end']['kind'] == 'terminal'),
                 'Terminal flag/end mismatch')
         if previous is not None:
-            require(before['event_seq'] >= previous['after']['event_seq'], 'Overlapping event intervals')
             if before == previous['after']:
                 require(pre['channel'] == lookup[previous['post_observation']]['channel'],
                         'Broken pre/post observation continuity')
@@ -545,6 +556,8 @@ def validate_episode(manifest, rows):
             causes[event['context']['event_seq']] = after['decision_seq']
         previous = transition
     for event in events:
+        require(event['context']['decision_seq'] == bisect_left(admissions, event['context']['event_seq']),
+                'Event decision context disagrees with admission boundary')
         require(event['context']['branch_id'] == emission_branch(event['context']['event_seq'], 'event_seq'),
                 'Event emitted outside branch lifetime')
         require(causes.get(event['context']['event_seq']) == event['decision_seq'], 'Unowned or duplicate causal event')
