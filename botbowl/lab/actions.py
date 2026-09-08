@@ -321,7 +321,11 @@ class RouteMacroV1:
             raise ActionSchemaError("unsupported macro schema_version")
         if value["kind"] != "route" or value["actor_id"] not in ("home", "away"):
             raise ActionSchemaError("invalid route macro kind or actor")
-        if type(value["macro_id"]) is not str or value["type"] not in _PATH_TYPES:
+        if (
+            type(value["macro_id"]) is not str
+            or type(value["type"]) is not str
+            or value["type"] not in _PATH_TYPES
+        ):
             raise ActionSchemaError("invalid route macro identity")
         if type(value["path"]) is not list or not value["path"]:
             raise ActionSchemaError("route path must be a nonempty list")
@@ -791,20 +795,20 @@ class ActionControl:
                 )
             )
             self._sync(self._game)
-        if (
-            isinstance(macro, RouteMacroV1)
-            and type(self._game.get_procedure()) is proc.Reroll
-        ):
-            return MacroResultV1(
-                1, macro.macro_id, "interrupted", records, "unplanned_decision"
-            )
-        if (
-            isinstance(macro, RouteMacroV1)
-            and self._side(self._game.active_team) != actor
-        ):
-            return MacroResultV1(
-                1, macro.macro_id, "interrupted", records, "actor_changed"
-            )
+            if self._game.state.game_over:
+                return MacroResultV1(
+                    1, macro.macro_id, "interrupted", records, "terminal"
+                )
+            if self._side(self._game.active_team) != actor:
+                return MacroResultV1(
+                    1, macro.macro_id, "interrupted", records, "actor_changed"
+                )
+            if isinstance(macro, RouteMacroV1) and not isinstance(
+                self._game.get_procedure(), (proc.MoveAction, proc.Turn)
+            ):
+                return MacroResultV1(
+                    1, macro.macro_id, "interrupted", records, "unplanned_decision"
+                )
         return MacroResultV1(1, macro.macro_id, "completed", records, None)
 
 

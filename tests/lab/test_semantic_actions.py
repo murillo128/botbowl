@@ -346,6 +346,88 @@ def test_route_stops_at_unplanned_reroll_and_freezes_recorded_prefix():
     assert isinstance(result.steps[0].action.options, PathOptionsV1)
 
 
+def test_route_final_block_stops_at_unplanned_selection():
+    game = semantic_game(1, pathfinding=True)
+    probe = Scenario(game, 17, 1)
+    game.init()
+    probe.until(lambda candidate: candidate.current_turn() is not None)
+    attacker, defender = place_players(probe, [(2, 2)], [(3, 2)])
+    probe.step(bb.Action(bb.ActionType.START_BLITZ, player=attacker))
+    control = ActionControl(game)
+    route = next(
+        item
+        for item in control.legal_actions().macros
+        if item.to_json()["kind"] == "route"
+        and item.type == "BLOCK"
+        and len(item.path) == 1
+    )
+    with game.dice.force(block_dice=[bb.BBDieResult.PUSH], strict=True):
+        result = control.execute_macro(route)
+    assert result.status == "interrupted"
+    assert result.interruption == "unplanned_decision"
+    assert len(result.steps) == 1
+    assert game.get_procedure().__class__.__name__ == "Block"
+    assert [choice.action_type for choice in game.get_available_actions()] == [
+        bb.ActionType.SELECT_PUSH
+    ]
+    assert defender.position == game.get_square(3, 2)
+
+
+def test_route_final_block_stops_when_defender_becomes_actor():
+    game = semantic_game(1, pathfinding=True)
+    probe = Scenario(game, 17, 1)
+    game.init()
+    probe.until(lambda candidate: candidate.current_turn() is not None)
+    attacker, defender = place_players(probe, [(2, 2)], [(3, 2)])
+    attacker.extra_st = 1 - attacker.get_st()
+    probe.step(bb.Action(bb.ActionType.START_BLITZ, player=attacker))
+    control = ActionControl(game)
+    route = next(
+        item
+        for item in control.legal_actions().macros
+        if item.to_json()["kind"] == "route"
+        and item.type == "BLOCK"
+        and len(item.path) == 1
+    )
+    with game.dice.force(
+        block_dice=[bb.BBDieResult.PUSH] * 3, strict=True
+    ):
+        result = control.execute_macro(route)
+    assert result.status == "interrupted"
+    assert result.interruption == "actor_changed"
+    assert len(result.steps) == 1
+    assert game.active_team is defender.team
+
+
+def test_route_final_primitive_classifies_terminal_before_actor_change(monkeypatch):
+    game = semantic_game(1, pathfinding=True)
+    probe = Scenario(game, 17, 1)
+    game.init()
+    probe.until(lambda candidate: candidate.current_turn() is not None)
+    player = place_players(probe, [(2, 2)])[0]
+    probe.step(bb.Action(bb.ActionType.START_MOVE, player=player))
+    control = ActionControl(game)
+    route = next(
+        item
+        for item in control.legal_actions().macros
+        if item.to_json()["kind"] == "route"
+        and item.type == "MOVE"
+        and len(item.path) == 1
+    )
+    advance = game.advance
+
+    def terminal_advance(action, *, max_steps=100000):
+        result = advance(action, max_steps=max_steps)
+        game.state.game_over = True
+        return result
+
+    monkeypatch.setattr(game, "advance", terminal_advance)
+    result = control.execute_macro(route)
+    assert result.status == "interrupted"
+    assert result.interruption == "terminal"
+    assert len(result.steps) == 1
+
+
 def test_request_parser_and_nonoffered_combination_are_typed():
     game = semantic_game(1)
     control = ActionControl(game)
@@ -356,6 +438,16 @@ def test_request_parser_and_nonoffered_combination_are_typed():
     wire["unknown"] = None
     with pytest.raises(ActionSchemaError):
         ActionRequestV1.from_json(wire)
+    malformed_macro = {
+        "schema_version": 1,
+        "macro_id": "route",
+        "actor_id": "home",
+        "kind": "route",
+        "type": [],
+        "path": [{"x": 1, "y": 1}],
+    }
+    with pytest.raises(ActionSchemaError):
+        macro_from_json(malformed_macro)
     altered = ActionV1(
         1, "END_TURN", semantic.actor_id, None, None, None, EmptyOptionsV1()
     )
