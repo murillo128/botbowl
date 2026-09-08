@@ -50,6 +50,42 @@ def test_changed_order_and_synthetic_recipe_replay():
         assert replay(json.loads(json.dumps(left.reproduction()))).result() == left.result()
 
 
+@pytest.mark.parametrize('side', ['home', 'away'])
+@pytest.mark.parametrize('variant', ['team', 'sure_feet', 'decline'])
+def test_serialized_pathfinding_recipe_replay(side, variant):
+    probe = movement(side=side, variant=variant, pathfinding=True)
+    record = probe.reproduction()
+    saved = json.loads(json.dumps(record))
+    assert replay(saved).result() == probe.result()
+    assert replay(record).result() == probe.result()
+    assert record == saved
+
+
+@pytest.mark.parametrize('tampering', ['action', 'forced_scope', 'forced_roll', 'fixture_state', 'path_roll'])
+def test_serialized_pathfinding_recipe_rejects_tampering(tampering):
+    probe = movement(side='away', variant='decline', pathfinding=True)
+    record = json.loads(json.dumps(probe.reproduction()))
+    # A valid saved journal must pass first, so a serialization defect cannot
+    # make these negative controls pass for an unrelated reason.
+    assert replay(record).result() == probe.result()
+    if tampering == 'action':
+        record['actions'][-1]['action_type'] = 'END_TURN'
+    elif tampering == 'forced_scope':
+        record['forced'][0]['decision'] += 1
+    elif tampering == 'forced_roll':
+        record['forced'][0]['rolls']['d6'][0] = 6
+    elif tampering == 'fixture_state':
+        record['fixtures'][2]['state']['weather'] = 'BLIZZARD'
+    else:
+        paths = [path for choice in record['fixtures'][2]['state']['available_actions']
+                 for path in choice['paths'] if path['rolls'] and path['rolls'][0]]
+        assert paths, 'control must alter an actual pathfinding roll'
+        value = paths[0]['rolls'][0][0]
+        paths[0]['rolls'][0][0] = 1 if value != 1 else 6
+    with pytest.raises(AssertionError, match='synthetic recipe/journal mismatch'):
+        replay(record)
+
+
 def test_interleaved_sequences_preserve_rng_and_all_forced_queues():
     probes = [fresh(size=1, seed=seed, case='generated', origin='natural') for seed in (0, 17)]
     streams = [sequence(probe) for probe in probes]

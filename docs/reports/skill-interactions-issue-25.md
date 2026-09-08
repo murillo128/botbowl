@@ -17,7 +17,7 @@ without adding a property-testing library for these bounded cases.
 
 ## Corpus and invariant boundary
 
-`tests/issue25/test_interactions.py` is ordinary pytest discovery. Its 59 tests
+`tests/issue25/test_interactions.py` is ordinary pytest discovery. Its 70 tests
 include 24 both-side mechanism variants, four naturally reached complete games
 and their action replays, changed-order recipe replay, interleaved games with
 all four foreign forced-die queues pending, and negative/limit controls.
@@ -69,6 +69,16 @@ as JSON in `CorpusFailure`; pytest logs preserve that reproduction. For a natura
 record use `tests.interaction_corpus.replay(record)`; for a synthetic failure rerun
 its named scenario/side/seed/variant from `tests.interaction_scenarios`. Successful
 synthetic records also pass through `replay` with journal equality checks.
+
+The serialized pathfinding replay correction normalizes reproduction records to
+the JSON representation before comparison, including tuple-valued path rolls.
+Six regression cases cover both sides and all three movement variants with
+pathfinding enabled, checking saved and in-memory replay. Five negative controls
+first accept an unchanged saved journal, then require rejection of altered
+actions, forced-scope boundaries, forced rolls, fixture state or pathfinding
+rolls. The full journal comparison and engine behavior remain unchanged.
+Correction validation logs and exact-head receipts are retained separately under
+`/tmp/botbowl-issue25-correction-evidence/`.
 
 ## Separate broad invocation and evidence
 

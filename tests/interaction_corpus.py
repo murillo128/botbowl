@@ -169,11 +169,14 @@ class Probe:
         validate_seconds(self.seconds)
 
     def reproduction(self):
-        return dict(config=self.config, actions=self.actions[:], forced=self.forced[:], fixtures=self.fixtures[:],
-                    decision=len(self.actions), procedures=self.game.get_procedure_names(),
-                    options=[c.to_json() for c in self.game.get_available_actions()],
-                    limits=dict(decisions=self.max_decisions, engine_steps=self.engine_steps,
-                                repeats=self.repeat_limit, seconds=self.seconds))
+        record = dict(config=self.config, actions=self.actions[:], forced=self.forced[:], fixtures=self.fixtures[:],
+                      decision=len(self.actions), procedures=self.game.get_procedure_names(),
+                      options=[c.to_json() for c in self.game.get_available_actions()],
+                      limits=dict(decisions=self.max_decisions, engine_steps=self.engine_steps,
+                                  repeats=self.repeat_limit, seconds=self.seconds))
+        # Pathfinding rolls contain tuples. Use the persisted JSON representation
+        # for the entire journal, including records replayed directly in memory.
+        return json.loads(json.dumps(record))
 
     @contextmanager
     def evidence(self):
@@ -324,6 +327,7 @@ def replay(record):
     Synthetic placements are not legal decisions: the named recipe constructs
     them, then its recorded actions, forced queues and fixture states must match.
     """
+    record = json.loads(json.dumps(record))
     config = record['config']
     if config['origin'] == 'synthetic':
         from tests.interaction_scenarios import injury, movement, negatrait, push
