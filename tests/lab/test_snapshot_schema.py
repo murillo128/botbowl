@@ -23,6 +23,9 @@ from tests.lab.test_timeline import fresh
 
 def assert_rejected(path, doc, game, monkeypatch, message):
     # Both public digests are recomputable: neither is an authentication gate.
+    # Removing/replacing a field can orphan its old value; compact those nodes so
+    # the signed negative reaches the intended closed-domain check.
+    doc = reachable_document(doc)
     reseal(path, doc, semantic=True)
     before = executable(game)
     identities = tuple(id(v) for v in (game.state, game.dice, game.trajectory, game.timeline))
@@ -313,6 +316,142 @@ def test_immutable_key_identities_are_memoized_without_expanding_python_keys():
         io._GraphKeys(nodes, io._Work(io.SnapshotLimits())).validate()
 
 
+def topology_oracle(edges, roots):
+    """Independent closure/SCC/condensation oracle for the small-graph tests."""
+    reachable = set(roots)
+    pending = list(roots)
+    while pending:
+        vertex = pending.pop()
+        for target in edges[vertex]:
+            if target not in reachable:
+                reachable.add(target)
+                pending.append(target)
+    closure = []
+    for start in range(len(edges)):
+        seen, pending = {start}, [start]
+        while pending:
+            for target in edges[pending.pop()]:
+                if target not in seen:
+                    seen.add(target)
+                    pending.append(target)
+        closure.append(seen)
+    groups = []
+    remaining = set(range(len(edges)))
+    while remaining:
+        start = min(remaining)
+        group = {other for other in remaining if other in closure[start] and start in closure[other]}
+        groups.append(group)
+        remaining -= group
+    owner = {vertex: index for index, group in enumerate(groups) for vertex in group}
+    successors = [{owner[target] for vertex in group for target in edges[vertex]
+                   if owner[target] != index} for index, group in enumerate(groups)]
+    memo = {}
+    def depth(index):
+        if index not in memo:
+            memo[index] = len(groups[index]) + max((depth(child) for child in successors[index]), default=0)
+        return memo[index]
+    return reachable, {frozenset(group) for group in groups}, max((depth(owner[root]) for root in roots), default=0)
+
+
+def run_topology(edges, roots, *, order=None, reverse=False, reverse_roots=False, max_depth=256):
+    order = list(range(len(edges))) if order is None else order
+    remap = {old: new for new, old in enumerate(order)}
+    outgoing = [[remap[target] for target in (reversed(edges[old]) if reverse else edges[old])]
+                for old in order]
+    nodes = [{'id': index, 'type': 'list', 'items': [{'ref': target} for target in row]}
+             for index, row in enumerate(outgoing)]
+    root_values = [{'ref': remap[root]} for root in roots]
+    root_pairs = [('game', root_values[0]), ('episode', None), ('components', root_values[-1])]
+    roots_record = dict(reversed(root_pairs) if reverse_roots else root_pairs)
+    limits = replace(io.SnapshotLimits(), max_depth=max_depth)
+    work, trace = io._Work(limits), {}
+    reservation = 4096 + 512 * len(nodes) + 128 * sum(map(len, outgoing)) + 256 * len(roots_record)
+    io._topology(nodes, roots_record, outgoing, sum(map(len, outgoing)), sum(map(len, outgoing)),
+                 reservation, work, trace)
+    groups = {frozenset(order[new] for new, label in enumerate(trace['components']) if label == selected)
+              for selected in set(trace['components'])}
+    return trace, groups, work.used
+
+
+@pytest.mark.parametrize('edges,roots', (
+    ([[1], [2], []], [0]),
+    ([[1, 2], [3], [3], []], [0]),
+    ([[2], [2], []], [0, 1]),
+    ([[1], [0, 2], [3], [2]], [0]),
+    ([[1, 1], [2], []], [0]),
+    ([[0]], [0]),
+))
+def test_iterative_tarjan_matches_independent_oracle_and_fixed_allowance(edges, roots):
+    reachable, expected_groups, expected_depth = topology_oracle(edges, roots)
+    assert reachable == set(range(len(edges)))
+    orders = (list(range(len(edges))), list(reversed(range(len(edges)))))
+    records = []
+    for order in orders:
+        for reverse in (False, True):
+            for reverse_roots in (False, True):
+                trace, groups, used = run_topology(
+                    edges, roots, order=order, reverse=reverse, reverse_roots=reverse_roots)
+                assert groups == expected_groups and trace['depth'] == expected_depth
+                assert trace['examined'] == sum(map(len, edges))
+                assert trace['popped'] == len(edges) and trace['child_returns'] <= len(edges)
+                assert trace['allowance'] == 6 * len(edges) + sum(map(len, edges)) + 2 * 3 + 32
+                assert used == trace['allowance']
+                records.append((trace['reservation'], trace['allowance'], trace['depth']))
+    assert len(set(records)) == 1
+
+
+def test_topology_depth_unreachable_and_immutable_cycle_boundaries():
+    edges = [[1], [2], []]
+    assert run_topology(edges, [0], max_depth=3)[0]['depth'] == 3
+    with pytest.raises(io.SnapshotLimitError, match='depth'):
+        run_topology(edges, [0], max_depth=2)
+    with pytest.raises(io.SnapshotFileError, match='Unreachable'):
+        run_topology([[], []], [0])
+
+    nodes = [{'id': 0, 'type': 'tuple', 'items': [{'ref': 0}]}]
+    roots = {'game': {'ref': 0}, 'episode': None, 'components': {'ref': 0}}
+    with pytest.raises(io.SnapshotFileError, match='Cyclic immutable'):
+        io._topology(nodes, roots, [[0]], 1, 1, 4096 + 512 + 128 + 3 * 256,
+                     io._Work(io.SnapshotLimits()))
+    # A constructible mutable -> tuple -> mutable cycle contains an immutable
+    # member but does not point back to an unfinished immutable container.
+    nodes[0] = {'id': 0, 'type': 'list', 'items': [{'ref': 1}]}
+    nodes.append({'id': 1, 'type': 'tuple', 'items': [{'ref': 0}]})
+    trace = {}
+    io._topology(nodes, roots, [[1], [0]], 2, 2, 4096 + 2 * 512 + 2 * 128 + 3 * 256,
+                 io._Work(io.SnapshotLimits()), trace)
+    assert trace['depth'] == 2 and trace['closed'] == 1
+
+
+def test_each_hash_entrypoint_computes_graph_keys_once_and_reuses_only_reservation(tmp_path, monkeypatch):
+    game, path, doc = dag_document(tmp_path, 8)
+    reseal(path, doc, semantic=True)
+    original = io._GraphKeys.validate
+    calls, reservations, canonical_starts = [], [], []
+    def counted(self):
+        result = original(self)
+        calls.append(self.work)
+        reservations.append((self.work.used, result))
+        return result
+    canonical = io._canonical_hash
+    def observed(payload, scope, work):
+        canonical_starts.append((work, work.used))
+        return canonical(payload, scope, work)
+    monkeypatch.setattr(io._GraphKeys, 'validate', counted)
+    monkeypatch.setattr(io, '_canonical_hash', observed)
+    io._semantic_hash(doc['payload'], doc['scope'])
+    io.read_snapshot(path)
+    io.write_snapshot(path, capture_snapshot(game))
+    assert len(calls) == 3 and len({id(work) for work in calls}) == 3
+    for index, (call, (after_validation, reservation), (canonical_work, start)) in enumerate(
+            zip(calls, reservations, canonical_starts)):
+        assert call is canonical_work
+        if index:
+            assert reservation > 0 and start >= after_validation + reservation
+        else:
+            assert start == after_validation
+
+
 GRAPH_FAMILIES = ('primitive', 'mutable', 'anchored', 'cycle2', 'cycle3',
                   'set', 'rset', 'frozenset', 'symmetric2', 'symmetric3')
 
@@ -342,6 +481,42 @@ def permute_wire(document, variant):
         for index, item in enumerate(nodes):
             item['id'] = index
     return result
+
+
+@pytest.mark.parametrize('family', ('depth', 'short-depth', 'large-scalar', 'scalars', 'projection-scalars'))
+@pytest.mark.parametrize('seed', range(1, 9))
+def test_resource_admission_is_invariant_in_fresh_processes(tmp_path, family, seed):
+    from tests.lab.snapshot_process import graph_registry, resource_graph
+    codecs = graph_registry()
+    subject = resource_graph(family)
+    scope = 'episode' if family == 'projection-scalars' else 'engine'
+    limits = replace(io.SnapshotLimits(), max_depth=163) if family == 'depth' else io.SnapshotLimits()
+    root = Path(os.environ.get('BOTBOWL_SNAPSHOT_EVIDENCE', tmp_path)) / ('resource-' + family + '-' + str(seed))
+    root.mkdir(parents=True, exist_ok=True)
+    envelope = io.write_snapshot(root / 'snapshot.json', capture_snapshot(
+        subject, scope=scope, adapters=codecs), adapters=codecs, limits=limits)
+    document = json.loads((root / 'snapshot.json').read_text())
+    variant = ('ids', 'fields', 'dict', 'rdict', 'set', 'frozenset', 'unordered', 'combined')[seed - 1]
+    document = permute_wire(document, variant)
+    document['payload_digest'] = io._digest({key: value for key, value in document.items()
+                                            if key != 'payload_digest'})
+    (root / 'snapshot.json').write_bytes(io._json(document) + b'\n')
+    with (root / 'resource.log').open('w') as log:
+        result = subprocess.run(
+            [sys.executable, '-m', 'tests.lab.snapshot_process', 'resource-resave', str(root), family],
+            env=dict(os.environ, PYTHONHASHSEED=str(seed)), stdout=log, stderr=subprocess.STDOUT, timeout=60)
+    assert result.returncode == 0, (root / 'resource.log').read_text()
+    receipt = json.loads((root / 'resource-receipt.json').read_text())
+    assert receipt['pid'] != os.getpid() and receipt['hash_seed'] == str(seed)
+    assert receipt['semantic_state_hash'] == envelope.semantic_state_hash
+    assert all(value <= io.SnapshotLimits().max_work for value in receipt['work_limits'].values())
+    assert len(receipt['rejections']) == (9 if family in ('depth', 'large-scalar') else 3)
+    if family == 'depth':
+        assert receipt['topology'][4] == 163 and receipt['limits']['max_depth'] == 163
+    elif family == 'short-depth':
+        assert receipt['topology'][4] < io.SnapshotLimits().max_depth
+    elif family == 'large-scalar':
+        assert receipt['limits']['max_bytes'] == 18655071
 
 
 def graph_document(tmp_path, family):

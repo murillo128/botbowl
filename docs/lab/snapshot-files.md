@@ -176,8 +176,10 @@ A seed recipe is retained
 because it affects episode reset. The hash does not assert arbitrary policy
 equivalence or authenticate a simulation.
 
-The internal semantic algorithm stamp is 3 and contributes to the schema digest;
-the envelope, graph and SIM-02 versions remain 1. Canonicalization starts from
+The internal semantic algorithm stamp is 3, key-work stamp is 1 and corrected
+resource-limit stamp is 1; all contribute to the schema digest. Files carrying
+the earlier resource policy identity are incompatible rather than migrated. The
+envelope, graph and SIM-02 versions remain 1. Canonicalization starts from
 exact scalar/codec colors and refines labeled incoming/outgoing neighbor
 multisets. Remaining ties use bounded individualization and complete enumeration.
 Only the lexicographically least whole candidate encoding is hashed. No digest,
@@ -194,7 +196,12 @@ accepts positive integer overrides; depth has a hard implementation ceiling of
 256. The reader reads at most `max_bytes + 1`. A quote-aware scanner bounds JSON
 nesting before parsing. Parsed data values are additionally limited to
 `64 * max_nodes`. Reference traversal depth is bounded independently of JSON
-nesting, using one visited set and a cycle stack. All array allocations together
+nesting. It is the largest weighted path through the wire graph's SCC
+condensation, where each SCC weight is its vertex count. One iterative Tarjan
+traversal from the named roots computes SCCs, reachability and depth while
+preserving the separate rejection of references to unfinished immutable
+containers. Shared suffixes, cycles and root/adjacency order therefore cannot
+change the result. All array allocations together
 are bounded by `max_bytes`; each dimension is bounded, rank is at most 32,
 shape products must match flat lengths, dtype widths are restricted and numeric
 overflow/string truncation is rejected before array allocation.
@@ -203,7 +210,24 @@ A shared work ledger bounds atom/edge visits, domain checks, key identity checks
 and canonical graph construction, sorting, refinement rounds, search branches,
 complete candidate encoding/comparison and variable-sized scalar processing.
 Temporary incidence records, normal/opaque views and search buffers also count
-against the byte/work budgets. Search uses an explicit stack and retains one
+against the byte/work budgets. Topology prep reserves
+`4096 + 512V + 128E + 256U` bytes, where V is wire vertices, E is non-root
+reference occurrences and U is named root slots. Its fixed work prepayment is
+`6V + E + 2U + 32`; the validator reuses the adjacency/counts it already built.
+Standalone semantic hashing safely counts and builds its own adjacency instead.
+Read/write reuse one operation-local successful immutable-key computation while
+charging its materialization reserve a second time as before; no result is
+trusted across payloads, mutations, limits or public operations. Topology
+buffers are released before canonicalization, leaving one charged 256-byte
+summary.
+
+Canonical workspace admission uses `S + max(T)`: S is monotone retained storage
+and T is the greatest complete scratch request, including scalar escaping, color
+assembly, refinement, candidates and comparison. Neither is reset or refunded.
+The retained one-million-character boundary requires 18,655,071 bytes, including
+the summary, identically under equivalent field orders. At 12,300,000 and at one
+byte below that sufficient threshold every entrypoint rejects before
+materialization. Search uses an explicit stack and retains one
 best complete encoding, never all candidate encodings. Work accounting is
 invariant across equivalent wire permutations; a limit rejection never returns
 a best-so-far hash. Large symmetry can exhaust the budget while ordinary

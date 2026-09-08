@@ -32,8 +32,9 @@ CasualtyEffect name or the engine's boolean marker. These are explicit unions.
 
 The corrected schema digest includes field domains and lazy presence policies,
 episode data constraints, the finite ActionChoice producer-family target table,
-enum membership, key-work version 1 and semantic version 3. Earlier schema
-identities are incompatible; there is no migration or format-family change.
+enum membership, key-work version 1, semantic version 3 and resource-limit
+version 1. Earlier schema identities are incompatible; there is no migration or
+format-family change.
 
 | Codec family | Inventory |
 | --- | --- |
@@ -94,6 +95,23 @@ symmetry. Normal/opaque component views preserve common object identity. Direct
 hash/read/write budget rejection precedes decoder/adapters and destination
 replacement; the large-symmetry probe uses an explicit 500,000-unit budget that
 also accepts the three-object symmetric fixture (412,349 shared-ledger units).
+
+Resource-admission regressions compare iterative Tarjan SCC/depth results with an
+independent transitive-closure/condensation oracle over chains, diamonds, shared
+suffixes, multiple roots, self-loops, duplicate edges and connected cycles. They
+permute vertices, adjacency and roots while checking one edge examination,
+bounded tree returns/pops, the exact `6V + E + 2U + 32` allowance, reachability,
+immutable-cycle handling and D-1/D/D+1 boundaries. Instrumentation also confirms
+one immutable-key computation per direct/read/write operation and retention of
+the second materialization reserve only on validator-prepared hashing.
+
+Fresh-process resource families retain the exact depth-163 shared-tail boundary,
+an affordable short shared DAG, the one-million-character canonical boundary,
+two large/shared/non-ASCII scalar groups and a shared cyclic normal/opaque
+component projection. Each family runs under hash seeds 1..8 with node, field
+and unordered permutations. Direct/read/write succeed at measured byte, depth
+and work boundaries and reject one unit below before decoder/adapters/private
+clone, preserving the destination and leaving no temporary file.
 
 The finite target inventory contains 14 target-bearing sites among 92 engine
 ActionChoice constructors, exercised through 20 branches including three pass

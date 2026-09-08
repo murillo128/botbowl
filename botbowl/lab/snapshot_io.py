@@ -158,6 +158,7 @@ def _versions(adapters, names=()):
             'schema': _digest({'fields': dict(CODEC_SCHEMA), 'lazy': schema.LAZY, 'episode': schema.EPISODE,
                               'action_targets': schema.ACTION_TARGETS,
                               'key_work_version': 1, 'semantic_version': 3,
+                              'resource_limits_version': 1,
                               'enums': {tag: list(cls.__members__) for tag, cls in _ENUMS.items()}}),
             'adapters': {name: 1 for name in sorted(names)}}
 
@@ -167,8 +168,6 @@ class _Encoder:
         self.limits, self.nodes, self.memo, self.owned = limits, [], {}, []
 
     def atom(self, value, depth=0):
-        if depth > self.limits.max_depth:
-            raise SnapshotLimitError('Graph depth limit exceeded')
         cls = type(value)
         if cls in (type(None), bool, int, float, str):
             _require(cls is not float or math.isfinite(value), 'Non-finite number')
@@ -182,6 +181,11 @@ class _Encoder:
             return self.atom(value.item(), depth)
         if id(value) in self.memo:
             return {'ref': self.memo[id(value)]}
+        # Count newly entered wire vertices, not scalar leaves or memo hits.
+        # Any simple traversal path has at most D(G) vertices. This early guard
+        # therefore cannot reject a graph admitted by the topology preflight.
+        if depth >= self.limits.max_depth:
+            raise SnapshotLimitError('Graph depth limit exceeded')
         if len(self.nodes) >= self.limits.max_nodes:
             raise SnapshotLimitError('Graph node limit exceeded')
         index = len(self.nodes)
@@ -281,11 +285,167 @@ class _Work:
     def __init__(self, limits):
         self.limit, self.used = limits.max_work, 0
         self.limits = limits
+        self.retained_bytes = 0
 
     def spend(self, amount=1):
         self.used += amount
         if self.used > self.limit:
             raise SnapshotLimitError('Graph work limit exceeded')
+
+
+def _reference_atoms(node):
+    """Visit the closed wire grammar's atom slots without recursive expansion."""
+    if 'fields' in node:
+        for _, value in node['fields']:
+            yield value
+    elif 'items' in node:
+        for value in node['items']:
+            if node['type'] in _MAPPINGS:
+                yield value[0]
+                yield value[1]
+            else:
+                yield value
+    elif node['type'] == 'dice':
+        yield node['rng']
+        for frame in node['queues']:
+            for queue in frame:
+                yield from queue
+    if 'trajectory' in node:
+        yield node['trajectory']
+
+
+def _topology(nodes, roots, outgoing, edge_count, atom_count, reservation, work, instrument=None):
+    """Admit topology with one prepaid iterative Tarjan traversal.
+
+    Work is invariantly prepaid as 6V + E + 2U + 32. SCC weights and successor
+    depth are fused into returns and pops, so there is no reverse graph,
+    condensation graph or second edge scan.
+    """
+    vertices, root_slots = len(nodes), len(roots)
+    allowance = 6 * vertices + edge_count + 2 * root_slots + 32
+    work.spend(allowance)
+    discovery = [-1] * vertices
+    lowlink = [0] * vertices
+    component = [-1] * vertices
+    successor_depth = [0] * vertices
+    frame_active = bytearray(vertices)
+    frame_vertices, frame_edges, members, depths = [], [], [], []
+    discovered = child_returns = examined = popped = closed = 0
+
+    def enter(vertex):
+        nonlocal discovered
+        discovery[vertex] = lowlink[vertex] = discovered
+        discovered += 1
+        frame_active[vertex] = 1
+        frame_vertices.append(vertex)
+        frame_edges.append(0)
+        members.append(vertex)
+
+    for atom in roots.values():
+        if type(atom) is not dict or 'ref' not in atom or discovery[atom['ref']] != -1:
+            continue
+        enter(atom['ref'])
+        while frame_vertices:
+            vertex = frame_vertices[-1]
+            offset = frame_edges[-1]
+            if offset < len(outgoing[vertex]):
+                target = outgoing[vertex][offset]
+                frame_edges[-1] = offset + 1
+                examined += 1
+                if discovery[target] == -1:
+                    enter(target)
+                    continue
+                if frame_active[target]:
+                    _require(nodes[target]['type'] not in ('tuple', 'frozenset'),
+                             'Cyclic immutable container')
+                if component[target] == -1:
+                    lowlink[vertex] = min(lowlink[vertex], discovery[target])
+                else:
+                    successor_depth[vertex] = max(successor_depth[vertex], depths[component[target]])
+                continue
+
+            frame_active[vertex] = 0
+            if lowlink[vertex] == discovery[vertex]:
+                label, weight, maximum = len(depths), 0, 0
+                while True:
+                    member = members.pop()
+                    component[member] = label
+                    weight += 1
+                    popped += 1
+                    maximum = max(maximum, successor_depth[member])
+                    if member == vertex:
+                        break
+                depths.append(weight + maximum)
+                closed += 1
+            frame_vertices.pop()
+            frame_edges.pop()
+            if frame_vertices:
+                parent = frame_vertices[-1]
+                child_returns += 1
+                if component[vertex] == -1:
+                    lowlink[parent] = min(lowlink[parent], lowlink[vertex])
+                else:
+                    successor_depth[parent] = max(successor_depth[parent], depths[component[vertex]])
+
+    _require(discovered == vertices, 'Unreachable graph nodes')
+    depth = max((depths[component[atom['ref']]] for atom in roots.values()
+                 if type(atom) is dict and 'ref' in atom), default=0)
+    if depth > work.limits.max_depth:
+        raise SnapshotLimitError('Graph reference depth exceeded')
+    if instrument is not None:
+        instrument.update(vertices=vertices, atoms=atom_count, edges=edge_count, roots=root_slots,
+                          components=tuple(component), component_depths=tuple(depths), depth=depth,
+                          allowance=allowance, examined=examined, child_returns=child_returns,
+                          popped=popped, closed=closed, reservation=reservation)
+    work.retained_bytes = 256
+    return (vertices, atom_count, edge_count, root_slots, depth, reservation, allowance)
+
+
+def _direct_topology(payload, work, instrument=None):
+    """Prepare standalone hashing without trusting validator-owned state."""
+    _require(type(payload) is dict and set(payload) == {'roots', 'nodes'}, 'Invalid graph payload')
+    nodes, roots = payload['nodes'], payload['roots']
+    _require(type(nodes) is list, 'Expected node array')
+    _require(type(roots) is dict and set(roots) == {'game', 'episode', 'components'}, 'Invalid roots')
+    if len(nodes) > work.limits.max_nodes:
+        raise SnapshotLimitError('Graph node limit exceeded')
+    for index, node in enumerate(nodes):
+        work.spend()
+        _require(type(node) is dict and type(node.get('id')) is int and node['id'] == index,
+                 'Duplicate, missing or out-of-order node ID')
+        _require(type(node.get('type')) is str and node['type'] in
+                 (*_CLASSES, *_CONTAINERS, 'array', 'rng', 'dice'), 'Unknown node type or procedure')
+        for atom in _reference_atoms(node):
+            work.spend()
+            if type(atom) is dict and 'ref' in atom:
+                _require(type(atom['ref']) is int and 0 <= atom['ref'] < len(nodes),
+                         'Dangling or invalid reference')
+    for atom in roots.values():
+        work.spend()
+        if type(atom) is dict and 'ref' in atom:
+            _require(type(atom['ref']) is int and 0 <= atom['ref'] < len(nodes),
+                     'Dangling or invalid reference')
+
+    atom_count = edge_count = 0
+    reservation = 4096 + 512 * len(nodes) + 256 * len(roots)
+    if reservation > work.limits.max_bytes:
+        raise SnapshotLimitError('Topology workspace byte limit exceeded')
+    outgoing = [[] for _ in nodes]
+    for index, node in enumerate(nodes):
+        work.spend()
+        for atom in _reference_atoms(node):
+            work.spend()
+            atom_count += 1
+            if type(atom) is dict and 'ref' in atom:
+                reservation += 128
+                if reservation > work.limits.max_bytes:
+                    raise SnapshotLimitError('Topology workspace byte limit exceeded')
+                outgoing[index].append(atom['ref'])
+                edge_count += 1
+    for _ in roots.values():
+        work.spend()
+    return outgoing, _topology(nodes, roots, outgoing, edge_count, atom_count,
+                               reservation, work, instrument)
 
 
 class _GraphKeys:
@@ -368,14 +528,18 @@ class _GraphKeys:
         return result
 
     def validate(self):
+        reservation = 0
         for node in self.nodes:
             self.work.spend()
             if node['type'] in ('tuple', 'frozenset'):
-                self.work.spend(8 * self.cost({'ref': node['id']}))
+                amount = 8 * self.cost({'ref': node['id']})
+                reservation += amount
+                self.work.spend(amount)
         for node in self.nodes:
             if node['type'] in (*_MAPPINGS, *_SETS):
                 keys = [self.key(v[0] if node['type'] in _MAPPINGS else v) for v in node['items']]
                 _require(len(keys) == len(set(keys)), 'Duplicate mapping key or set element')
+        return reservation
 
 
 class _Validator:
@@ -390,7 +554,8 @@ class _Validator:
         _require(type(self.nodes) is list, 'Expected node array')
         if len(self.nodes) > limits.max_nodes:
             raise SnapshotLimitError('Graph node limit exceeded')
-        self.edges = [[] for _ in self.nodes]
+        roots = payload['roots']
+        _require(type(roots) is dict and set(roots) == {'game', 'episode', 'components'}, 'Invalid roots')
         self.names = set()
         self.array_bytes = 0
         for index, node in enumerate(self.nodes):
@@ -398,22 +563,30 @@ class _Validator:
                      'Duplicate, missing or out-of-order node ID')
             _require(type(node.get('type')) is str and node['type'] in
                      (*_CLASSES, *_CONTAINERS, 'array', 'rng', 'dice'), 'Unknown node type or procedure')
+        self.topology_bytes = 4096 + 512 * len(self.nodes) + 256 * len(roots)
+        if self.topology_bytes > limits.max_bytes:
+            raise SnapshotLimitError('Topology workspace byte limit exceeded')
+        self.edges = [[] for _ in self.nodes]
+        self.edge_count = 0
         for index, node in enumerate(self.nodes):
             self.node(index, node)
-        roots = payload['roots']
-        _require(type(roots) is dict and set(roots) == {'game', 'episode', 'components'}, 'Invalid roots')
         for value in roots.values():
             self.atom(value)
         self.expect(roots['game'], {'Game'})
         self.expect(roots['episode'], {'dict', 'null'})
         self.expect(roots['components'], {'dict'})
-        self.graph_depth(roots)
+        self.topology = _topology(self.nodes, roots, self.edges, self.edge_count,
+                                  self.atom_count - len(roots), self.topology_bytes, self.work)
+        self.key_reservation = _GraphKeys(self.nodes, self.work).validate()
         for node in self.nodes:
             if node['type'] in _CLASSES:
                 self.fields(node['type'], self.attrs(node))
         if roots['episode'] is not None:
             _require(self.match(roots['episode'], schema.record(**schema.EPISODE)), 'Invalid episode field domain')
         self.structure(roots)
+        # The retained adjacency is needed only by component validation. It no
+        # longer overlaps canonical S+T; all SCC scratch was already released.
+        del self.edges
         # Prepay visits for decoding and private SIM-02 copies before any
         # materialization; expanded immutable key work was reserved separately.
         self.work.spend(8 * self.atom_count)
@@ -440,7 +613,11 @@ class _Validator:
             ref = atom['ref']
             _require(type(ref) is int and 0 <= ref < len(self.nodes), 'Dangling or invalid reference')
             if owner is not None:
+                self.topology_bytes += 128
+                if self.topology_bytes > self.limits.max_bytes:
+                    raise SnapshotLimitError('Topology workspace byte limit exceeded')
                 self.edges[owner].append(ref)
+                self.edge_count += 1
         elif 'enum' in atom:
             pair = atom['enum']
             _require(type(pair) is list and len(pair) == 2 and all(type(v) is str for v in pair),
@@ -663,32 +840,7 @@ class _Validator:
     def object_fields(self, atom):
         return self.attrs(self.nodes[atom['ref']])
 
-    def graph_depth(self, roots):
-        seen, active = set(), set()
-        def visit(index, depth):
-            if index in active:
-                _require(self.nodes[index]['type'] not in ('tuple', 'frozenset'), 'Cyclic immutable container')
-                return  # Mutable/object cycles are explicit references.
-            if depth > self.limits.max_depth:
-                raise SnapshotLimitError('Graph reference depth exceeded')
-            if index in seen:
-                return
-            seen.add(index)
-            active.add(index)
-            for ref in self.edges[index]:
-                visit(ref, depth + 1)
-            active.remove(index)
-        for atom in roots.values():
-            if type(atom) is dict:
-                visit(atom['ref'], 0)
-        self.reachable = seen
-        # Identity interning never builds recursively nested Python keys. The
-        # separate expanded-cost bound covers CPython tuple hashing/equality
-        # during decoding and SIM-02's subsequent private copies.
-        _GraphKeys(self.nodes, self.work).validate()
-
     def structure(self, roots):
-        _require(len(self.reachable) == len(self.nodes), 'Unreachable graph nodes')
         game = self.object_fields(roots['game'])
         state = self.object_fields(game['state'])
         pitch = self.object_fields(state['pitch'])
@@ -863,7 +1015,7 @@ class _CanonicalGraph:
         if len(self.nodes) > work.limits.max_nodes:
             raise SnapshotLimitError('Graph node limit exceeded')
         self.colors, self.outgoing, self.incoming = [], [], []
-        self.storage = 0
+        self.storage, self.scratch = work.retained_bytes, 0
         self.views, self.pending, self.labels, self.literals, self.prefixes = {}, [], {}, {}, {}
         roots = payload['roots']
         def attrs(atom):
@@ -928,6 +1080,7 @@ class _CanonicalGraph:
                 for value in self.byte_order(groups[label]):
                     pairs.append((label, value))
             size = len(prefix) + sum(16 + len(a) + len(b) for a, b in pairs) + 8
+            self.space(256 * len(literals) + 3 * size)
             self.allocate(2 * size)
             self.colors[index] = self.pack([prefix] + [self.pack(pair) for pair in pairs])
 
@@ -938,7 +1091,10 @@ class _CanonicalGraph:
         self.space(0)
 
     def space(self, scratch):
-        if self.storage + scratch > self.work.limits.max_bytes:
+        # S + max(T) is a monotone reservation, not a discovery-order peak.
+        # A later storage allocation still includes an earlier scratch maximum.
+        self.scratch = max(self.scratch, scratch)
+        if self.storage + self.scratch > self.work.limits.max_bytes:
             raise SnapshotLimitError('Canonical graph workspace byte limit exceeded')
 
     def data(self, value):
@@ -1176,14 +1332,29 @@ class _CanonicalGraph:
                 return best
 
 
-def _semantic_hash(payload, scope, *, limits=SnapshotLimits(), work=None):
-    """Hash an exact, bounded canonical labeling after the causal projection."""
-    work = _Work(limits) if work is None else work
-    _GraphKeys(payload['nodes'], work).validate()
+def _canonical_hash(payload, scope, work):
     graph = _CanonicalGraph(payload, scope, work)
     normal = graph.normal_form()
     work.spend((len(normal) + 63) // 64)
     return 'sha256:' + hashlib.sha256(normal).hexdigest()
+
+
+def _semantic_hash(payload, scope, *, limits=SnapshotLimits(), work=None):
+    """Hash after standalone bounded preparation; never trust a prior payload."""
+    work = _Work(limits) if work is None else work
+    _direct_topology(payload, work)
+    _GraphKeys(payload['nodes'], work).validate()
+    return _canonical_hash(payload, scope, work)
+
+
+def _validate_and_hash(payload, scope, limits, adapters):
+    """Privately reuse one unchanged validator result in the same operation."""
+    validator = _Validator(payload, limits, adapters)
+    # Preserve the old second immutable materialization reserve, but eliminate
+    # the duplicate key computation and its graph scans.
+    validator.work.spend(validator.key_reservation)
+    semantic = _canonical_hash(payload, scope, validator.work)
+    return validator, semantic
 
 
 def _descriptor(game):
@@ -1206,8 +1377,7 @@ def write_snapshot(path, snapshot, *, adapters=None, limits=SnapshotLimits(), pr
         roots = {name: graph.atom(value) for name, value in (
             ('game', snapshot._game), ('episode', snapshot._episode), ('components', snapshot._components))}
         payload = {'roots': roots, 'nodes': graph.nodes}
-        validator = _Validator(payload, limits, adapters)
-        semantic = _semantic_hash(payload, snapshot.scope, work=validator.work)
+        validator, semantic = _validate_and_hash(payload, snapshot.scope, limits, adapters)
         memory.clone_from_snapshot(snapshot, adapters=adapters)
         document = dict(format='SnapshotFileV1', version=1, descriptor=_descriptor(snapshot._game),
                         scope=snapshot.scope, component_versions=_versions(adapters, validator.names),
@@ -1255,7 +1425,7 @@ def read_snapshot(path, *, adapters=None, limits=SnapshotLimits()):
                  'Snapshot payload digest mismatch')
         _require(document['scope'] in ('engine', 'episode') and type(document['provenance']) is dict,
                  'Invalid scope or provenance')
-        validator = _Validator(document['payload'], limits, adapters)
+        validator, semantic = _validate_and_hash(document['payload'], document['scope'], limits, adapters)
         if _json(document['component_versions']) != _json(_versions(adapters, validator.names)):
             raise SnapshotIncompatibleError('Incompatible engine, codec, RNG, backend or adapter version')
         descriptor = document['descriptor']
@@ -1269,7 +1439,7 @@ def read_snapshot(path, *, adapters=None, limits=SnapshotLimits()):
         roots = document['payload']['roots']
         _require(document['scope'] != 'episode' or roots['episode'] is not None, 'Episode scope requires episode data')
         _require(document['scope'] != 'engine' or not validator.items(roots['components']), 'Engine scope contains policies')
-        _require(document['semantic_state_hash'] == _semantic_hash(document['payload'], document['scope'], work=validator.work),
+        _require(document['semantic_state_hash'] == semantic,
                  'Semantic state hash mismatch')
         decoder = _Decoder(validator)
         game, episode, components = (decoder.atom(roots[name]) for name in ('game', 'episode', 'components'))
