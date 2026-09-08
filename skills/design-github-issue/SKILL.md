@@ -1,6 +1,6 @@
 ---
 name: design-github-issue
-description: Define a self-contained execution-ready GitHub issue that resolves material decisions and gives a fresh executor the facts needed to implement safely, then explain the designed mechanism separately to the user in chat.
+description: Define a self-contained GitHub issue that resolves material decisions and gives a fresh executor the facts needed to implement safely, then explain the designed mechanism separately to the user in chat.
 ---
 
 # Design a GitHub Execution Issue
@@ -96,6 +96,7 @@ An issue may state observable post-merge completion conditions, but it must not 
 
 Use exactly one workflow state label:
 
+- `queued`
 - `execution-ready`
 - `design-required`
 - `investigation-required`
@@ -105,6 +106,8 @@ Use exactly one workflow state label:
 - `completed`
 
 At issue publication, set exactly one state label through `codex-github-operations`. The issue body may record **Initial state** for historical context, but the label is authoritative for current state.
+
+A fully designed standalone issue may start at `execution-ready`. A fully designed child of an epic may start at `queued` so only `codex-epic-scheduler` selects it for execution. Do not use `queued` when a material decision, investigation, or real blocker remains; use `design-required`, `investigation-required`, or `blocked` respectively. Design authority defines readiness but does not select or activate queued work.
 
 ## Design method
 
@@ -190,9 +193,9 @@ After the issue contract is complete, give the user a separate concise explanati
 
 Do not repeat the issue field by field. Focus on concepts needed to understand the project and the decisions just made.
 
-## Execution-ready check
+## Publication readiness check
 
-Before marking the issue `execution-ready`, confirm:
+Before marking the issue `execution-ready` or `queued`, confirm:
 
 - a fresh executor can implement without design-session reasoning;
 - the observable outcome and terminology are unambiguous;
@@ -206,7 +209,8 @@ Before marking the issue `execution-ready`, confirm:
 - no unnecessary project-wide machinery was invented;
 - no user-oriented tutorial content was added merely for pedagogy;
 - no issue text grants the executor merge or auto-merge authority;
-- `execution-ready` is the issue's only state label.
+- the selected initial state is the issue's only state label;
+- `queued` is used only for a fully designed epic child, while a standalone issue ready to launch uses `execution-ready`.
 
 ## Issue structure
 
@@ -214,7 +218,7 @@ Before marking the issue `execution-ready`, confirm:
 # <Outcome-oriented title>
 
 ## Readiness
-**Initial state:** execution-ready | design-required | investigation-required | blocked
+**Initial state:** queued | execution-ready | design-required | investigation-required | blocked
 
 ## Goal and current limitation
 <Observable outcome, why it matters, and current behavior.>

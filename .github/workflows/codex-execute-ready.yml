@@ -3,17 +3,27 @@ name: Execute execution-ready issue with local Codex
 on:
   issues:
     types: [labeled]
+  workflow_call:
+    inputs:
+      issue_number:
+        description: Controlling issue number to launch or resume
+        required: true
+        type: string
+      issue_title:
+        description: Controlling issue title used to name a new thread
+        required: false
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: codex-${{ github.repository }}-issue-${{ github.event.issue.number }}
+  group: codex-${{ github.repository }}-issue-${{ inputs.issue_number || github.event.issue.number }}
   cancel-in-progress: false
 
 jobs:
   execute:
-    if: github.event.label.name == 'execution-ready'
+    if: inputs.issue_number != '' || github.event.label.name == 'execution-ready'
     runs-on: [self-hosted, codex]
 
     steps:
@@ -21,7 +31,7 @@ jobs:
         id: worktree
         shell: bash
         env:
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_NUMBER: ${{ inputs.issue_number || github.event.issue.number }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           set -euo pipefail
@@ -83,8 +93,9 @@ jobs:
       - name: Launch controlling issue through shared Codex App Server
         shell: bash
         env:
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
-          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_NUMBER: ${{ inputs.issue_number || github.event.issue.number }}
+          ISSUE_TITLE: ${{ inputs.issue_title || github.event.issue.title }}
+          WAIT_FOR_EXISTING_TURN: ${{ inputs.issue_number != '' }}
           SKILLFORGE_REPO_ROOT_RESOLVED: ${{ steps.worktree.outputs.repo_root }}
           SKILLFORGE_ISSUE_WORKTREE: ${{ steps.worktree.outputs.path }}
           SKILLFORGE_ISSUE_BRANCH: ${{ steps.worktree.outputs.branch }}
@@ -136,8 +147,15 @@ jobs:
 
           if process_from_pid_file_is_alive "$pid_file" "$client"; then
             existing_pid="$(cat "$pid_file")"
-            echo "Codex App Server client for issue #${ISSUE_NUMBER} is already running as pid ${existing_pid}; refusing a duplicate launch."
-            exit 0
+            if [ "$WAIT_FOR_EXISTING_TURN" != "true" ]; then
+              echo "Codex App Server client for issue #${ISSUE_NUMBER} is already running as pid ${existing_pid}; refusing a duplicate launch."
+              exit 0
+            fi
+            echo "Codex App Server client for issue #${ISSUE_NUMBER} is running as pid ${existing_pid}; waiting to serialize the requested follow-up turn."
+            while process_from_pid_file_is_alive "$pid_file" "$client"; do
+              sleep 2
+            done
+            echo "Previous Codex turn for issue #${ISSUE_NUMBER} finished; launching the queued follow-up turn."
           fi
 
           rm -f "$pid_file" "$ready_file" "$error_file" "$completed_file" "$turn_file"

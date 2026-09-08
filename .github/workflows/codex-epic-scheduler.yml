@@ -1,0 +1,49 @@
+name: Wake active epic scheduler
+
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  contents: read
+  issues: read
+
+jobs:
+  find-parent:
+    if: github.event.label.name == 'completed' || github.event.label.name == 'queued'
+    runs-on: ubuntu-latest
+    outputs:
+      parent_number: ${{ steps.parent.outputs.parent_number }}
+      parent_title: ${{ steps.parent.outputs.parent_title }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Find unique active epic parent
+        id: parent
+        shell: bash
+        env:
+          CHANGED_ISSUE: ${{ github.event.issue.number }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          issues_json="$RUNNER_TEMP/in-progress-epics.json"
+          gh api --method GET --paginate --slurp \
+            "repos/${GITHUB_REPOSITORY}/issues?state=open&labels=in-progress&per_page=100" \
+            > "$issues_json"
+          result="$(python3 .github/scripts/find_epic_parent.py \
+            --changed-issue "$CHANGED_ISSUE" \
+            --issues-json "$issues_json")"
+          parent_number="$(jq -r '.parent.number // empty' <<< "$result")"
+          parent_title="$(jq -r '.parent.title // empty' <<< "$result")"
+          echo "parent_number=$parent_number" >> "$GITHUB_OUTPUT"
+          echo "parent_title=$parent_title" >> "$GITHUB_OUTPUT"
+
+  wake-parent:
+    needs: find-parent
+    if: needs.find-parent.outputs.parent_number != ''
+    permissions:
+      contents: read
+    uses: ./.github/workflows/codex-execute-ready.yml
+    with:
+      issue_number: ${{ needs.find-parent.outputs.parent_number }}
+      issue_title: ${{ needs.find-parent.outputs.parent_title }}
