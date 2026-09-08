@@ -326,7 +326,8 @@ class EpisodeRecorder:
     """
 
     def __init__(self, game, destination, relative_path, *, episode_id, source_family,
-                 scenario_id, policies, seed_plan, branch_id='root', profile=PRIMARY_PROFILE):
+                 scenario_id, policies, seed_plan, branch_id='root', profile=PRIMARY_PROFILE,
+                 rule_trace=False, rule_trace_options=None):
         for value in (episode_id, source_family, scenario_id, branch_id):
             identifier(value)
         require(type(profile) is InputProfile, 'Expected InputProfile')
@@ -356,6 +357,10 @@ class EpisodeRecorder:
             game.timeline = None
             raise
         self._initial_observation = self._observation()
+        self.rule_trace = None
+        if rule_trace:
+            from .rule_traces import RuleTrace
+            self.rule_trace = RuleTrace(game, rules=self._provenance['rules'], **(rule_trace_options or {}))
 
     def _check(self):
         if self.failed or self.finished:
@@ -469,6 +474,11 @@ class EpisodeRecorder:
                     'end': end, 'provenance': self._provenance, 'profile': self._profile.to_json(),
                     'schemas': SCHEMAS, 'branches': self._branches, 'files': {}}
         try:
+            if self.rule_trace is not None:
+                self._rows['rule_traces'] = []
+                for row in self.rule_trace.events:
+                    self._append('rule_traces', row)
+                self._append('rule_trace_status', self.rule_trace.status)
             for name, rows in self._rows.items():
                 for row in rows:
                     self.writer.append((name, row))
