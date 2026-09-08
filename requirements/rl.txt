@@ -1,0 +1,3 @@
+-c common.txt
+# Legacy Gym checker requires NumPy <2; supported only on CPython 3.11/3.12 (#17).
+numpy==1.26.4

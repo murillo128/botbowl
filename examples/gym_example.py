@@ -1,27 +1,25 @@
 #!/usr/bin/env python3
-
-import gym
+"""A bounded v5 episode, with both teams controlled explicitly by the caller."""
+import gymnasium as gym
 import numpy as np
-from botbowl import BotBowlEnv
+from botbowl.ai import register_gymnasium_envs
 
 
 def main():
-    env = BotBowlEnv()
-    steps = 0
-
-    # Play 10 games
-    for _ in range(10):
-        done = False
-        spatial_obs, non_spatial_obs, mask = env.reset()
-
-        while not done:
-            env.render(feature_layers=True)
-            aa = np.where(mask > 0.0)[0]
-            action_idx = np.random.choice(aa, 1)[0]
-            (spatial_obs, non_spatial_obs, mask), reward, done, info = env.step(action_idx)
-            steps += 1
-            print(steps)
+    register_gymnasium_envs()
+    env = gym.make('botbowl-1-v5', max_decisions=100, render_mode='ansi')
+    try:
+        obs, info = env.reset(seed=17)
+        rng = np.random.default_rng(17)
+        for _ in range(100):
+            action = int(rng.choice(np.flatnonzero(obs['action_mask'])))
+            obs, reward, terminated, truncated, info = env.step(action)
+            print(env.render(), reward, info['rewards'])
+            if terminated or truncated:
+                break
+    finally:
+        env.close()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
