@@ -87,7 +87,10 @@ def executable(game):
 def assert_references(game):
     seen = set()
     def walk(obj):
-        if obj is game or id(obj) in seen:
+        if isinstance(obj, bb.Game):
+            assert obj is game
+            return
+        if id(obj) in seen:
             return
         seen.add(id(obj))
         if isinstance(obj, proc.Procedure):
@@ -100,7 +103,10 @@ def assert_references(game):
         if isinstance(obj, dict):
             for key, item in obj.items():
                 walk(key); walk(item)
-        elif isinstance(obj, (list, tuple, set)):
+        elif isinstance(obj, np.ndarray) and obj.dtype.kind == 'O':
+            for item in obj.flat:
+                walk(item)
+        elif isinstance(obj, (list, tuple, set, frozenset)):
             for item in obj:
                 walk(item)
         elif type(obj).__module__ in ('botbowl.core.model', 'botbowl.core.procedure', 'botbowl.core.util'):
@@ -227,6 +233,87 @@ def test_pending_procedure_continuations(kind, fm, side):
     assert executable(right) == executable(clone_from_snapshot(snapshot))
     assert_references(left)
     assert_references(right)
+
+
+@pytest.mark.parametrize('fm', (False, True))
+def test_suspended_multistep_route_reroll_capture_clone_restore_replay(fm, monkeypatch):
+    game = logical(turn(pathfinding=True, rounds=2))
+    player, _ = players(game, [(3, 3)], [(4, 3)], ball=(3, 3))
+    player.extra_skills = []
+    player.team.state.rerolls = 1
+    if fm:
+        game.enable_forward_model()
+    game.advance(bb.Action(bb.ActionType.START_MOVE, player=player))
+    destination = bb.Square(3, 5)
+    route = tuple(game.get_procedure().paths[destination].steps)
+    assert len(route) == 2 and route[-1] == destination
+
+    # Observe real automatic route steps, including continuation after restore.
+    original = proc.MoveAction.step
+    automatic_steps = []
+    def step(self, action):
+        if action is None:
+            assert self.steps and self.game._snapshot_busy
+            with pytest.raises(SnapshotError, match='settled'):
+                capture_snapshot(self.game)
+            automatic_steps.append(self.steps[0])
+        return original(self, action)
+    monkeypatch.setattr(proc.MoveAction, 'step', step)
+    game.rng.normal()  # Include the MT19937 Gaussian cache in exact replay.
+    game.dice.fix(bb.D6, 1, 6, 6, 6)
+    game.advance(bb.Action(bb.ActionType.MOVE, position=destination))
+
+    def suspended(target):
+        reroll = target.get_procedure()
+        assert type(reroll) is proc.Reroll and reroll.context.reroll is reroll
+        move = next(p for p in target.state.stack.items if type(p) is proc.MoveAction)
+        assert tuple(move.steps) == route[1:]
+        assert move.orig_action_type is bb.ActionType.MOVE
+        assert move.player is reroll.context.player
+        assert target._snapshot_ready and not target._snapshot_busy
+        assert target.timeline._pending is None
+        assert [c.action_type for c in target.state.available_actions] == [
+            bb.ActionType.USE_REROLL, bb.ActionType.DONT_USE_REROLL]
+        assert_references(target)
+
+    def choices(target):
+        # The executable walker covers all non-cache choice fields. Compare
+        # regenerated Python/native path values explicitly as well.
+        return [(choice.action_type, [
+            (tuple((s.x, s.y) for s in path.steps), path.rolls, path.prob,
+             path.block_dice, path.handoff_roll, path.foul_roll)
+            for path in choice.paths]) for choice in target.state.available_actions]
+
+    def finish(target):
+        target.advance(bb.Action(bb.ActionType.USE_REROLL))
+        move = target.get_procedure()
+        assert type(move) is proc.MoveAction and move.steps is None
+        assert move.player.position == destination
+        assert tuple(move.player.state.squares_moved) == (bb.Square(3, 3),) + route
+        assert_references(target)
+        assert_integrity(target)
+        at_destination = executable(target), choices(target)
+        target.advance(bb.Action(bb.ActionType.END_PLAYER_TURN))
+        assert_references(target)
+        assert_integrity(target)
+        return at_destination, executable(target), choices(target)
+
+    suspended(game)
+    saved = capture_snapshot(game)
+    before = executable(game), choices(game)
+    clone = clone_from_snapshot(saved)
+    suspended(clone)
+    assert clone.get_step() == saved.undo_origin == 0 and clone.trajectory.enabled == fm
+    assert (executable(clone), choices(clone)) == before
+    expected = finish(game)
+    assert (executable(clone), choices(clone)) == before
+    assert finish(clone) == expected
+    restore_snapshot(game, saved)
+    suspended(game)
+    assert (executable(game), choices(game)) == before
+    assert game.get_step() == 0 and game.trajectory.enabled == fm
+    assert finish(game) == expected
+    assert automatic_steps == [route[0], route[1], route[1], route[1]]
 
 
 @pytest.mark.parametrize('fm', (False, True))
@@ -610,6 +697,57 @@ def test_engine_rng_alias_and_procedure_cycles_use_one_memo():
     assert copied.context.context == (clone, clone.rng, clone.dice)
     restore_snapshot(game, snapshot)
     assert game.get_procedure().context.context == (game, game.rng, game.dice)
+
+
+@pytest.mark.parametrize('carrier', ('array', 'scalar-array', 'frozenset', 'nested'))
+def test_context_containers_rebind_live_game_aliases_and_recapture(carrier):
+    game = logical(fresh())
+    frozen = frozenset((game,))
+    if carrier == 'frozenset':
+        value = frozen
+    elif carrier == 'scalar-array':
+        value = np.empty((), dtype=object)
+        value[()] = game
+    else:
+        value = np.empty((2, 2), dtype=object)
+        value[0, 0] = game
+        value[0, 1] = value  # Mutable-container cycle.
+        value[1, 0] = frozen if carrier == 'nested' else game
+        value[1, 1] = value[1, 0]
+    game.get_procedure().context = {'first': value, 'again': value,
+                                    'tuple': (value,), 'frozen': frozen,
+                                    'key': {frozen: value}}
+
+    def identities(target):
+        context = target.get_procedure().context
+        item = context['first']
+        assert context['again'] is context['tuple'][0] is item
+        assert next(iter(context['frozen'])) is target
+        assert next(iter(context['key'])) is context['frozen']
+        assert context['key'][context['frozen']] is item
+        if carrier == 'frozenset':
+            assert item is context['frozen']
+        elif carrier == 'scalar-array':
+            assert item[()] is target
+        else:
+            assert item[0, 0] is target and item[0, 1] is item
+            assert item[1, 0] is item[1, 1]
+            assert item[1, 0] is (context['frozen'] if carrier == 'nested' else target)
+        assert_references(target)
+        return item
+
+    saved = capture_snapshot(game)
+    clone = clone_from_snapshot(saved)
+    assert identities(clone) is not identities(game)
+    restore_snapshot(game, saved)
+    assert identities(game) is not identities(clone)
+    # A successful live restore must itself be an admissible capture source.
+    recaptured = capture_snapshot(game)
+    sibling = clone_from_snapshot(recaptured)
+    assert identities(sibling) is not identities(game)
+    restore_snapshot(game, recaptured)
+    identities(game)
+    identities(clone)
 
 
 def test_engine_scope_drops_policy_resources_and_finalization_callbacks():

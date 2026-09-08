@@ -9,8 +9,11 @@ All listed procedure types include inherited fields. `Procedure` owns `game`,
 `game` remaps to the clone or existing restore target. `context`, nested
 procedures and `rerolled_procs` retain aliases/cycles through one graph memo.
 Every declared instance field is copied except derived `MoveAction.paths`.
-The separate `steps` field preserves a selected route's continuation. An
-unresolved nonempty route cannot itself be a capture boundary.
+The separate `steps` field preserves a selected route's continuation. A settled
+child decision can suspend an ancestor MoveAction with nonempty `steps`: capture
+retains those steps, `orig_action_type`, player aliases and the child reroll/context
+cycle. The currently active automatic route cannot itself be a capture boundary;
+busy execution and automatic-step exhaustion also remain ineligible.
 
 The field inventory below is class-local; empty rows inherit their base's fields.
 The full engine, clocks, RNG, episode, cache and exclusion inventory is in the
@@ -131,10 +134,29 @@ The full engine, clocks, RNG, episode, cache and exclusion inventory is in the
   game before publication of a clone/restore; suspended routes recompute when
   next offering actions.
 - Engine Game/RNG/DiceSource references in container-valued Procedure.context
-  are remapped. Component payloads can preserve a retained supplied RNG alias
+  are remapped. Final live restore traverses dictionary keys/values, lists,
+  tuples, sets, frozensets and every object-array element with one shared memo.
+  Replaced tuples/frozensets preserve aliases across container edges; arrays
+  preserve shape, aliases and mutable cycles, including zero-dimensional arrays.
+  Component payloads can preserve a retained supplied RNG alias
   using the same memo, while engine objects are forbidden in codec payloads.
 
 Tests use real legal continuations, complete procedure-field traversal, RNG and
 logical trace comparison, reference-identity checks and atomic failure probes.
+`test_suspended_multistep_route_reroll_capture_clone_restore_replay` interrupts
+a real two-step path to `(3,5)` with a failed dodge and a pending team reroll.
+With forward model off/on, it captures, clones, restores and replays the remaining
+route, comparing executable state/reports, generated path choices, complete RNG
+and forced queues, and timeline counters/records. It checks the suspended steps,
+reroll/context cycle, player/Game/trajectory identities and rejection during each
+automatic route step. `test_context_containers_rebind_live_game_aliases_and_recapture`
+checks object arrays, scalar object arrays, frozensets and nested combinations,
+including dictionary-key and tuple aliases and array self-cycles. It checks live
+Game identity, independent clones and immediate recapture/restore. The reference
+walker also traverses these carriers and rejects any foreign Game it encounters.
+These context-carrier tests use forward model off: the legacy property logger
+does not support assigning array/frozenset payloads to tracked context fields;
+this correction does not expand that logger's mutation API.
+
 The required independent state/reference-inventory checkpoint must inspect this
 inventory and the implementation before a distinct final-capable review.

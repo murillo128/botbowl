@@ -587,12 +587,14 @@ def _boundary(game):
         raise SnapshotError('Use the default clock or LogicalTime for lab snapshots')
     if game.finalization_errors:
         raise SnapshotError('A failed finalizer is not a stable terminal boundary')
+    # A child decision can suspend an ancestor's selected route. Those remaining
+    # steps are continuation state; only an active automatic route is ineligible.
     if game.state.game_over:
         if game.state.available_actions or not game._end_notified:
             raise SnapshotError('Terminal finalization has not settled')
     elif (not game.state.available_actions or game.state.stack.is_empty() or
-          game.get_procedure().done or any(isinstance(p, procedure.MoveAction) and p.steps
-                                          for p in game.state.stack.items)):
+          game.get_procedure().done or
+          (isinstance(game.get_procedure(), procedure.MoveAction) and game.get_procedure().steps)):
         raise SnapshotError('Automatic procedure continuation is not a decision boundary')
     if game.timeline is not None and (type(game.timeline) is not Timeline or
             game.timeline._pending is not None or game.timeline._parent != (None, None)):
@@ -883,8 +885,11 @@ def _restore_snapshot(subject, snapshot, *, adapters=None):
         elif isinstance(value, list):
             for index, item in enumerate(value):
                 list.__setitem__(value, index, rebind(item))
-        elif isinstance(value, tuple):
-            result = tuple(rebind(item) for item in value)
+        elif type(value) is np.ndarray and value.dtype.kind == 'O':
+            for index in np.ndindex(value.shape):
+                value[index] = rebind(value[index])
+        elif isinstance(value, (tuple, frozenset)):
+            result = type(value)(rebind(item) for item in value)
             memo[id(value)] = result
             return result
         elif isinstance(value, set):

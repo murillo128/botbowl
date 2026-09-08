@@ -31,8 +31,11 @@ callback-dependent `reset` behavior.
 Capture requires successful `init` or a settled decision/terminal advance. Engine
 operation guards reject capture during init, a procedure step, or finalization;
 episode guards also cover policy, observer and scenario callbacks. Automatic-step
-exhaustion, unfinished timelines/macros, a closed live game, pending route steps,
-and failed finalizers cannot be captured. An invalid external action preserves
+exhaustion, unfinished timelines/macros, a closed live game, active automatic route
+execution and failed finalizers cannot be captured. A settled child decision
+(such as a reroll) may suspend an ancestor MoveAction with unexecuted route
+`steps`; those steps and procedure/context cycles are captured for continuation.
+An invalid external action preserves
 capture eligibility. Raw property `revert`/`forward` invalidate eligibility: they
 are legacy state-only operations, not complete simulator restoration. A subsequent
 successful advance or full snapshot restore supplies a new boundary. Calling an
@@ -79,9 +82,13 @@ It allocates model objects without invoking constructors, `__deepcopy__` or
 every copied `_trajectory` points to the new trajectory. Procedure, report,
 action, board, team/player and observation references preserve internal aliases.
 The commit step remaps the staging Game to the existing target Game, including
-Game references inside container-valued procedure contexts.
+Game references inside container-valued procedure contexts. Its shared memo
+traverses dictionary keys/values, lists, tuples, sets, frozensets and object-dtype
+NumPy array elements (including zero-dimensional arrays). Rebuilt immutable
+containers retain shared aliases, and mutable-container cycles remain intact.
 
-Tuples are traversed; they are not assumed deeply immutable. Cyclic tuples are
+Tuples and frozensets are traversed; they are not assumed deeply immutable. Cycles
+requiring an unfinished tuple/frozenset to be constructed are
 outside the declared engine inventory and rejected; engine procedure/object and
 mutable-container cycles use the memo. NumPy arrays are copied (object arrays
 are traversed), and MT streams are restored into separate generators. Enum
