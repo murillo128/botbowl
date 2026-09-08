@@ -1,6 +1,6 @@
 ---
 name: codex-pr-audit
-description: Audit one pull request at an exact head through a fresh independent technical review, record the result, and apply only verdict-derived workflow transitions.
+description: Audit one pull request at an exact head through an independent technical review, record the result, and apply only verdict-derived workflow transitions.
 ---
 
 # Codex Pull Request Audit
@@ -12,17 +12,23 @@ concrete pull request for technical audit. It is invocation-agnostic: a manual
 ChatGPT request, direct Codex request, or future automation must follow the same
 protocol. No GitHub Actions environment variables or trigger details are required.
 
-This skill is the audit controller. It owns unambiguous controlling-issue
-resolution, exact-target capture, preparation and dispatch of a final-capable
-review packet, durable result recording, idempotent replay, and only the workflow
-mutations derived from the result.
+This skill owns unambiguous controlling-issue resolution, exact-target capture,
+preparation of a final-capable review packet, durable result recording, idempotent
+replay, and only the workflow mutations derived from the result.
 
-It does not judge the implementation itself. Load and invoke
-`../codex-independent-review/SKILL.md` as the authority for technical inspection,
-materiality, validation, and verdicts. Use `../codex-github-operations/SKILL.md`
-only after the reviewer has fixed its verdict to record the audit and reconcile
-GitHub state. The controller must not implement fixes, merge, enable auto-merge,
-or submit a formal GitHub `APPROVE` review.
+Technical judgment is governed exclusively by
+`../codex-independent-review/SKILL.md`. When this audit is already running in a
+fresh context that is isolated from the executor and pinned to a dedicated exact-
+head review worktree, the current Codex session **is** the independent reviewer:
+load and apply `codex-independent-review` directly in this same session and do not
+spawn, delegate to, or wait for another reviewer. When those independence
+conditions are not established, invoke exactly one fresh isolated reviewer instead;
+an executor/controller context must never self-certify merely by adopting this
+skill.
+
+Use `../codex-github-operations/SKILL.md` only after the technical verdict is fixed
+to record the audit and reconcile GitHub state. The auditor must not implement
+fixes, merge, enable auto-merge, or submit a formal GitHub `APPROVE` review.
 
 ## Inputs
 
@@ -34,7 +40,10 @@ Required:
 Optional:
 
 - a caller-supplied controlling issue number or canonical issue URL;
-- a concise reason or audit request identifier for operational traceability.
+- a concise reason or audit request identifier for operational traceability;
+- an explicit caller/launcher assertion that this session is itself the fresh,
+  isolated audit context, when that assertion is backed by a separate review
+  thread/worktree rather than the executor context.
 
 Resolve every other input from current GitHub and repository state. In particular,
 do not require `GITHUB_EVENT_PATH`, `GITHUB_REF`, `GITHUB_SHA`, `GH_TOKEN`, or any
@@ -56,6 +65,16 @@ Before starting technical review:
    displacing a different active owner or workflow.
 6. Capture the PR number, base ref name, exact observed base SHA, head ref name,
    and exact observed head SHA. The head SHA is the review target.
+7. Establish the review mode before inspecting implementation:
+   - **direct isolated review** only when the current session is fresh with respect
+     to the executor, uses a dedicated review worktree pinned to `audit_head`, and
+     has not authored the implementation under review;
+   - otherwise **delegated review**, using exactly one fresh isolated reviewer.
+
+A launcher-created fresh App Server thread plus a distinct detached review worktree
+at the published PR head satisfies the direct isolated review condition. Merely
+opening a new turn in the executor's thread or using the executor's worktree does
+not.
 
 An ordinary new audit starts from `in-progress` or re-audits a current
 `review-ready` PR. `execution-ready` and `blocked` are valid only while replaying
@@ -112,7 +131,7 @@ Changes to technical code, tests, evidence, dependencies, configuration, or clai
 after the audit similarly require a new exact target. Workflow-only metadata does
 not alter the reviewed commit.
 
-## Prepare and invoke the review
+## Prepare and execute the review
 
 Build the minimum final-capable review packet required by
 `codex-independent-review`:
@@ -125,10 +144,30 @@ Build the minimum final-capable review packet required by
 - the issue's acceptance criteria, material risks, and any unresolved material
   finding that remains relevant.
 
-Invoke one fresh, isolated, read-only reviewer. The review context must not inherit
-the executor's hidden reasoning, and the executor/controller must not impersonate
-the independent reviewer. Ask the reviewer to apply the procedure and verdict
-semantics in `codex-independent-review`, and to report:
+### Direct isolated review
+
+When the preconditions established that this current Codex session is already the
+fresh isolated audit context, **perform the technical review yourself in this
+session**. Apply `codex-independent-review` exactly as written. Do not create a
+subagent, nested reviewer, second Codex session, or other delegated review merely
+to manufacture another layer of independence: the independent boundary is the
+fresh audit thread/worktree that launched this session.
+
+Remain read-only with respect to implementation. You may run proportional tests or
+diagnostics in the dedicated audit worktree when allowed by the review contract,
+but do not publish or implement a correction there.
+
+### Delegated review fallback
+
+If the current context does not meet the direct-isolation conditions, invoke
+exactly one fresh, isolated, read-only reviewer. Its context must not inherit the
+executor's hidden reasoning. Ask it to apply `codex-independent-review` and return
+the same verdict packet described below. Do not fall back to self-review in an
+executor-owned thread/worktree.
+
+### Required result
+
+Whether the review is direct or delegated, produce:
 
 - exactly one of `PASS`, `PASS_WITH_NOTES`, `FAIL`, or `BLOCKED`;
 - the exact reviewed head SHA;
@@ -138,7 +177,7 @@ semantics in `codex-independent-review`, and to report:
 
 Do not duplicate the independent skill's inspection procedure, materiality rules,
 or testing policy here. A `PASS` or `PASS_WITH_NOTES` is actionable only when the
-reviewer confirms both `audit_head` and `final-capable: yes`. A mismatched target or
+review confirms both `audit_head` and `final-capable: yes`. A mismatched target or
 incomplete positive review is not converted into success; fail closed and request
 a valid fresh review.
 
@@ -218,7 +257,8 @@ PR mutation test.
 
 | Caller input and observed GitHub state | Expected result |
 | --- | --- |
-| Manual `Audit PR #47`; no Actions variables; branch `codex/issue-122`; structured PR link to #122 | Resolve #122, capture PR #47's current head, and invoke a fresh review |
+| Isolated GA audit of PR #47; fresh audit thread + detached exact-head worktree; branch `codex/issue-122` | Resolve #122 and perform `codex-independent-review` directly in the current audit session; no nested reviewer |
+| Manual `Audit PR #47` from an executor-owned context; branch `codex/issue-122`; structured PR link to #122 | Resolve #122, capture PR #47's current head, and delegate exactly one fresh review |
 | Explicit issue #122; branch and structured link also identify #122 | Resolve #122 |
 | Explicit issue #122; branch identifies #123 | `BLOCKED`; comment on the PR, review nothing, mutate neither issue |
 | No supplied issue, non-conventional branch, and no structured issue link | `BLOCKED`; do not infer from title, milestone, or nearby number |
