@@ -10,7 +10,9 @@ import sys
 def core_smoke(backend, minimal=False):
     if minimal:
         assert "DISPLAY" not in os.environ
-        for distribution in ("Flask", "gym", "gymnasium", "docker", "matplotlib", "pytest"):
+        for distribution in (
+            "Flask", "gym", "gymnasium", "docker", "matplotlib", "pytest", "torch"
+        ):
             try:
                 metadata.version(distribution)
             except metadata.PackageNotFoundError:
@@ -18,9 +20,13 @@ def core_smoke(backend, minimal=False):
             raise AssertionError(f"Unexpected minimal dependency: {distribution}")
     import botbowl as bb
     import botbowl.core.pathfinding as pf
+    from botbowl.lab import SessionConfig, SimulationSession
+    from botbowl.lab.randomness import SeedSpec
     from botbowl.lab.rules import describe_rules
 
-    for module in ("flask", "gym", "gymnasium", "docker", "matplotlib", "tkinter"):
+    for module in (
+        "flask", "gym", "gymnasium", "docker", "matplotlib", "tkinter", "torch"
+    ):
         assert module not in sys.modules, module
     assert pf.get_safest_path.__module__.endswith(
         ".cython_pathfinding" if backend == "native" else ".python_pathfinding")
@@ -42,6 +48,15 @@ def core_smoke(backend, minimal=False):
         finally:
             game.close()
     assert isinstance(bb.make_bot("random"), bb.RandomBot)
+    session = SimulationSession(
+        SessionConfig(size=1), SeedSpec(17, "wheel-smoke", "engine", "session-v1")
+    )
+    try:
+        legal = session.legal_actions()
+        result = session.step(legal.actions[0], legal.state_revision)
+        assert result.events and not result.terminated and not result.truncated
+    finally:
+        session.close()
     return {"backend": backend, "package": str(Path(bb.__file__).resolve()),
             "python": sys.version.split()[0], "numpy": metadata.version("numpy"),
             "sizes": [1, 3, 5, 7, 11], "decisions_per_size": 3}

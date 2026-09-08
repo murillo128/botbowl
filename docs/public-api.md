@@ -29,10 +29,12 @@ finally:
   object. Objects must be coherent initial rosters with distinct team/player
   IDs across seats. To play the same roster against itself, pass its name twice
   or load it twice. The normal per-variant roster limit still applies.
-- `seed` is `None` or a Python integer from 0 through `2**32 - 1`; booleans,
-  floats and strings are rejected. It seeds the engine, independently of
-  policy RNGs. Reproducibility covers semantic decisions/events under the same
-  inputs and engine/backend, excluding UUIDs and audit timestamps.
+- `seed` is `None`, a Python integer from 0 through `2**32 - 1`, or the #35
+  `SeedSpec` with `purpose="engine"`; booleans, floats, strings and other seed
+  plans are rejected. A `SeedSpec` supplies all eight derived words. The value
+  seeds the engine independently of policy RNGs. Reproducibility covers semantic
+  decisions/events under the same inputs and engine/backend, excluding UUIDs
+  and audit timestamps.
 - `control` is required. `"external"` installs two human placeholder `Agent`s
   and rejects policy agents. `"policy"` requires distinct non-human
   `home_agent` and `away_agent` objects, including results of `make_bot(id)`.
@@ -86,3 +88,6 @@ The separate [lab protocols](lab/protocols.md) define structural simulation,
 restricted policy, observer, recorder, scenario and evaluator roles. Their
 `LegacyBotAdapter` explicitly forwards engine-aware bots to this existing
 `PolicyDriver` boundary; `botbowl.Policy` keeps its current meaning.
+
+For copied observations, semantic actions, monotonic revisions and snapshots
+without accessing `Game`, use the separate [local simulation session](lab/session.md).

@@ -8,6 +8,7 @@ from botbowl.core.load import (_TeamNotFoundError, load_arena, load_config, load
                                load_team_by_filename, load_team_by_name)
 from botbowl.core.model import Agent, Configuration, RuleSet, Team
 from botbowl.lab.rules import SUPPORTED_SIZES, describe_rules
+from botbowl.lab.randomness import SeedSpec
 
 
 def _resource_name(value: Optional[str], field: str) -> str:
@@ -40,7 +41,7 @@ def create_game(
     *,
     control: Literal["external", "policy"],
     size: Optional[int] = None,
-    seed: Optional[int] = None,
+    seed: Optional[Union[int, SeedSpec]] = None,
     home_agent: Optional[Agent] = None,
     away_agent: Optional[Agent] = None,
 ) -> Game:
@@ -54,15 +55,26 @@ def create_game(
     Policy control requires two distinct non-human Agents (e.g. make_bot).
     Game.init calls their new_game callbacks; only an explicit PolicyDriver.run
     calls act. Both modes use the external one-decision engine semantics.
-    Seed controls engine randomness only, not a policy's own RNG or UUIDs.
+    Seed controls engine randomness only, not a policy's own RNG or UUIDs. An
+    engine-purpose lab SeedSpec supplies the complete reproducible seed recipe.
     Invalid resources/arguments raise ValueError before policy callbacks.
     """
     if control not in ("external", "policy"):
         raise ValueError("control must be 'external' or 'policy'")
     if size is not None and (type(size) is not int or size not in SUPPORTED_SIZES):
         raise ValueError("size must be one of 1, 3, 5, 7, 11")
-    if seed is not None and (type(seed) is not int or not 0 <= seed < 2**32):
-        raise ValueError("seed must be None or an integer in [0, 2**32)")
+    if isinstance(seed, SeedSpec):
+        try:
+            seed = SeedSpec(**seed.to_json())
+        except (TypeError, ValueError) as error:
+            raise ValueError("seed must be a valid engine SeedSpec") from error
+        if seed.purpose != "engine":
+            raise ValueError("seed SeedSpec purpose must be 'engine'")
+        engine_seed = seed.seed_words()
+    elif seed is None or (type(seed) is int and 0 <= seed < 2**32):
+        engine_seed = seed
+    else:
+        raise ValueError("seed must be None, an integer in [0, 2**32), or an engine SeedSpec")
     if control == "external":
         if home_agent is not None or away_agent is not None:
             raise ValueError("external control does not accept policy agents")
@@ -103,6 +115,6 @@ def create_game(
     # rules, numeric limit and identity validation; do not implement it twice.
     describe_rules(configuration, rules, arena, home, away)
     game = Game(str(uuid4()), home, away, home_agent, away_agent, configuration,
-                arena=arena, ruleset=rules, seed=seed, external_control=True)
+                arena=arena, ruleset=rules, seed=engine_seed, external_control=True)
     game.init()
     return game
