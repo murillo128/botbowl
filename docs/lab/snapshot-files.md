@@ -1,0 +1,169 @@
+# SnapshotFileV1: executable JSON snapshots (SIM-03)
+
+`botbowl.lab.snapshot_io` persists the owned executable graph defined by
+[SIM-02](snapshots.md). It supports the declared partial BB2016 implementation,
+sizes 1/3/5/7/11, and the same engine, schema, NumPy and actual pathfinding backend
+versions. It does not reconstruct a game from presentation JSON or modify rules.
+
+```python
+from botbowl.lab.snapshots import capture_snapshot, clone_from_snapshot, restore_snapshot
+from botbowl.lab.snapshot_io import read_snapshot, write_snapshot, SnapshotLimits
+
+write_snapshot("game.snapshot.json", capture_snapshot(game))
+# In another interpreter with the same installed implementation:
+saved = read_snapshot("game.snapshot.json")
+branch = clone_from_snapshot(saved)
+restore_snapshot(game, saved)  # atomic replacement of a compatible idle target
+```
+
+`write_snapshot(path, snapshot, *, adapters=None, limits=SnapshotLimits(),
+provenance=None)` returns a data-only `SnapshotFileV1` envelope.
+`read_snapshot(path, *, adapters=None, limits=SnapshotLimits())` returns a private
+process-local SIM-02 `Snapshot`. Pass the same trusted adapter registry to read,
+clone and restore for episode scope. The two-process executable example is
+[`examples/lab/snapshot_files.py`](../../examples/lab/snapshot_files.py).
+
+## Wire grammar and registry
+
+Files are UTF-8 JSON objects with exactly these members. Writers emit compact
+ASCII-escaped JSON (a UTF-8 subset), sorted object keys and a final newline.
+Readers also accept equivalent UTF-8 JSON whitespace and object-member ordering;
+duplicate JSON keys are rejected.
+
+| Member | V1 representation |
+| --- | --- |
+| `format`, `version` | `"SnapshotFileV1"`, integer `1` (boolean is invalid) |
+| `descriptor` | Seven-field `RulesDescriptor` from #30, describing the snapshot's effective loaded resources/rosters; the original episode manifest remains in episode data |
+| `scope` | `"engine"` or `"episode"` |
+| `component_versions` | `graph=1`, `snapshot=1`, `rng="MT19937-v1"`, exact NumPy/package/backend identities, schema digest and used adapter names mapped to `1` |
+| `payload` | Exactly `roots` and `nodes` |
+| `provenance` | Optional caller-supplied JSON object, default `{}`; inert and noncausal |
+| `semantic_state_hash` | SHA-256 of the normalized executable projection described below |
+| `payload_digest` | SHA-256 of canonical JSON for **every envelope member except this digest**, including provenance and the semantic hash |
+
+`roots` has exactly `game`, `episode` and `components`. Game is a `Game` node
+reference. Episode is null or a dictionary of the exact SIM-02 episode fields.
+Components is a dictionary of `policy-home`, `policy-away`, `scenario`,
+`agent-home`, `agent-away` entries; only present active components are stored.
+
+Atoms are JSON null/boolean/integer/finite number/string, `{"ref": id}`,
+`{"enum": [tag, member_name]}`, or `{"bytes": "lowercase hex"}`.
+Every reference is an integer index into `nodes`; nodes have unique contiguous
+`id` values equal to their array position. Every node must be root-reachable.
+Reassigning IDs consistently does not change the semantic hash.
+
+| Node tags | Members beyond `id`, `type` |
+| --- | --- |
+| `list`, `tuple`, `set`, `frozenset` | `items`: atoms |
+| `dict` | `items`: ordered `[key_atom, value_atom]` pairs; duplicate keys rejected, including `true`/`1` collisions |
+| `rlist`, `rdict`, `rset` | Same container data plus `trajectory`: null or reference |
+| `array` | `dtype`, `shape`, flat `items`; numeric, boolean, Unicode, bytes or object elements; object arrays retain references and cycles |
+| `rng` | `algorithm="MT19937"`, 624 uint32 `keys`, `position` in 0..624, integer `has_gauss` in 0..1, finite `cached_gaussian` |
+| `dice` | Shared `rng` reference, nested `queues` in D3/D6/D8/BBDie order, one boolean `strict` per frame |
+| Registered object tags | `fields`: ordered `[field_name, atom]` pairs; no unknown/duplicate fields |
+
+The trusted registry is closed in package code. `CODEC_FIELDS` exposes the
+field inventory; the [codec report](../reports/snapshot-files-inventory.md)
+lists the object/enum/procedure coverage. Tags are opaque names. No tag is
+resolved through an import, module attribute lookup, reducer, arbitrary class
+constructor, callable, pickle, joblib or jsonpickle supplied by the file.
+Strings resembling module names are ordinary data. Unknown reachable types,
+procedures, enums, fields and unavailable adapters fail explicitly.
+
+Procedure fields include inherited continuation state, including popped procedures
+still reached by reroll/context cycles and suspended route `steps`. All current
+engine procedure classes are registered, and a test compares the closed inventory
+against the engine. This is codec coverage; the executable acceptance fixtures
+exercise specified decision boundaries, not every possible combination of skills.
+
+## Ownership, scopes and rebuilding
+
+The graph preserves player/team/board/ball/report aliases, procedure-to-Game
+references, mutable cycles, tuples/frozensets, scalar/object arrays, all owned
+MT streams and nested forced queues. Cycles requiring an unfinished immutable
+tuple/frozenset are rejected, as in SIM-02. Engine and procedure `init`, clock
+constructors, action execution and source/global random draws are never used to
+rebuild state. Trusted RNG reconstruction uses `RandomState(0)` plus `set_state`;
+SIM-02 also constructs a private `DiceSource(0)`. Neither consumes the restored
+stream or global randomness.
+
+Saved force frames become owned data with fresh private tokens. A read cannot
+resume a Python context manager from another process; restoring into unrelated
+live forced contexts is rejected by SIM-02. Two reads share no mutable state.
+
+Trajectory logs and their functions are excluded; an empty owned trajectory
+retains the enabled flag and undo starts at zero. Arena JSON, square shortcuts,
+entity indexes and path caches follow SIM-02 rebuilding. The saved snapshot has
+empty derived paths; clone/restore recomputes executable choices privately.
+Suspended `MoveAction.steps` survives until its child decision resolves.
+Logical clocks retain elapsed/running/paused state; no wall deadline resumes.
+Transport revisions remain owned by the caller, as in SIM-02.
+
+Engine scope contains inert seat metadata and external-action continuation.
+For an `EpisodeContext`, its four other streams, budgets, seed recipe, initial
+inputs/rosters and observation bindings survive; active callbacks are omitted.
+Episode scope also retains every registered active component as `ComponentState`
+data. Adapter functions are caller-provided trusted code, never file contents.
+Names are implementation/version identities: register a new name when an adapter's
+data contract changes. Nested wrappers use the existing `SnapshotAdapters` API;
+shared components and retained supplied-stream aliases survive. Every decode
+constructs private components. Adapter callbacks must honor the SIM-02 no-I/O,
+no-live-mutation contract. Component data cannot reference engine objects.
+
+## Integrity and semantic identity
+
+`payload_digest` covers all parsed file data except itself. Whitespace, equivalent
+JSON escapes and object-key order are not data and do not affect the digest.
+It detects accidental corruption, **not authentication**; an attacker can recompute
+it. Every structural/compatibility check still runs for a correctly re-signed file.
+
+`semantic_state_hash` traverses the executable graph with normalized node IDs,
+preserving alias edges and ordering of sequences. Team/player/seat IDs normalize
+to side/roster slots; mapping keys and sets have canonical ordering. It excludes
+Game local ID and wall audit timestamps, clock audit `started_at`, configuration
+name/arena path hints (loaded geometry is retained), timeline episode/branch labels,
+the episode provenance manifest, and envelope provenance. Logical time, procedure
+fields, counters, reports, resources, loaded rules/configuration, forced queues,
+RNG position/cache and opaque component state remain causal. Changing RNG or
+replacing one shared list by two equal independent lists changes this hash.
+Opaque adapter state is not interpreted as entity IDs. A seed recipe is retained
+because it affects episode reset. The hash does not assert arbitrary policy
+equivalence or authenticate a simulation.
+
+## Validation, bounds and failures
+
+Defaults: 32 MiB file bytes, 100,000 graph nodes, depth 128. `SnapshotLimits`
+accepts positive integer overrides; depth has a hard implementation ceiling of
+256. The reader reads at most `max_bytes + 1`. A quote-aware scanner bounds JSON
+nesting before parsing. Parsed data values are additionally limited to
+`64 * max_nodes`. Reference traversal depth is bounded independently of JSON
+nesting, using one visited set and a cycle stack. All array allocations together
+are bounded by `max_bytes`; each dimension is bounded, rank is at most 32,
+shape products must match flat lengths, dtype widths are restricted and numeric
+overflow/string truncation is rejected before array allocation.
+
+Before allocating engine objects or invoking adapters, validation checks the
+envelope, digest, closed tags, field inventory, required fields, scalar/reference
+types, enums, MT array/index/cache, dice queues, array bounds, duplicate/dangling
+references, unreachable nodes, safe hashable keys, canonical team/player/board
+links, pitch indexes, component data boundaries and version identities.
+SIM-02 then validates executable boundary/configuration/timeline coherence and
+rebuilds derived state on private objects before the reader returns. A failed read
+does not expose a partial snapshot or alter a caller's game. Final live replacement
+still uses `restore_snapshot`'s atomic preparation and compatibility gate.
+
+Malformed data raises `SnapshotFileError`; incompatible format/schema/component/
+ruleset versions raise `SnapshotIncompatibleError`; exceeded bounds raise
+`SnapshotLimitError`. These extend SIM-02 `SnapshotError`. Filesystem errors
+remain `OSError`. There is no migration or fallback to legacy saves.
+
+Writing finishes capture/codec validation and bounded encoding first, then writes
+a unique temporary file in the destination directory, flushes, fsyncs, closes and
+uses `os.replace`. Errors before replacement preserve the prior valid file and
+remove the temporary. Replacement is the commit point. This promises atomic file
+visibility on filesystems implementing atomic rename; it does not promise a
+directory entry survives sudden power loss on every filesystem.
+
+Legacy web/replay pickle remains a separate explicitly trusted/local API. See
+Python's [pickle security warning](https://docs.python.org/3/library/pickle.html)
+and [JSON resource-limit guidance](https://docs.python.org/3/library/json.html).
