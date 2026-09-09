@@ -20,7 +20,7 @@ import uuid
 
 from .actions import ActionV1
 from .randomness import SeedSpec
-from .session import SessionConfig, SessionError, SessionSnapshot, SimulationSession
+from .session import ExecutionFailure, SessionConfig, SessionError, SessionSnapshot, SimulationSession
 from .snapshot_io import SnapshotLimits, read_snapshot, write_snapshot
 from .snapshots import SnapshotError
 
@@ -31,6 +31,10 @@ class GatewayError(Exception):
     def __init__(self):
         # Never retain user payloads, credentials or engine diagnostics.
         super().__init__(self.code)
+
+
+class UnsupportedCapability(GatewayError):
+    code = "UnsupportedCapability"
 
 
 class Unauthenticated(GatewayError):
@@ -110,7 +114,7 @@ class Access:
         ):
             raise ValueError("Only players have a configured team")
         if type(self.capabilities) is not frozenset or self.capabilities - {
-            "labels", "snapshot", "restore", "reset", "close"
+            "labels", "snapshot", "restore", "reset", "close", "pause", "resume"
         }:
             raise ValueError("Unknown capabilities")
         if self.role != "evaluator" and self.capabilities:
@@ -139,9 +143,13 @@ class Command:
         schemas = {
             "step": {"op", "action"}, "reset": {"op"}, "close": {"op"},
             "restore": {"op", "snapshot"},
+            "pause": {"op"}, "resume": {"op"},
+            "create": {"op", "config", "seed"} if "config" in payload else {"op", "scenario"},
         }
-        if type(op) is not str or op not in schemas:
+        if type(op) is not str:
             raise InvalidRequest()
+        if op not in schemas:
+            raise UnsupportedCapability()
         _keys(payload, schemas[op])
         return cls(**data)
 
@@ -237,6 +245,7 @@ class SessionRegistry:
         self.clock = clock
         self._generation = uuid.uuid4().hex
         self._serial = 0
+        self._closed = False
         self._entries = {}
         self._retired = OrderedDict()
         self._lock = threading.Lock()
@@ -244,7 +253,7 @@ class SessionRegistry:
 
     def register(self, config: SessionConfig, seed: SeedSpec,
                  grants: Dict[str, Access], *, labels=None,
-                 branch: Optional[SessionSnapshot] = None) -> str:
+                 branch: Optional[SessionSnapshot] = None, scenario=None) -> str:
         """Create a session or trusted branch with explicit, independent grants."""
         if (not grants or len(grants) > self.limits.max_principals
                 or any(type(k) is not str or not k or len(k) > 128
@@ -256,9 +265,15 @@ class SessionRegistry:
         if type(label_data) is not dict:
             raise ValueError("Labels must be an object")
         with self._lock:
+            if self._closed:
+                raise Closed()
             if len(self._entries) >= self.limits.max_sessions:
                 raise CapacityExceeded()
-            session = SimulationSession(config, seed)
+            if scenario is None:
+                session = SimulationSession(config, seed)
+            else:
+                from .scenarios import create_scenario
+                session = create_scenario(scenario)
             try:
                 if branch is not None:
                     session.restore(branch, session.state_revision)
@@ -272,6 +287,21 @@ class SessionRegistry:
             except Exception:
                 session.close()
                 raise
+
+    def close(self):
+        """Idempotent owner shutdown; release all sessions and retained receipts."""
+        with self._lock:
+            self._closed = True
+            entries = list(self._entries.values())
+            self._entries.clear()
+            self._retired.clear()
+        for entry in entries:
+            with entry.lock:
+                if entry.session is not None:
+                    entry.session.close()
+                    entry.session = None
+                entry.retries.clear()
+                entry.labels.clear()
 
     @contextmanager
     def _admit(self):
@@ -312,9 +342,22 @@ class CommandGateway:
     no callback/network response is invoked while holding a session lock.
     """
 
-    def __init__(self, registry: SessionRegistry, authenticate: Callable):
+    def __init__(self, registry: SessionRegistry, authenticate: Callable, *, creators=None):
         self.registry = registry
         self._authenticate = authenticate
+        self._creators = deepcopy(creators or {})
+        if len(self._creators) > registry.limits.max_principals:
+            raise ValueError("Too many creators")
+        for principal, grants in self._creators.items():
+            if (type(principal) is not str or not principal or len(principal) > 128
+                    or principal not in grants or not grants
+                    or len(grants) > registry.limits.max_principals
+                    or any(type(k) is not str or not k or len(k) > 128 or type(v) is not Access
+                           for k, v in grants.items())):
+                raise ValueError("Invalid creation grants")
+        self._creation_lock = threading.Lock()
+        self._creation_retries = OrderedDict()
+        self._creation_highwater = {}
 
     def _principal(self, credential):
         try:
@@ -329,6 +372,75 @@ class CommandGateway:
         if len(_encode(response)) > self.registry.limits.max_response_bytes:
             raise CapacityExceeded()
         return deepcopy(response)
+
+    def create(self, credential, raw):
+        """Idempotent allocation using operator-owned grants and closed inputs."""
+        principal = self._principal(credential)
+        if principal not in self._creators:
+            raise Forbidden()
+        with self.registry._admit(), self._creation_lock:
+            command = Command.parse(_parse(raw, self.registry.limits))
+            if (command.session_id != "new" or command.expected_revision != 0
+                    or command.payload["op"] != "create"):
+                raise InvalidRequest()
+            now = self.registry.clock()
+            for key, (_, expiry, _) in list(self._creation_retries.items()):
+                if expiry <= now:
+                    del self._creation_retries[key]
+            key = (principal, command.request_id)
+            digest = hashlib.sha256(_encode(command.__dict__)).digest()
+            cached = self._creation_retries.get(key)
+            if cached:
+                if cached[0] != digest:
+                    raise Conflict()
+                return deepcopy(cached[2])
+            if command.request_id <= self._creation_highwater.get(principal, 0):
+                raise ExpiredRequest()
+            self._creation_highwater[principal] = command.request_id
+            result = {"session_id": "new", "request_id": command.request_id,
+                      "ok": False, "error": None, "state_revision": 0, "cursor": None}
+            try:
+                config, seed, scenario = self._creation_inputs(command.payload)
+                sid = self.registry.register(config, seed, self._creators[principal], scenario=scenario)
+                entry, _ = self.registry._get(sid, principal)
+                result.update(session_id=sid, ok=True, state_revision=entry.revision,
+                              cursor="%s:0" % sid)
+            except GatewayError as error:
+                result["error"] = error.code
+            except (SessionError, ValueError, TypeError):
+                result["error"] = "invalid_request"
+            self._creation_retries[key] = (digest, self.registry.clock() + self.registry.limits.retry_seconds,
+                                           deepcopy(result))
+            while len(self._creation_retries) > self.registry.limits.max_retries:
+                self._creation_retries.popitem(last=False)
+            return result
+
+    @staticmethod
+    def _creation_inputs(payload):
+        if "scenario" in payload:
+            from .scenarios import ScenarioSpecV1, SCENARIO_RECIPES
+            data = payload["scenario"]
+            if type(data) is not dict:
+                raise InvalidRequest()
+            recipe = data.get("scenario_id")
+            if type(recipe) is not str or recipe not in SCENARIO_RECIPES:
+                raise UnsupportedCapability()
+            if data.get("version") != SCENARIO_RECIPES[recipe].version:
+                raise UnsupportedCapability()
+            return None, None, ScenarioSpecV1.from_json(data)
+        data = payload["config"]
+        _keys(data, set(SessionConfig.__dataclass_fields__))
+        # Only this explicit packaged profile is exposed, never config/team paths.
+        if (data["game_config"] is not None or data["home_team"] != "human"
+                or data["away_team"] != "human"):
+            raise UnsupportedCapability()
+        if (type(data["size"]) is not int or data["size"] not in (1, 3, 5, 7, 11)
+                or type(data["max_decisions"]) is not int
+                or not 0 <= data["max_decisions"] <= 10000
+                or type(data["max_steps"]) is not int or not 1 <= data["max_steps"] <= 100000):
+            raise InvalidRequest()
+        _keys(payload["seed"], set(SeedSpec.__dataclass_fields__))
+        return SessionConfig(**data), SeedSpec(**payload["seed"]), None
 
     def read(self, credential, session_id, *, cursor=None, resource="state"):
         """Read a coherent copy, or replay bounded public change notifications.
@@ -350,7 +462,7 @@ class CommandGateway:
                     raise Forbidden()
                 token = "%s:%d" % (session_id, entry.cursor)
                 result = {"session_id": session_id, "state_revision": entry.revision,
-                          "cursor": token}
+                          "cursor": token, "paused": session.paused}
                 if cursor is not None:
                     if resource != "state":
                         raise InvalidRequest()
@@ -377,6 +489,8 @@ class CommandGateway:
         principal = self._principal(credential)
         with self.registry._admit():
             command = Command.parse(_parse(raw, self.registry.limits))
+            if command.payload["op"] == "create":
+                raise InvalidRequest()
             entry, grant = self.registry._get(command.session_id, principal)
             digest = hashlib.sha256(_encode(command.__dict__)).digest()
             with entry.lock:
@@ -415,6 +529,8 @@ class CommandGateway:
                     response["ok"] = True
                 except GatewayError as error:
                     response["error"] = error.code
+                except ExecutionFailure:
+                    response["error"] = "execution_failure"
                 except (SessionError, SnapshotError, ValueError, TypeError):
                     response["error"] = "invalid_command"
                 except Exception:
@@ -455,10 +571,20 @@ class CommandGateway:
             if session.observe(grant.team).next_actor != grant.team:
                 raise Forbidden()
             session.step(action, command.expected_revision)
+        elif op in ("pause", "resume"):
+            session.set_paused(op == "pause", command.expected_revision)
         elif op == "reset":
+            if entry.config is None:
+                raise UnsupportedCapability()
             session.reset(entry.config, entry.seed)
         elif op == "restore":
             snapshot = command.payload["snapshot"]
+            from .scenarios import ScenarioSession, ScenarioSnapshot, ScenarioSpecV1
+            scenario_spec = None
+            if isinstance(session, ScenarioSession):
+                _keys(snapshot, {"spec", "session"})
+                scenario_spec = ScenarioSpecV1.from_json(snapshot["spec"])
+                snapshot = snapshot["session"]
             _keys(snapshot, {"schema_version", "scope", "accepted_decisions", "max_decisions",
                              "max_steps", "truncation_reason", "engine"})
             if type(snapshot["engine"]) is not str:
@@ -471,15 +597,23 @@ class CommandGateway:
                 path.write_bytes(raw)
                 engine = read_snapshot(path, limits=self.registry.snapshot_limits)
             data = dict(snapshot, engine=engine)
-            session.restore(SessionSnapshot(**data), command.expected_revision)
+            saved = SessionSnapshot(**data)
+            if scenario_spec is not None:
+                saved = ScenarioSnapshot(scenario_spec, saved)
+            session.restore(saved, command.expected_revision)
         else:
             session.close()
 
     def _export(self, session):
+        from .scenarios import ScenarioSnapshot
         snapshot = session.snapshot()
+        spec = None
+        if isinstance(snapshot, ScenarioSnapshot):
+            spec, snapshot = snapshot.spec, snapshot.session
         with tempfile.TemporaryDirectory(prefix="botbowl-command-") as directory:
             path = Path(directory) / "snapshot.json"
             write_snapshot(path, snapshot.engine, limits=self.registry.snapshot_limits)
             engine = path.read_text(encoding="utf-8")
-        return {name: (engine if name == "engine" else getattr(snapshot, name))
-                for name in snapshot.__dataclass_fields__}
+        result = {name: (engine if name == "engine" else getattr(snapshot, name))
+                  for name in snapshot.__dataclass_fields__}
+        return result if spec is None else {"spec": spec.to_json(), "session": result}

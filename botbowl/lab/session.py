@@ -162,6 +162,7 @@ class SimulationSession:
         self._closed = False
         self._recorder = None
         self._recording_initial = None
+        self._paused_clocks = None
         if config is not None or seed_plan is not None:
             if config is None or seed_plan is None:
                 raise InvalidConfiguration("config and seed_plan must be supplied together")
@@ -259,6 +260,7 @@ class SimulationSession:
             ) from error
         previous = self._game
         self._game = game
+        self._paused_clocks = None
         self._timeline = timeline
         self._actions = actions
         self._config = config
@@ -288,6 +290,33 @@ class SimulationSession:
         self._actions = ActionControl(self._game, self._timeline._entities)
         self._recorder = recorder
         return recorder
+
+    @property
+    def paused(self):
+        return self._paused_clocks is not None
+
+    def set_paused(self, paused, expected_revision):
+        """Stop the explicit driver and only the clocks that were running.
+
+        This is a controller operation; competition sessions cannot be paused.
+        """
+        self._require_mutable()
+        self._check_revision(expected_revision)
+        game, _, _, _ = self._current()
+        if type(paused) is not bool or game.config.competition_mode or game.state.game_over:
+            raise InvalidAction("Pause is unavailable")
+        if paused != self.paused:
+            if paused:
+                self._paused_clocks = [c for c in game.state.clocks if c.is_running()]
+                for clock in self._paused_clocks:
+                    clock.pause()
+            else:
+                for clock in self._paused_clocks:
+                    if clock in game.state.clocks:
+                        clock.resume()
+                self._paused_clocks = None
+            self._revision += 1
+        return self.observe()
 
     def _active_side(self) -> Optional[Side]:
         game, timeline, _, _ = self._current()
@@ -418,6 +447,8 @@ class SimulationSession:
         terminated, truncated, _ = self._status()
         if terminated or truncated:
             return self._result()
+        if self.paused:
+            raise InvalidAction("Driver is paused")
         semantic = self._action(action)
         game, timeline, actions, config = self._current()
         try:
@@ -467,6 +498,17 @@ class SimulationSession:
         game, _, _, config = self._current()
         try:
             engine = capture_snapshot(game, scope=scope)
+            if self.paused:
+                # Driver pause is control state, not a sporting snapshot state.
+                # Normalize only the detached copy; GET never resumes live clocks.
+                copied = clone_from_snapshot(engine)
+                try:
+                    for index, clock in enumerate(game.state.clocks):
+                        if clock in self._paused_clocks:
+                            copied.state.clocks[index].resume()
+                    engine = capture_snapshot(copied, scope=scope)
+                finally:
+                    copied.close()
         except (SnapshotError, TypeError, ValueError) as error:
             raise IncompatibleSnapshot(
                 "Session snapshot could not be captured", _diagnostic(error)
@@ -521,6 +563,7 @@ class SimulationSession:
             raise IncompatibleSnapshot(
                 "Snapshot is incompatible with this session", _diagnostic(error)
             ) from error
+        self._paused_clocks = None
         self._timeline = game.timeline
         self._actions = ActionControl(game, self._timeline._entities)
         self._accepted_decisions = snapshot.accepted_decisions
