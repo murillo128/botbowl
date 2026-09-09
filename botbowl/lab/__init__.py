@@ -11,6 +11,19 @@ from .protocols import Policy as Policy
 from .protocols import Recorder as Recorder
 from .protocols import Scenario as Scenario
 from .protocols import Simulation as Simulation
+from .session import ExecutionFailure as ExecutionFailure
+from .session import IncompatibleSnapshot as IncompatibleSnapshot
+from .session import InvalidAction as InvalidAction
+from .session import InvalidConfiguration as InvalidConfiguration
+from .session import NoProgress as NoProgress
+from .session import SessionClosed as SessionClosed
+from .session import SessionConfig as SessionConfig
+from .session import SessionDiagnostic as SessionDiagnostic
+from .session import SessionError as SessionError
+from .session import SessionResult as SessionResult
+from .session import SessionSnapshot as SessionSnapshot
+from .session import SimulationSession as SimulationSession
+from .session import StaleRevision as StaleRevision
 from .replays import IndexedReplayEvent as IndexedReplayEvent
 from .replays import ReplayContinuation as ReplayContinuation
 from .replays import ReplayReader as ReplayReader
@@ -43,7 +56,20 @@ __all__ = [
     "ReplayReader",
     "ReplayRecorder",
     "Scenario",
+    "SessionClosed",
+    "SessionConfig",
+    "SessionDiagnostic",
+    "SessionError",
+    "SessionResult",
+    "SessionSnapshot",
     "Simulation",
+    "SimulationSession",
+    "StaleRevision",
+    "ExecutionFailure",
+    "IncompatibleSnapshot",
+    "InvalidAction",
+    "InvalidConfiguration",
+    "NoProgress",
     "SplitManifestV1",
     "WindowSpecV1",
     "build_split_manifest",

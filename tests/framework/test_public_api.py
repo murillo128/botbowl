@@ -124,6 +124,19 @@ def test_default_calls_and_both_seats_are_isolated():
         second.close()
 
 
+def test_engine_seed_spec_uses_all_recipe_words():
+    from botbowl.lab.randomness import SeedSpec, capture_stream
+
+    recipe = SeedSpec(2**128 + 17, "factory-test", "engine", "session-v1")
+    game = bb.create_game(size=1, seed=recipe, control="external")
+    try:
+        assert capture_stream(game.rng) == capture_stream(recipe.generator())
+    finally:
+        game.close()
+    with pytest.raises(ValueError, match="purpose"):
+        bb.create_game(size=1, seed=SeedSpec(17, purpose="policy-home"), control="external")
+
+
 def test_seed_determinism():
     first = bb.create_game(size=3, seed=17, control="external")
     second = bb.create_game(size=3, seed=17, control="external")
