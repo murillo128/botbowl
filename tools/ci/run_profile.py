@@ -178,7 +178,8 @@ def main():
         # checkout Python code over the installed native wheel.
         suite = output / 'suite'
         suite.mkdir()
-        for directory in ('tests', 'examples'):
+        # Workflow regression tests import their YAML and helper scripts.
+        for directory in ('tests', 'examples', '.github'):
             shutil.copytree(source / directory, suite / directory)
         run('identity', [python, '-c',
             'import botbowl; from pathlib import Path; '
