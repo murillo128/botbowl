@@ -1,0 +1,10 @@
+:root {color-scheme:light; font:16px/1.5 system-ui,sans-serif; color:#152b31; background:#f3f6f4}
+body {margin:0} main {max-width:1500px;margin:auto;padding:1.5rem} h1,h2 {line-height:1.2}
+section,.panel {background:white;border:1px solid #a9bab4;border-radius:.5rem;padding:1rem;margin:1rem 0}
+label {display:inline-block;margin:.4rem;vertical-align:top} input,select,button,textarea {font:inherit;max-width:100%;box-sizing:border-box}
+button {padding:.45rem .7rem;margin:.3rem;background:#e1eee8;color:#152b31;border:1px solid #617e72;border-radius:.2rem;cursor:pointer}
+button:disabled {opacity:.55;cursor:default} :focus-visible {outline:3px solid #ac4800;outline-offset:3px}
+.panels {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,350px),1fr));gap:1rem}.panel {min-width:0}
+canvas {width:100%;image-rendering:pixelated;border:1px solid #516158} pre {white-space:pre-wrap;overflow-wrap:anywhere;font-size:.85rem}
+textarea {display:block;width:40rem} .entities {max-height:12rem;overflow:auto}.selected {background:#ffdcab}
+#status {font-weight:bold} @media(prefers-reduced-motion:reduce) {* {animation:none!important;transition:none!important;scroll-behavior:auto!important}}

@@ -30,6 +30,7 @@ SELECTIONS = {
                      'tests/lab/test_generate.py', 'tests/lab/test_recording.py'],
     'lab-adapters': ['tests/ai/test_gymnasium_env.py', 'tests/lab/test_pettingzoo_aec.py'],
     'lab-http': ['tests/lab/test_http_api.py', 'tests/lab/test_http_client.py',
+                 'tests/lab/test_research_viewer.py',
                  'tests/ci/http_profile.py'],
 }
 
