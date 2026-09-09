@@ -8,3 +8,5 @@ button:disabled {opacity:.55;cursor:default} :focus-visible {outline:3px solid #
 canvas {width:100%;image-rendering:pixelated;border:1px solid #516158} pre {white-space:pre-wrap;overflow-wrap:anywhere;font-size:.85rem}
 textarea {display:block;width:40rem} .entities {max-height:12rem;overflow:auto}.selected {background:#ffdcab}
 #status {font-weight:bold} @media(prefers-reduced-motion:reduce) {* {animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+.panel-heading {min-height:2.5em;overflow-wrap:anywhere}.alignment {min-height:3em}.availability {min-height:4.5em}.time {white-space:pre-line;min-height:4.5em}
+summary {cursor:pointer;font-weight:600;margin-top:1rem} details pre {font-size:.85rem}

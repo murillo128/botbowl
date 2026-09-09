@@ -1,5 +1,6 @@
 """Real Chromium research navigation; run explicitly with the web test extra."""
 import json
+from copy import deepcopy
 from threading import Thread
 
 import pytest
@@ -99,8 +100,13 @@ def test_replay_search_branch_sync_values_reconnect_and_labels(page):
     assert [v['decision_seq'] for v in contexts] == [3, 2, 3]
     assert len({v['branch_id'] for v in contexts}) == 3
     expect(page.locator('.exhausted')).to_contain_text('No data at requested decision 3')
-    expect(page.locator('.alignment').nth(2)).to_contain_text('Horizon: 2')
+    expect(page.locator('.alignment').nth(2)).to_contain_text('Requested horizon: 2')
     expect(page.locator('.panel h2').nth(1)).to_contain_text('Simulated continuation')
+    tops = page.locator('canvas').evaluate_all('(canvases)=>canvases.map(c=>c.getBoundingClientRect().top)')
+    assert max(tops) - min(tops) < 2
+    expect(page.locator('.entity-detail').nth(1)).to_contain_text('Simulated values')
+    page.locator('.panel details').nth(1).locator('summary').click()
+    expect(page.locator('.panel .provenance').nth(1)).to_be_visible()
     before = {key: store.summary(key) for key in store.entries}
     page.get_by_role('button', name='Play navigation').click()
     page.get_by_role('button', name='Pause navigation').click()
@@ -130,10 +136,17 @@ def test_invalid_file_missing_resource_and_keyboard_navigation(page):
         'name': 'broken.json', 'mimeType': 'application/json', 'buffer': b'{"format":'})
     expect(page.get_by_role('status')).not_to_have_text('Connected · navigation is read-only')
     assert not store.entries
+    truncated = deepcopy(bundle)
+    truncated['files']['manifest.json'] = truncated['files']['manifest.json'][:-4]
+    page.get_by_label('Local ReplayV1 bundle').set_input_files({
+        'name': 'truncated.json', 'mimeType': 'application/json', 'buffer': json.dumps(truncated).encode()})
+    expect(page.get_by_role('status')).to_have_text('invalid_replay_or_data')
+    assert not store.entries
     open_replay(page, bundle)
     page.get_by_label('Turn', exact=True).select_option(index=1)
     expect(page.locator('.context')).to_contain_text('"decision_seq": 1')
     button = page.get_by_role('button', name='Next decision', exact=True)
+    page.keyboard.press('Tab')
     button.focus()
     assert button.evaluate('e=>getComputedStyle(e).outlineStyle') != 'none'
     button.press('Enter')

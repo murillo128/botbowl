@@ -98,6 +98,7 @@ def test_two_unequal_branches_permission_and_private_chance(research):
     client = app.test_client()
     row = upload(client, bundle)
     prefix = '/research/replays/' + row['id']
+    original_upload = pack_replay(store.root / row['id'])
     for role in ('viewer', 'player', 'evaluator'):
         assert client.post(prefix + '/branches', data='not-json', headers=auth(role)).status_code == 403
         assert client.get(prefix + '/actions?decision=1', headers=auth(role)).status_code == 403
@@ -118,6 +119,7 @@ def test_two_unequal_branches_permission_and_private_chance(research):
         assert branch['provenance']['parent'] == row['id']
         branches.append(branch)
     assert store.summary(row['id']) == row
+    assert pack_replay(store.root / row['id']) == original_upload
     for branch in branches:
         frame = client.get('/research/replays/' + branch['id'] + '/frame?decision=1', headers=auth()).json
         assert frame['context']['branch_id'] == branch['id']

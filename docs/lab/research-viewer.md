@@ -49,7 +49,8 @@ nonterminal prefix retains its recorded truncation reason.
 Default limits are 32 MiB per upload/request, 256 files, eight registered
 trajectories, 128 decisions per replay/branch and 128 records per record category
 per trajectory. Configure `ResearchLimits` explicitly for another bounded
-workload. Four HTTP requests may be admitted concurrently; writes and reads use
+workload. Combined prediction/annotation storage is also limited to 32 MiB per
+trajectory. Four HTTP requests may be admitted concurrently; writes and reads use
 a workspace lock. Close the store to remove its temporary checkpoint files.
 
 Select an event by type or exact entity ID, or navigate by decision/turn. Events

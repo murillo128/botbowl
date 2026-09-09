@@ -6,6 +6,7 @@ checkpoints; HTTP responses never contain snapshots, seeds or chance tapes.
 import base64
 from copy import deepcopy
 from dataclasses import dataclass
+import json
 from pathlib import Path
 import re
 import shutil
@@ -39,6 +40,8 @@ class ResearchLimits:
 def pack_replay(directory, limits=ResearchLimits()):
     """Package one local ReplayV1 directory for upload; never follows symlinks."""
     directory = Path(directory)
+    if directory.is_symlink():
+        raise ValueError('Symlinks are not replay directories')
     files = {}
     total = 0
     for path in sorted(directory.rglob('*')):
@@ -103,7 +106,8 @@ class ResearchStore:
         finally:
             game.close()
         self.entries[identity] = {'reader': reader, 'manifest': manifest, 'events': events,
-                                  'provenance': provenance, 'predictions': [], 'annotations': []}
+                                  'provenance': provenance, 'predictions': [], 'annotations': [],
+                                  'record_bytes': 0}
         return self.summary(identity)
 
     def upload(self, principal, data):
@@ -254,7 +258,7 @@ class ResearchStore:
                 raise InvalidRequest()
         row = {'kind': 'retrospective_analysis' if retrospective else 'model_prediction',
                'target_decision': target, 'record': record}
-        entry['predictions'].append(deepcopy(row))
+        self._retain(entry, 'predictions', row)
         return row
 
     def annotate(self, identity, data):
@@ -265,8 +269,15 @@ class ResearchStore:
         if len(rows) >= self.limits.max_records:
             raise CapacityExceeded()
         row = dict(data, kind='human_annotation')
-        rows.append(deepcopy(row))
+        self._retain(self._entry(identity), 'annotations', row)
         return row
+
+    def _retain(self, entry, category, row):
+        size = len(json.dumps(row, ensure_ascii=True, allow_nan=False).encode('utf-8'))
+        if entry['record_bytes'] + size > self.limits.max_bytes:
+            raise CapacityExceeded()
+        entry[category].append(deepcopy(row))
+        entry['record_bytes'] += size
 
     def close(self):
         self.entries.clear()

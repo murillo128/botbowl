@@ -29,7 +29,8 @@
   const run = fn => async event => {if (event) event.preventDefault(); try {await fn(event);} catch (error) {stop(); say(error.message);}};
   function options(select, rows, first) {
     const old = select.value; select.replaceChildren(new Option(first, ''));
-    rows.forEach(row => select.add(new Option(row.replay_id, row.id)));
+    rows.forEach(row => select.add(new Option(row.provenance.kind === 'observed' ? row.replay_id :
+      `${row.provenance.initial_action.type} · horizon ${row.provenance.horizon} · ${row.id.slice(0,8)}`, row.id)));
     if (rows.some(row => row.id === old)) select.value = old;
   }
   function updateBranches() {
@@ -48,24 +49,27 @@
     options($('factual'), library.filter(row => row.provenance.kind === 'observed'), 'Open a replay');
     updateBranches();
   }
-  function entityDetails(player) {
+  function entityDetails(player, kind) {
     if (!player) return 'Absent entity';
     const position = player.position.present ? showJSON(player.position.value) : 'Missing data (off pitch)';
     return `${player.id} · ${player.team} · ${player.role}\nPosition: ${position}\n` +
-      'Observed values in this state:\n' + showJSON({attributes:player.attributes, status:player.status,
+      (kind === 'observed' ? 'Observed values:\n' : 'Simulated values:\n') + showJSON({attributes:player.attributes, status:player.status,
         location:player.location, skills:player.skills});
   }
   function panel(row, frame, requested, shared) {
     const p = node('article', undefined, 'panel'); p.dataset.replayId = row.id;
-    p.append(node('h2', labels[row.provenance.kind] + ' · ' + row.replay_id));
+    p.append(node('h2', labels[row.provenance.kind] + ' · ' +
+      (row.provenance.kind === 'observed' ? row.replay_id : row.provenance.initial_action.type), 'panel-heading'));
     const divergence = row.provenance.divergence;
     const phase = shared ? 'Shared factual prefix' : divergence === undefined ? 'Factual trajectory' :
-      `Horizon: ${requested - divergence} accepted decisions since divergence ${divergence}`;
+      `Requested horizon: ${requested - divergence} decisions since divergence ${divergence}`;
     p.append(node('p', phase, 'alignment'));
-    if (requested > row.final.decision_seq) p.append(node('p',
-      `No data at requested decision ${requested}. Last available decision ${frame.context.decision_seq}; end: ${row.end.reason}`, 'exhausted'));
-    p.append(node('pre', showJSON(frame.context), 'context'));
-    p.append(node('pre', showJSON({origin_family_id:row.origin_family_id, ...row.provenance, end:row.end}), 'provenance'));
+    const exhausted = requested > row.final.decision_seq;
+    p.append(node('p', exhausted ?
+      `No data at requested decision ${requested}. Last available decision ${frame.context.decision_seq}; end: ${row.end.reason}` :
+      'Available recorded state.', exhausted ? 'availability exhausted' : 'availability'));
+    const ctx=frame.context, value=v=>v===null?'unavailable':String(v);
+    p.append(node('p', `Decision ${ctx.decision_seq} · event ${ctx.event_seq}\nHalf ${value(ctx.half)} · round ${value(ctx.round)} · team turn ${value(ctx.team_turn_seq)}`, 'time'));
     const canvas = node('canvas'); const img = frame.image;
     canvas.width = img.width; canvas.height = img.height;
     canvas.setAttribute('role', 'img'); canvas.setAttribute('aria-label', `Geometric pitch, ${frame.observation.geometry.width} by ${frame.observation.geometry.height} cells; player controls follow`);
@@ -78,19 +82,28 @@
       b.dataset.entityId=player.id; b.setAttribute('aria-pressed', String(player.id === selectedEntity));
       b.addEventListener('click', run(async () => {selectedEntity=player.id; await render();})); buttons.append(b);
     });
-    p.append(buttons, node('pre', selectedEntity ? entityDetails(frame.observation.players.find(v => v.id === selectedEntity)) : 'Select a player to inspect observed values.', 'entity-detail'));
+    p.append(buttons, node('pre', selectedEntity ? entityDetails(frame.observation.players.find(v => v.id === selectedEntity), shared ? 'observed' : row.provenance.kind) : 'Select a player to inspect state values.', 'entity-detail'));
+    const details=node('details');details.append(node('summary','Origin, action, policy, chance and full context'),
+      node('pre',showJSON(frame.context),'context'),node('pre',showJSON({replay_id:row.replay_id,
+        origin_family_id:row.origin_family_id,...row.provenance,end:row.end}),'provenance'));
+    p.append(details);
     return p;
   }
   function records() {
     const root=factual(); $('records').replaceChildren();
     if (!root) return;
     [...root.predictions, ...root.annotations].forEach(record => {
-      const section = node('article'); section.append(node('h3', labels[record.kind]), node('pre',showJSON(record)));
+      const section = node('article'); section.append(node('h3', labels[record.kind]));
+      if(record.record){
+        const r=record.record;section.append(node('p',`${r.model.model_id} · ${r.model.version} · issued at decision ${r.issued_at.decision_seq} · horizon ${r.horizon}`),node('pre',showJSON(r.output)));
+        const details=node('details');details.append(node('summary','Emission, visible context and original record'),node('pre',showJSON(record)));section.append(details);
+      }else{section.append(node('p',`Decision ${record.decision}`),node('p',record.text));}
       $('records').append(section);
     });
   }
   async function render() {
     const current=++generation, root=factual();
+    $('fork').disabled=true; $('load-actions').disabled=true;
     if (!root) { $('panels').replaceChildren(); return; }
     const decision=Number($('decision').value);
     if (!Number.isSafeInteger(decision) || decision < root.initial.decision_seq) throw new Error('Choose a recorded decision');
@@ -113,11 +126,11 @@
     interiorEvent=false; $('boundary').textContent=''; $('event-detail').textContent='';
     $('decision').value=String(value); await render();
   }
-  $('connect').addEventListener('submit',run(async () => {stop();token=$('token').value;await refresh();await render();say('Connected · navigation is read-only');}));
+  $('connect').addEventListener('submit',run(async () => {stop();say('Connecting…');token=$('token').value;await refresh();await render();say('Connected · navigation is read-only');}));
   $('upload').addEventListener('change',run(async () => {
     const file=$('upload').files[0]; if (!file) return;
     if (file.size>limit) throw new Error('Replay file too large');
-    const row=await api('replays',JSON.parse(await file.text())); await refresh();
+    say('Validating replay…');const row=await api('replays',JSON.parse(await file.text())); await refresh();
     $('factual').value=row.id;updateBranches();await navigate(row.initial.decision_seq);
   }));
   $('factual').addEventListener('change',run(async()=>{stop();interiorEvent=false;selectedEntity=null;updateBranches();if(factual())await navigate(factual().initial.decision_seq);}));
@@ -145,13 +158,17 @@
     $('event-detail').textContent=showJSON(result.event);
     $('boundary').textContent=`Interior event ${result.event.context.event_seq}. Board is the preceding restorable decision ${result.previous_decision}; next boundary ${result.next_decision}. Use Go to decision to explicitly select a branch point.`;
   }));
+  $('decision').addEventListener('input',()=>{stop();actions=[];$('fork').disabled=true;});
   $('load-actions').addEventListener('click',run(async()=>{
-    const result=await api(`replays/${factual().id}/actions?decision=${$('decision').value}`);actions=result.actions;
+    const source=factual().id, decision=$('decision').value;
+    const result=await api(`replays/${source}/actions?decision=${decision}`);
+    if (!factual() || factual().id!==source || $('decision').value!==decision || interiorEvent) return;
+    actions=result.actions;
     $('action').replaceChildren();actions.forEach((a,i)=>$('action').add(new Option(showJSON(a),String(i))));
     $('fork').disabled=!canFork||interiorEvent||!actions.length;
   }));
   $('fork').addEventListener('click',run(async()=>{
-    stop();const row=await api(`replays/${factual().id}/branches`,{decision:Number($('decision').value),action:actions[Number($('action').value)],horizon:Number($('horizon').value)});
+    stop();$('fork').disabled=true;say('Creating simulation…');const row=await api(`replays/${factual().id}/branches`,{decision:Number($('decision').value),action:actions[Number($('action').value)],horizon:Number($('horizon').value)});
     await refresh();$(!$('branch-a').value?'branch-a':'branch-b').value=row.id;await render();
   }));
   $('import-prediction').addEventListener('click',run(async()=>{await api(`replays/${factual().id}/predictions`,JSON.parse($('prediction').value));await refresh();await render();}));
