@@ -156,12 +156,11 @@ jobs:
             exit 1
           fi
 
-          # Use trusted code at the triggering main commit, not generated code
-          # or instructions copied from an executor-owned workspace.
+          # The workflow implementation comes from the revision GitHub Actions
+          # launched. Model instructions come only from the audited PR head.
           git -C "$repo_root" show "${GITHUB_SHA}:.github/workflows/codex-execute-ready.yml" > "${state_dir}/published-launcher.yml"
           git -C "$repo_root" show "${GITHUB_SHA}:.github/scripts/prepare_pr_audit.py" > "${state_dir}/prepare_pr_audit.py"
-          # Test the exact published transport/workflow, without installing the
-          # game or running any model request. All inputs come from trusted main.
+          # Test the exact published transport/workflow without running a model.
           validation="${state_dir}/validation"
           for path in .github/workflows/codex-execute-ready.yml .github/workflows/codex-review-ready.yml .github/scripts/prepare_pr_audit.py tests/workflows/test_pr_audit_isolation.py tests/workflows/test_pr_audit_direct_review.py; do
             mkdir -p "${validation}/$(dirname "$path")"
@@ -170,9 +169,14 @@ jobs:
           python3 -m unittest discover -s "${validation}/tests/workflows" -v
           audit_client="${state_dir}/pr-audit-client.py"
           python3 "${state_dir}/prepare_pr_audit.py" "${state_dir}/published-launcher.yml" "$audit_client"
+
+          # The audited branch owns the policy that governs its review. Never
+          # silently import AGENTS.md or skills from another branch.
           for path in AGENTS.md skills/codex-pr-audit/SKILL.md skills/codex-independent-review/SKILL.md skills/codex-github-operations/SKILL.md; do
-            mkdir -p "${state_dir}/control/$(dirname "$path")"
-            git -C "$repo_root" show "${GITHUB_SHA}:${path}" > "${state_dir}/control/${path}"
+            if [ ! -f "${worktree}/${path}" ]; then
+              echo "Audited PR head lacks required workflow instruction: ${path}" >&2
+              exit 1
+            fi
           done
 
           # A fresh audit is always of the PR's current head. Revalidate the
@@ -229,7 +233,7 @@ jobs:
           print(f"Pre-launch guard passed for current PR #{expected_pr} head {expected_head}.")
           PY
 
-          task_prompt="Audit PR #${PR_NUMBER} for issue #${ISSUE_NUMBER} as the isolated audit controller. Use trusted instructions at ${state_dir}/control/AGENTS.md and ${state_dir}/control/skills/codex-pr-audit/SKILL.md."
+          task_prompt="Audit PR #${PR_NUMBER} for issue #${ISSUE_NUMBER} according to AGENTS.md."
           ready_file="${state_dir}/app-server-ready"
           error_file="${state_dir}/app-server-error"
           thread_file="${state_dir}/app-server-thread-id"
