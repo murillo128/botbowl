@@ -96,7 +96,7 @@ def run_core_shards(python, helper, plan, output, suite, env, result, timeout=12
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('profile', choices=('suite', 'artifacts', 'extra',
-                                            'lab-fast', 'lab-extended', 'lab-adapters'))
+                                            'lab-fast', 'lab-extended', 'lab-adapters', 'lab-http'))
     parser.add_argument('--backend', choices=('python', 'native'), default='python')
     parser.add_argument('--extra', choices=('web', 'rl', 'gymnasium', 'multiagent', 'competition', 'dev', 'render'))
     parser.add_argument('--rl', action='store_true')
@@ -177,6 +177,8 @@ def main():
         extras = args.extra if args.profile == 'extra' else 'dev,web,competition' + (',rl' if args.rl else '')
         if args.profile.startswith('lab-'):
             extras = 'dev,multiagent' if args.profile == 'lab-adapters' else 'dev'
+            if args.profile == 'lab-http':
+                extras = 'dev,web'
         run('install', [python, '-m', 'pip', 'install', str(wheel) + '[' + extras + ']'])
         run('pip-check', [python, '-m', 'pip', 'check'])
         run('freeze', [python, '-m', 'pip', 'freeze', '--all'])

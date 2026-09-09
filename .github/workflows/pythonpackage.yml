@@ -92,6 +92,7 @@ jobs:
           - {profile: lab-extended, backend: python}
           - {profile: lab-extended, backend: native}
           - {profile: lab-adapters, backend: python}
+          - {profile: lab-http, backend: python}
     env:
       OPENBLAS_NUM_THREADS: '1'
       OMP_NUM_THREADS: '1'

@@ -28,6 +28,8 @@ SELECTIONS = {
     'lab-extended': ['tests/issue25/broad_corpus.py', 'tests/lab/test_snapshot_io.py',
                      'tests/lab/test_generate.py', 'tests/lab/test_recording.py'],
     'lab-adapters': ['tests/ai/test_gymnasium_env.py', 'tests/lab/test_pettingzoo_aec.py'],
+    'lab-http': ['tests/lab/test_http_api.py', 'tests/lab/test_http_client.py',
+                 'tests/ci/http_profile.py'],
 }
 
 
@@ -51,6 +53,8 @@ def main():
     modules = ['botbowl.lab.dataset_client', 'botbowl.lab.replays', 'botbowl.lab.commands']
     if args.profile == 'lab-adapters':
         modules += ['gymnasium', 'pettingzoo']
+    if args.profile == 'lab-http':
+        modules += ['flask', 'botbowl.lab.http', 'botbowl.lab.http_client']
     for module in modules:
         importlib.import_module(module)
     import botbowl
@@ -64,10 +68,11 @@ def main():
         'capabilities': {'m0-m1': 'required: lab-fast', 'replays-42': 'required: lab-fast',
                          'adapters-57': 'required: lab-adapters',
                          'local-59': 'required: lab-fast',
-                         'remote-60': 'unavailable; not tested',
+                         'remote-60': 'required: lab-http',
                          'viewer-51': 'unavailable; not tested'},
         'fixture_plan': {'m1_seed': 17, 'm1_episodes': 100, 'm1_size': 3,
                          'm1_max_decisions': 8, 'm1_max_steps': 1000,
+                         'http_seed': 17, 'http_example_max_decisions': 24,
                          'broad_seeds': [0, 3, 17], 'sizes': [1, 3, 5, 7, 11]},
     }
 
