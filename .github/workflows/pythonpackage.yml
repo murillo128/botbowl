@@ -77,3 +77,46 @@ jobs:
             ${{ runner.temp }}/evidence/*.xml
             ${{ runner.temp }}/evidence/*.log
           retention-days: 14
+
+  lab:
+    name: lab / ${{ matrix.profile }} / ${{ matrix.backend }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {profile: lab-fast, backend: python}
+          - {profile: lab-fast, backend: native}
+          - {profile: lab-extended, backend: python}
+          - {profile: lab-extended, backend: native}
+          - {profile: lab-adapters, backend: python}
+    env:
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.11'
+      - run: python -m pip install --upgrade -c requirements/core.txt pip setuptools wheel build
+      - name: Installed laboratory contracts (6 GiB per process)
+        shell: bash
+        run: |
+          ulimit -v 6291456
+          python tools/ci/run_profile.py '${{ matrix.profile }}' --backend '${{ matrix.backend }}' --output '${{ runner.temp }}/lab-evidence'
+      # Do not upload pytest tracebacks, datasets, snapshots or raw RNG state.
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: lab-${{ matrix.profile }}-${{ matrix.backend }}
+          path: |
+            ${{ runner.temp }}/lab-evidence/result.json
+            ${{ runner.temp }}/lab-evidence/lab-*.json
+          retention-days: 14
+      - name: Remove installed environments and generated fixtures after cancellation
+        if: always()
+        run: rm -rf -- '${{ runner.temp }}/lab-evidence'

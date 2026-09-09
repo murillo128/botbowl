@@ -94,7 +94,8 @@ def run_core_shards(python, helper, plan, output, suite, env, result, timeout=12
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('profile', choices=('suite', 'artifacts', 'extra'))
+    parser.add_argument('profile', choices=('suite', 'artifacts', 'extra',
+                                            'lab-fast', 'lab-extended', 'lab-adapters'))
     parser.add_argument('--backend', choices=('python', 'native'), default='python')
     parser.add_argument('--extra', choices=('web', 'rl', 'gymnasium', 'multiagent', 'competition', 'dev', 'render'))
     parser.add_argument('--rl', action='store_true')
@@ -116,6 +117,9 @@ def main():
     start = time.monotonic()
 
     def run(name, command, cwd=output, process_env=env):
+        if args.profile.startswith('lab-'):
+            run_shards([(name, command)], output, cwd, process_env, result['steps'])
+            return
         before = time.monotonic()
         with (output / (name + '.log')).open('w') as log:
             completed = subprocess.run(list(map(str, command)), cwd=cwd, env=process_env,
@@ -168,6 +172,8 @@ def main():
         wheel = next((output / 'dist').glob('*.whl'))
         python = venv('installed')
         extras = args.extra if args.profile == 'extra' else 'dev,web,competition' + (',rl' if args.rl else '')
+        if args.profile.startswith('lab-'):
+            extras = 'dev,multiagent' if args.profile == 'lab-adapters' else 'dev'
         run('install', [python, '-m', 'pip', 'install', str(wheel) + '[' + extras + ']'])
         run('pip-check', [python, '-m', 'pip', 'check'])
         run('freeze', [python, '-m', 'pip', 'freeze', '--all'])
@@ -184,6 +190,25 @@ def main():
         run('identity', [python, '-c',
             'import botbowl; from pathlib import Path; '
             'assert "site-packages" in Path(botbowl.__file__).parts; print(botbowl.__file__)'])
+        if args.profile.startswith('lab-'):
+            opposite = 'native' if args.backend == 'python' else 'python'
+            run('backend-negative', [python, '-c',
+                'import subprocess, sys; '
+                'r = subprocess.run([sys.executable, "-m", "pytest", "--collect-only", '
+                '"tests/lab/test_session.py", "--require-pathfinding=' + opposite + '"], '
+                'capture_output=True, text=True); '
+                'assert r.returncode != 0 and "Required ' + opposite +
+                ' pathfinding; loaded" in r.stderr, r.stdout + r.stderr; '
+                'print("Opposite backend rejected before collection")'], suite)
+            # Reuse process-group cancellation/timeout cleanup, including nested
+            # snapshot and installed-consumer subprocesses. Sequential repeats
+            # have separate pytest temp trees and independently checked outputs.
+            for repeat in range(2 if args.profile == 'lab-fast' else 1):
+                name = args.profile + '-' + str(repeat + 1)
+                run_shards([(name, [python, source / 'tools/ci/lab_profile.py', args.profile,
+                                   '--backend', args.backend, '--output', output / (name + '.json')])],
+                           output, suite, env, result['steps'], timeout=1200)
+            return
         if not args.rl:
             helper = source / 'tools/ci/core_selection.py'
             common = ['--backend', args.backend, '--revision', result['source_revision']]
@@ -230,6 +255,12 @@ def main():
                 'junit_suites': [node.attrib for node in document.iter('testsuite')]}
         (output / 'result.json').write_text(json.dumps(result, indent=2) + '\n')
         print(json.dumps(result, sort_keys=True), flush=True)
+        if args.profile.startswith('lab-'):
+            # Keep compact receipts only; wheel, datasets and private snapshots
+            # must not outlive the job or become uploaded evidence.
+            for directory in ('source', 'installed', 'suite', 'dist', 'scratch'):
+                shutil.rmtree(output / directory, ignore_errors=True)
+            (output / 'source.tar').unlink(missing_ok=True)
 
 
 if __name__ == '__main__':
