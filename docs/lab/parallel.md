@@ -96,7 +96,10 @@ storage manifest because a failure can occur after its atomic replacement;
 an already committed episode is never reported as failed or appended twice.
 While holding the writer lock, the coordinator removes only newly created,
 uncommitted storage fragments from the failed write; pre-existing and committed
-paths remain intact. The pool's private spool is removed after workers have exited. Hard termination
+paths remain intact. KeyboardInterrupt during publication follows the same
+reconciliation and cleanup: the report marks the job cancelled and the interrupted
+episode committed if published, otherwise cancelled. Resume skips all confirmed
+episodes. The pool's private spool is removed after workers have exited. Hard termination
 of the parent or power loss may leave unadvertised temporary data, as documented
 by storage; exactly-once execution after unobservable external failures is not
 promised.

@@ -5,6 +5,7 @@ import multiprocessing
 import os
 from pathlib import Path
 import random
+import signal
 import subprocess
 import sys
 import threading
@@ -289,6 +290,67 @@ def test_storage_fault_cleanup_preserves_commits_and_foreign_files(tmp_path, mon
     assert not list(root.glob('storage-*.partial'))
     assert not list(root.glob('.pool-*'))
     assert not multiprocessing.active_children()
+
+
+@pytest.mark.parametrize('interrupt', ['keyboard_interrupt', 'sigint'])
+@pytest.mark.parametrize('stage', ['before_shard_rename', 'after_shard_rename',
+                                   'before_manifest_replace', 'after_manifest_replace'])
+def test_interrupted_publication_reconciles_commit_and_resumes(tmp_path, monkeypatch, stage, interrupt):
+    root = tmp_path / 'pool'
+    plan = build_plan(JobConfig('unused', episodes=2, max_decisions=1))
+    sequential(plan, tmp_path / 'reference')
+    with DatasetWriter(root, plan) as writer:
+        writer.append_episode(EpisodeReader(tmp_path / 'reference', plan['episodes'][0]['episode_id']))
+    prefix = read_stored(root)
+    foreign = root / ('data-' + 'f' * 32)
+    foreign.mkdir()
+    (foreign / 'foreign.partial').write_text('untouched')
+    before = {p.pid for p in multiprocessing.active_children()}
+
+    def fault(at):
+        if at == stage:
+            if interrupt == 'sigint':
+                os.kill(os.getpid(), signal.SIGINT)
+            else:
+                raise KeyboardInterrupt('injected ' + stage)
+
+    monkeypatch.setattr(parallel, 'DatasetWriter', lambda *a, **k: DatasetWriter(*a, fault=fault, **k))
+    report = parallel.execute_plan(plan, root)
+    committed = stage == 'after_manifest_replace'
+    assert report['cancelled']
+    assert report['writer_error'][0]['type'] == 'KeyboardInterrupt'
+    assert report['episodes'][0]['status'] == 'committed'
+    assert report['episodes'][0]['attempts'] == 0
+    assert report['episodes'][1]['status'] == ('committed' if committed else 'cancelled')
+    assert report['episodes'][1]['error'] == (None if committed else report['writer_error'])
+    assert len(DatasetReader(root)) == 1 + int(committed)
+    DatasetReader(root).verify()
+    assert read_stored(root)[:1] == prefix
+    assert len(list(root.glob('data-*'))) == 2 + int(committed)
+    assert len(list(root.glob('episode-*.json'))) == 1 + int(committed)
+    assert list(root.rglob('*.partial')) == [foreign / 'foreign.partial']
+    assert not list(root.glob('.pool-*'))
+    assert {p.pid for p in multiprocessing.active_children()} == before
+
+    # Resume must preserve the exact files already advertised by the manifest.
+    stored_files = list(root.glob('episode-*.json')) + [
+        path for directory in root.glob('data-*') for path in directory.iterdir()]
+    snapshots = {path: (path.read_bytes(), path.stat().st_ino, path.stat().st_mtime_ns)
+                 for path in stored_files}
+    monkeypatch.undo()
+    resumed = parallel.execute_plan(plan, root)
+    assert not resumed['cancelled'] and resumed['writer_error'] is None
+    assert all(e['status'] == 'committed' for e in resumed['episodes'])
+    assert resumed['stats']['dispatched'] == int(not committed)
+    assert [e['attempts'] for e in resumed['episodes']] == [0, int(not committed)]
+    assert {path: (path.read_bytes(), path.stat().st_ino, path.stat().st_mtime_ns)
+            for path in stored_files} == snapshots
+    assert (foreign / 'foreign.partial').read_text() == 'untouched'
+    assert read_stored(root) == [EpisodeReader(tmp_path / 'reference', e['episode_id']).read_episode()
+                                 for e in plan['episodes']]
+    assert list(root.rglob('*.partial')) == [foreign / 'foreign.partial']
+    assert not list(root.glob('.pool-*'))
+    assert {p.pid for p in multiprocessing.active_children()} == before
 
 
 def test_reused_worker_owns_fresh_objects_and_empty_episodes(tmp_path, monkeypatch):

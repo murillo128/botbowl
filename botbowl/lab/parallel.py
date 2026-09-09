@@ -255,9 +255,10 @@ def execute_plan(plan, output, *, pool=None, storage_limits=None, cancel=None):
                             before_write = {path.name for path in root.iterdir()}
                             try:
                                 writer.append_episode(EpisodeReader(directory, entries[index]['episode_id']))
-                            except Exception as error:
+                            except (Exception, KeyboardInterrupt) as error:
                                 writer_error = _cause(error)
                                 stopped = True
+                                cancelled = cancelled or isinstance(error, KeyboardInterrupt)
                                 log({'episode_id': entries[index]['episode_id'], 'writer_error': writer_error})
                                 # DATA-07 publication can succeed before an exception is observed.
                                 committed = len(DatasetReader(root, limits=limits))
@@ -277,7 +278,9 @@ def execute_plan(plan, output, *, pool=None, storage_limits=None, cancel=None):
                                 for outcome in outcomes[:committed]:
                                     outcome.update(status='committed', error=None)
                                 if index >= committed:
-                                    outcomes[index].update(status='failed', error=writer_error)
+                                    outcomes[index].update(
+                                        status='cancelled' if isinstance(error, KeyboardInterrupt) else 'failed',
+                                        error=writer_error)
                                 break
                             outcomes[index].update(status='committed', error=None)
                             del ready[index]
