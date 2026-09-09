@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bot Bowl research viewer</title><link rel="stylesheet" href="/research/viewer.css"><script defer src="/research/viewer.js"></script></head>
+<body><main><h1>Bot Bowl research viewer</h1>
+<p>Inspect recorded play and compare simulated continuations. Each panel uses its own logical context. Imported provenance is a declaration.</p>
+<form id="connect"><label>Access token <input id="token" type="password" autocomplete="off" required></label><button>Connect / reconnect</button></form>
+<p id="status" role="status" aria-live="polite">Disconnected</p>
+<section aria-label="Replay library"><h2>Replay library</h2>
+<label>Local ReplayV1 bundle <input id="upload" type="file" accept=".json,application/json"></label>
+<label for="factual">Factual replay</label><select id="factual"><option value="">Open a replay</option></select>
+<label for="branch-a">Alternative A</label><select id="branch-a"><option value="">None</option></select>
+<label for="branch-b">Alternative B</label><select id="branch-b"><option value="">None</option></select></section>
+<section aria-label="Navigation"><h2>Navigation</h2>
+<p>Aligned by absolute decision through divergence, then by accepted decisions since divergence. Ended panels keep their last state and report the requested horizon as unavailable.</p>
+<label>Decision <input id="decision" type="number" min="0" value="0"></label><button id="go">Go to decision</button>
+<button id="previous">Previous decision</button><button id="next">Next decision</button><button id="play" aria-pressed="false">Play navigation</button>
+<label for="turn">Turn</label><select id="turn"><option value="">Choose turn</option></select>
+<label>Event type <input id="kind" maxlength="128"></label><label>Event entity ID <input id="event-entity" maxlength="128"></label><button id="search">Search events</button>
+<label for="event">Event</label><select id="event"><option value="">Choose event</option></select><pre id="event-detail"></pre>
+<p id="boundary"></p></section>
+<div id="panels" class="panels"></div>
+<section aria-label="Create simulation"><h2>Create simulation</h2>
+<p>Requires an explicit evaluator grant. Continuation policy: first legal action, v1. Chance: independent engine stream.</p>
+<button id="load-actions" disabled>Load legal alternatives</button><label for="action">Initial action</label><select id="action"></select>
+<label>Decision horizon <input id="horizon" type="number" min="1" value="2"></label><button id="fork" disabled>Create branch</button></section>
+<section aria-label="External records"><h2>External records</h2>
+<label>Prediction JSON <textarea id="prediction" rows="5"></textarea></label><button id="import-prediction">Import prediction</button>
+<p>Provide PredictionV1, target_decision, and retrospective. Late emission is rejected as a prior prediction. Outputs and uncertainty are shown as supplied.</p>
+<label>Human annotation <textarea id="annotation" maxlength="4096"></textarea></label><button id="annotate">Add annotation</button><div id="records"></div></section>
+</main></body></html>
