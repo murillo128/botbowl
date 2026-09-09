@@ -40,6 +40,8 @@ jobs:
         run: python tools/ci/check_core_selection.py
       - name: Parallel shard process controls
         run: python tests/ci/check_parallel_shards.py
+      - name: Mandatory lab receipt and private failure-output controls
+        run: python tests/ci/check_lab_profile.py
       - name: Validate Actions YAML and expressions
         run: |
           curl -fsSL https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz -o "$RUNNER_TEMP/actionlint.tar.gz"

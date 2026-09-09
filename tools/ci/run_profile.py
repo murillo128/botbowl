@@ -13,7 +13,7 @@ import time
 import xml.etree.ElementTree as ET
 
 
-def run_shards(commands, output, cwd, env, steps, timeout=1200):
+def run_shards(commands, output, cwd, env, steps, timeout=1200, show_failure_logs=True):
     """Run independent shards together, then report in declared order and fail closed."""
     running = []
 
@@ -72,7 +72,8 @@ def run_shards(commands, output, cwd, env, steps, timeout=1200):
         if step.get('timed_out'):
             failure = subprocess.TimeoutExpired(command, timeout)
         elif step['exit_code']:
-            print((output / (step['name'] + '.log')).read_text()[-12000:], flush=True)
+            if show_failure_logs:
+                print((output / (step['name'] + '.log')).read_text()[-12000:], flush=True)
             failure = subprocess.CalledProcessError(step['exit_code'], command)
     if failure:
         raise failure
@@ -118,7 +119,8 @@ def main():
 
     def run(name, command, cwd=output, process_env=env):
         if args.profile.startswith('lab-'):
-            run_shards([(name, command)], output, cwd, process_env, result['steps'])
+            run_shards([(name, command)], output, cwd, process_env, result['steps'],
+                       show_failure_logs=False)
             return
         before = time.monotonic()
         with (output / (name + '.log')).open('w') as log:
@@ -207,7 +209,8 @@ def main():
                 name = args.profile + '-' + str(repeat + 1)
                 run_shards([(name, [python, source / 'tools/ci/lab_profile.py', args.profile,
                                    '--backend', args.backend, '--output', output / (name + '.json')])],
-                           output, suite, env, result['steps'], timeout=1200)
+                           output, suite, env, result['steps'], timeout=1200,
+                           show_failure_logs=False)
             return
         if not args.rl:
             helper = source / 'tools/ci/core_selection.py'

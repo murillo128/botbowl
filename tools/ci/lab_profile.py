@@ -31,6 +31,12 @@ SELECTIONS = {
 }
 
 
+def complete(receipt):
+    return (bool(receipt['collected']) and not receipt['skips'] and
+            receipt['executed'] == receipt['collected'] and
+            len(receipt['collected']) == len(set(receipt['collected'])))
+
+
 def main():
     import pytest
 
@@ -85,8 +91,7 @@ def main():
             '--basetemp=' + str(args.output.parent / 'scratch'),
             '-o', 'addopts=', '-q', '-ra', '--junitxml=' + str(args.output.with_suffix('.xml')),
         ], plugins=[Receipt()]))
-        if (receipt['skips'] or not receipt['collected'] or
-                receipt['executed'] != receipt['collected']):
+        if not complete(receipt):
             code = code or 1
         receipt['exit_code'] = code
     finally:
