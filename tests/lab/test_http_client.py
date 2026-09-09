@@ -7,6 +7,7 @@ import time
 import pytest
 from werkzeug.serving import WSGIRequestHandler, make_server
 
+from botbowl.lab.http import HTTPConfig
 from botbowl.lab.http_client import HTTPClient, HTTPError, UncertainResult
 from botbowl.lab.randomness import SeedSpec
 from botbowl.lab.scenarios import scenario_spec
@@ -20,8 +21,8 @@ class QuietHandler(WSGIRequestHandler):
 
 
 @contextmanager
-def server(middleware=None):
-    registry, gateway, app = service()
+def server(middleware=None, *, config=None):
+    registry, gateway, app = service(config=config)
     if middleware:
         app.wsgi_app = middleware(app.wsgi_app)
     host = make_server("127.0.0.1", 0, app, threaded=True, request_handler=QuietHandler)
@@ -235,3 +236,201 @@ def test_duplicate_creation_handle_and_explicit_close_are_idempotent():
             first.command({"op": "close"}, first.read()["state_revision"])
             first.close()
         assert not registry._entries
+
+
+
+def test_lost_commit_then_real_rate_limit_keeps_pending_identity(monkeypatch):
+    from types import SimpleNamespace
+    import botbowl.lab.http as transport
+    now = [0.0]
+    monkeypatch.setattr(transport, "time", SimpleNamespace(monotonic=lambda: now[0], sleep=time.sleep))
+    config = HTTPConfig(requests_per_window=2, rate_seconds=60)
+    with server(config=config) as (url, registry, gateway):
+        with HTTPClient(url, "admin", retries=1) as admin:
+            original = admin._once
+            sent = []
+            def lose_once(method, path, raw=None):
+                if method == "POST":
+                    sent.append(raw)
+                result = original(method, path, raw)
+                if method == "POST" and len(sent) == 1:
+                    raise TimeoutError()
+                return result
+            monkeypatch.setattr(admin, "_once", lose_once)
+            # Capabilities and committed creation exhaust the real HTTP limiter.
+            with pytest.raises(UncertainResult) as error:
+                admin.execute(creation())
+            assert isinstance(error.value.__cause__, HTTPError)
+            assert error.value.__cause__.status == 429
+            assert len(registry._entries) == 1
+            pending = admin._pending
+            assert sent == [pending[1], pending[1]]
+            with pytest.raises(UncertainResult):
+                admin.execute(creation(2))
+            assert admin._pending == pending
+            now[0] += config.rate_seconds + 1
+            receipt = admin.retry_pending()
+            assert sent[-1] == pending[1]
+            assert receipt["ok"] and len(registry._entries) == 1
+            admin.execute(envelope(receipt["session_id"], 1, receipt["state_revision"], "close"))
+
+
+@pytest.mark.parametrize("unwind", [False, True])
+def test_owned_creation_survives_lost_response_and_context_cleanup(monkeypatch, unwind):
+    with server() as (url, registry, gateway):
+        admin = HTTPClient(url, "admin", retries=0)
+        original = admin._once
+        lost = False
+        def lose_once(method, path, raw=None):
+            nonlocal lost
+            result = original(method, path, raw)
+            if method == "POST" and path == "/sessions" and not lost:
+                lost = True
+                raise TimeoutError()
+            return result
+        monkeypatch.setattr(admin, "_once", lose_once)
+        if unwind:
+            with pytest.raises(UncertainResult):
+                with admin:
+                    admin.create(request_id=1, config=SessionConfig(size=1), seed=SeedSpec(17))
+        else:
+            with admin:
+                with pytest.raises(UncertainResult):
+                    admin.create(request_id=1, config=SessionConfig(size=1), seed=SeedSpec(17))
+                receipt = admin.retry_pending()
+                assert receipt["session_id"] in admin._owned
+        assert not registry._entries
+        assert admin._closed and admin._connection is None
+        admin.close()
+
+
+
+def test_first_guard_rejection_does_not_create_uncertainty():
+    with server() as (url, registry, gateway):
+        with HTTPClient(url, "viewer") as viewer:
+            with pytest.raises(HTTPError) as error:
+                viewer.create(request_id=1, config=SessionConfig(size=1), seed=SeedSpec(17))
+            assert error.value.status == 403 and viewer._pending is None
+            assert not registry._entries
+
+
+def test_matching_failed_creation_receipt_resolves_uncertainty(monkeypatch):
+    with server() as (url, registry, gateway):
+        with HTTPClient(url, "admin", retries=0) as admin:
+            original = admin._once
+            lost = False
+            def lose_failure(method, path, raw=None):
+                nonlocal lost
+                try:
+                    return original(method, path, raw)
+                except HTTPError:
+                    if method == "POST" and not lost:
+                        lost = True
+                        raise TimeoutError()
+                    raise
+            monkeypatch.setattr(admin, "_once", lose_failure)
+            with pytest.raises(UncertainResult):
+                admin.create(request_id=1, config=SessionConfig(size=2), seed=SeedSpec(17))
+            with pytest.raises(HTTPError) as error:
+                admin.retry_pending()
+            assert error.value.status == 400 and error.value.response["request_id"] == 1
+            assert admin._pending is None and not admin._owned and not registry._entries
+
+
+def test_server_expiry_after_lost_creation_does_not_resolve_outcome(monkeypatch):
+    with server() as (url, registry, gateway):
+        with HTTPClient(url, "admin", retries=0) as admin:
+            original = admin._once
+            def lost(method, path, raw=None):
+                result = original(method, path, raw)
+                if method == "POST":
+                    raise TimeoutError()
+                return result
+            monkeypatch.setattr(admin, "_once", lost)
+            with pytest.raises(UncertainResult):
+                admin.execute(creation())
+            pending = admin._pending
+            registry.clock = lambda: time.monotonic() + registry.limits.retry_seconds + 1
+            monkeypatch.setattr(admin, "_once", original)
+            with pytest.raises(UncertainResult) as error:
+                admin.retry_pending()
+            assert error.value.__cause__.status == 410
+            assert admin._pending == pending and len(registry._entries) == 1
+            with pytest.raises(UncertainResult):
+                admin.execute(creation(2))
+
+
+@pytest.mark.parametrize("change", ["request_id", "session_id", "partial"])
+def test_foreign_or_incomplete_success_does_not_resolve_command(monkeypatch, change):
+    with server() as (url, registry, gateway):
+        with HTTPClient(url, "admin") as admin, HTTPClient(url, "away", retries=0) as player:
+            session = admin.create(request_id=1, config=SessionConfig(size=1), seed=SeedSpec(17))
+            state = session.read()
+            command = envelope(session.session_id, 1, state["state_revision"], "step",
+                               action=state["legal_actions"]["actions"][0])
+            original = player._once
+            def wrong_receipt(method, path, raw=None):
+                result = original(method, path, raw)
+                if method == "POST":
+                    if change == "request_id":
+                        return dict(result, request_id=99)
+                    if change == "session_id":
+                        return dict(result, session_id="another-session")
+                    return {"request_id": 1, "ok": True}
+                return result
+            monkeypatch.setattr(player, "_once", wrong_receipt)
+            with pytest.raises(UncertainResult):
+                player.execute(command)
+            assert registry._entries[session.session_id].cursor == 1
+            with pytest.raises(UncertainResult):
+                player.execute(dict(command, request_id=2))
+            monkeypatch.setattr(player, "_once", original)
+            assert player.retry_pending()["request_id"] == 1
+            assert player._pending is None
+
+
+def test_expired_owned_creation_cleanup_never_resends(monkeypatch):
+    with server() as (url, registry, gateway):
+        admin = HTTPClient(url, "admin", retries=0)
+        original = admin._once
+        def lost(method, path, raw=None):
+            result = original(method, path, raw)
+            if method == "POST":
+                raise TimeoutError()
+            return result
+        monkeypatch.setattr(admin, "_once", lost)
+        with pytest.raises(UncertainResult):
+            admin.create(request_id=1, config=SessionConfig(size=1), seed=SeedSpec(17))
+        path, raw, _ = admin._pending
+        admin._pending = (path, raw, time.monotonic() - 1)
+        monkeypatch.setattr(admin, "_once", lambda *a, **k: pytest.fail("expired cleanup sent a request"))
+        with pytest.raises(UncertainResult):
+            admin.close()
+        assert admin._closed and admin._token is None and admin._connection is None
+        assert len(registry._entries) == 1  # Expired orphan requires operator cleanup.
+
+
+
+def test_failed_creation_recovery_still_closes_previously_owned_sessions(monkeypatch):
+    from botbowl.lab.commands import GatewayLimits
+    with server() as (url, registry, gateway):
+        registry.limits = GatewayLimits(max_sessions=1)
+        admin = HTTPClient(url, "admin", retries=0)
+        original = admin._once
+        lost = False
+        def lose_failure(method, path, raw=None):
+            nonlocal lost
+            try:
+                return original(method, path, raw)
+            except HTTPError:
+                if method == "POST" and not lost:
+                    lost = True
+                    raise TimeoutError()
+                raise
+        monkeypatch.setattr(admin, "_once", lose_failure)
+        with pytest.raises(UncertainResult):
+            with admin:
+                admin.create(request_id=1, config=SessionConfig(size=1), seed=SeedSpec(17))
+                admin.create(request_id=2, config=SessionConfig(size=1), seed=SeedSpec(18))
+        assert not registry._entries
+        assert admin._closed and admin._connection is None

@@ -58,6 +58,8 @@ class HTTPClient:
         self._connection = None
         self._closed = False
         self._pending = None
+        self._pending_uncertain = False
+        self._pending_owns_creation = False
         self._capabilities = None
         self._owned = {}
 
@@ -121,6 +123,9 @@ class HTTPClient:
 
     def execute(self, command):
         """Submit an exact Command dictionary; IDs are never synthesized on retry."""
+        return self._execute(command)
+
+    def _execute(self, command, *, own_creation=False):
         if self._pending is not None:
             raise UncertainResult()
         if self._capabilities is None:
@@ -128,34 +133,82 @@ class HTTPClient:
         raw = json.dumps(command, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
         path = "/sessions" if command.get("payload", {}).get("op") == "create" else "/commands"
         self._pending = (path, raw, time.monotonic() + self._capabilities["retry_seconds"])
+        self._pending_uncertain = False
+        self._pending_owns_creation = own_creation
         return self.retry_pending()
+
+    @staticmethod
+    def _matching_receipt(command, result):
+        """A guard error is not proof of what happened to an earlier send."""
+        fields = {"session_id", "request_id", "ok", "error", "state_revision", "cursor"}
+        if (type(result) is not dict or set(result) != fields
+                or type(result["request_id"]) is not int
+                or result["request_id"] != command["request_id"]
+                or type(result["ok"]) is not bool
+                or type(result["state_revision"]) is not int or result["state_revision"] < 0
+                or (result["ok"] and result["error"] is not None)
+                or (not result["ok"] and type(result["error"]) is not str)):
+            return False
+        sid = result["session_id"]
+        if type(sid) is not str or not 1 <= len(sid) <= 128:
+            return False
+        if command["payload"]["op"] == "create":
+            if not result["ok"]:
+                return sid == "new" and result["state_revision"] == 0 and result["cursor"] is None
+            if sid == "new":
+                return False
+        elif sid != command["session_id"]:
+            return False
+        cursor = result["cursor"]
+        if type(cursor) is not str or len(cursor) > 160:
+            return False
+        prefix, _, sequence = cursor.rpartition(":")
+        return prefix == sid and sequence.isascii() and sequence.isdecimal()
+
+    def _finish_pending(self, command, result):
+        if result["ok"]:
+            sid = result["session_id"]
+            if self._pending_owns_creation and sid not in self._owned:
+                self._owned[sid] = RemoteSession(self, sid, owned=True)
+            if command["payload"]["op"] == "close" and sid in self._owned:
+                self._owned[sid]._closed = True
+        self._clear_pending()
+
+    def _clear_pending(self):
+        self._pending = None
+        self._pending_uncertain = False
+        self._pending_owns_creation = False
 
     def retry_pending(self):
         if self._pending is None:
             raise ValueError("No uncertain command")
         path, raw, deadline = self._pending
+        command = json.loads(raw)
         for attempt in range(self.retries + 1):
             if time.monotonic() >= deadline:
                 raise UncertainResult()
             try:
                 result = self._once("POST", path, raw)
-                self._pending = None
-                command = json.loads(raw)
-                if command["payload"]["op"] == "close":
-                    owned = self._owned.get(command["session_id"])
-                    if owned is not None:
-                        owned._closed = True
+                if not self._matching_receipt(command, result) or not result["ok"]:
+                    raise ValueError("Response is not a matching successful receipt")
+                self._finish_pending(command, result)
                 return result
             except HTTPError as error:
-                if error.status >= 500 and "request_id" not in error.response:
-                    if attempt == self.retries:
-                        raise UncertainResult() from None
-                    continue
-                # The authoritative receipt/error is available to the caller,
-                # including 410 when a lost receipt can no longer be recovered.
-                self._pending = None
-                raise
+                if self._matching_receipt(command, error.response) and not error.response["ok"]:
+                    self._finish_pending(command, error.response)
+                    raise
+                if (not self._pending_uncertain and error.status < 500
+                        and set(error.response) == {"ok", "error"}
+                        and error.response["ok"] is False and type(error.response["error"]) is str):
+                    # The first send was explicitly rejected. After any lost or
+                    # ambiguous response, this same guard cannot resolve it.
+                    self._clear_pending()
+                    raise
+                self._pending_uncertain = True
+                if attempt == self.retries:
+                    raise UncertainResult() from error
             except (OSError, http.client.HTTPException, ValueError):
+                self._pending_uncertain = True
                 if attempt == self.retries:
                     raise UncertainResult() from None
         raise UncertainResult()
@@ -168,13 +221,9 @@ class HTTPClient:
         else:
             payload = {"op": "create", "config": asdict(config) if hasattr(config, "__dataclass_fields__") else config,
                        "seed": seed.to_json() if hasattr(seed, "to_json") else seed}
-        result = self.execute({"session_id": "new", "request_id": request_id,
-                               "expected_revision": 0, "payload": payload})
-        session = self._owned.get(result["session_id"])
-        if session is None:
-            session = RemoteSession(self, result["session_id"], owned=True)
-            self._owned[result["session_id"]] = session
-        return session
+        result = self._execute({"session_id": "new", "request_id": request_id,
+                                "expected_revision": 0, "payload": payload}, own_creation=True)
+        return self._owned[result["session_id"]]
 
     def attach(self, session_id):
         return RemoteSession(self, session_id)
@@ -184,7 +233,16 @@ class HTTPClient:
             return
         failure = None
         try:
-            for session in self._owned.values():
+            if self._pending is not None and self._pending_owns_creation:
+                # Retain ownership intent before create() can return a handle.
+                # Resolve within the original deadline before credentials go away.
+                try:
+                    self.retry_pending()
+                except Exception as error:
+                    if self._pending is not None:
+                        raise  # Still uncertain: further writes remain blocked.
+                    failure = error
+            for session in list(self._owned.values()):
                 try:
                     session.close()
                 except Exception as error:

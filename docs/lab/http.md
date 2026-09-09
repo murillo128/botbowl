@@ -108,7 +108,13 @@ or `create(request_id=..., scenario=...)` returns an owned `RemoteSession`.
 `attach(id)` returns an unowned player/spectator handle. Closing created handles
 closes the server session through the gateway; closing attached handles only
 releases the handle. Close is idempotent after success; failed remote cleanup
-raises, and does not mask an exception already leaving a context.
+raises, and does not mask an exception already leaving a context. A `create()`
+call retains ownership intent before sending: successful `retry_pending()`
+recovery registers the allocated session for cleanup even when `create()` never
+returned a handle. Client close first attempts bounded recovery of a pending
+owned creation within its original retry window, then closes recovered sessions
+before discarding credentials. This also applies during exception unwinding.
+Low-level `execute()` creation remains caller-managed.
 
 `read`, `snapshot`, `events` and `execute(Command_dict)` expose the wire contract.
 Handles provide `step(action, expected_revision)` and
@@ -121,11 +127,18 @@ retry the identical serialized Command, at most the configured number of times
 and only within that window. Retry-cache eviction may still return 410 sooner.
 A timeout/disconnect after send raises `UncertainResult` if recovery fails.
 The pending command blocks new writes: call `retry_pending()` to recover its
-receipt, or `read()` to inspect current state. Never submit the uncertain play as
+receipt, or `read()` to inspect current state. After a lost/ambiguous response,
+a guard rejection such as 429 or 410 cannot resolve the original outcome: the
+client retains the same identity, body and deadline and raises `UncertainResult`.
+Only a complete receipt matching the pending command resolves it (including a
+cached failure receipt). A first-send guard rejection without a prior ambiguous
+response remains an ordinary `HTTPError`. Never submit the uncertain play as
 a new request ID. After expiry, no further send occurs; a 410 or expired local
 window cannot establish whether the original command committed. Reconcile state
 explicitly before continuing with a new client. In particular, an expired lost
 creation response may require operator cleanup of the bounded orphan session.
+Cleanup also reports failure when the server remains unavailable through its
+bounded recovery attempts; it does not claim to release an unrecoverable session.
 
 `examples/lab/http_match.py` controls both teams using only these public APIs,
 without a GUI, and closes the owned session even on exception. Supply
