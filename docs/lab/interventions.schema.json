@@ -1,0 +1,384 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "branch_id",
+    "snapshot_id",
+    "reason",
+    "author",
+    "operations"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "type": "integer"
+    },
+    "branch_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+    },
+    "snapshot_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096
+    },
+    "author": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096
+    },
+    "operations": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 256,
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "entity",
+              "entity_id",
+              "field",
+              "old_value",
+              "new_value"
+            ],
+            "properties": {
+              "entity": {
+                "const": "player"
+              },
+              "entity_id": {
+                "type": "string"
+              },
+              "field": {
+                "enum": [
+                  "position"
+                ]
+              },
+              "old_value": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "x",
+                  "y"
+                ],
+                "properties": {
+                  "x": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "y": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                }
+              },
+              "new_value": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "x",
+                  "y"
+                ],
+                "properties": {
+                  "x": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "y": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "entity",
+              "entity_id",
+              "field",
+              "old_value",
+              "new_value"
+            ],
+            "properties": {
+              "entity": {
+                "const": "player"
+              },
+              "entity_id": {
+                "type": "string"
+              },
+              "field": {
+                "enum": [
+                  "extra_ma",
+                  "extra_st",
+                  "extra_ag",
+                  "extra_av"
+                ]
+              },
+              "old_value": {
+                "type": "integer"
+              },
+              "new_value": {
+                "type": "integer",
+                "minimum": -9,
+                "maximum": 9
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "entity",
+              "entity_id",
+              "field",
+              "old_value",
+              "new_value"
+            ],
+            "properties": {
+              "entity": {
+                "const": "team"
+              },
+              "entity_id": {
+                "type": "string"
+              },
+              "field": {
+                "enum": [
+                  "rerolls",
+                  "bribes",
+                  "babes",
+                  "apothecaries"
+                ]
+              },
+              "old_value": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "new_value": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 2147483647
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "entity",
+              "entity_id",
+              "field",
+              "old_value",
+              "new_value"
+            ],
+            "properties": {
+              "entity": {
+                "const": "ball"
+              },
+              "entity_id": {
+                "const": "ball"
+              },
+              "field": {
+                "enum": [
+                  "placement"
+                ]
+              },
+              "old_value": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "position",
+                  "carrier_id"
+                ],
+                "properties": {
+                  "position": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "x",
+                      "y"
+                    ],
+                    "properties": {
+                      "x": {
+                        "type": "integer",
+                        "minimum": 1
+                      },
+                      "y": {
+                        "type": "integer",
+                        "minimum": 1
+                      }
+                    }
+                  },
+                  "carrier_id": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                }
+              },
+              "new_value": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "position",
+                  "carrier_id"
+                ],
+                "properties": {
+                  "position": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "x",
+                      "y"
+                    ],
+                    "properties": {
+                      "x": {
+                        "type": "integer",
+                        "minimum": 1
+                      },
+                      "y": {
+                        "type": "integer",
+                        "minimum": 1
+                      }
+                    }
+                  },
+                  "carrier_id": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "entity",
+              "entity_id",
+              "field",
+              "old_value",
+              "new_value"
+            ],
+            "properties": {
+              "entity": {
+                "const": "configuration"
+              },
+              "entity_id": {
+                "const": "rules"
+              },
+              "field": {
+                "enum": [
+                  "registered_config"
+                ]
+              },
+              "old_value": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "new_value": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "config_id",
+                  "version"
+                ],
+                "properties": {
+                  "config_id": {
+                    "enum": [
+                      "pathfinding-disabled",
+                      "pathfinding-enabled"
+                    ]
+                  },
+                  "version": {
+                    "const": 1,
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    "reachability": {
+      "enum": [
+        "synthetic",
+        "unknown",
+        "validated_recipe"
+      ],
+      "default": "synthetic"
+    },
+    "recipe": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "actions"
+          ],
+          "properties": {
+            "actions": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 256,
+              "items": {
+                "type": "object",
+                "description": "An ActionV1 record, validated by the existing action codec."
+              }
+            }
+          }
+        }
+      ],
+      "default": null
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "InterventionSpecV1",
+  "description": "Data shape only. Engine-dependent old values, domains, membership, geometry, legal recipes and pending decisions are checked by apply_intervention.",
+  "allOf": [
+    {
+      "if": {
+        "required": [
+          "reachability"
+        ],
+        "properties": {
+          "reachability": {
+            "const": "validated_recipe"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "recipe"
+        ],
+        "properties": {
+          "recipe": {
+            "type": "object"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "recipe": {
+            "type": "null"
+          }
+        }
+      }
+    }
+  ]
+}

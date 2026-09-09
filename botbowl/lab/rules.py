@@ -347,3 +347,21 @@ def capability_catalogue(size=11):
              "limits": "Core and descriptor work without web, RL, rendering or artwork packages."},
         ],
     }
+
+
+def intervention_configuration(config, *, config_id, version):
+    """Resolve the closed v1 editor registry using existing effective resources.
+
+    These variants change pathfinding only. Geometry, formations, rosters, clocks
+    and the ruleset are retained; describe_rules derives the resulting identity.
+    No user-selected resource path or arbitrary configuration key is accepted.
+    """
+    from copy import deepcopy
+
+    registry = {'pathfinding-disabled': False, 'pathfinding-enabled': True}
+    if (type(config_id) is not str or config_id not in registry or
+            type(version) is not int or version != 1):
+        raise RulesDescriptorError('Unknown registered intervention configuration/version')
+    result = deepcopy(config)
+    result.pathfinding_enabled = registry[config_id]
+    return result
