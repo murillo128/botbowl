@@ -8,10 +8,13 @@ from copy import deepcopy
 from dataclasses import asdict, dataclass
 import hashlib
 import json
+import re
 from pathlib import Path
 
 from .actions import ActionV1
 from .channels import PRIMARY_PROFILE, project_inputs
+from .policies import POLICIES, PolicySpecV1, ReferencePolicy, create_policy, policy_inputs
+from .coverage import option_counts, episode_coverage
 from .randomness import DERIVATION_ALGORITHM, SeedSpec
 from .recording import EpisodeReader
 from .records import decode_json, encode_json
@@ -19,8 +22,7 @@ from .scenarios import SCENARIO_RECIPES, ScenarioSpecV1, create_scenario, scenar
 from .session import NoProgress, SessionConfig, SimulationSession
 
 
-VERSION = 1
-POLICIES = ('random', 'scripted')
+VERSION = 2
 
 
 def _hash(data):
@@ -64,8 +66,13 @@ class JobConfig:
     horizon: int = None
     distance: int = 1
     rerolls: int = 0
+    episode_prefix: str = 'episode'
+    home_policy_config: dict = None
+    away_policy_config: dict = None
 
     def __post_init__(self):
+        if type(self.episode_prefix) is not str or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.:-]{0,99}', self.episode_prefix):
+            raise ValueError('Invalid episode prefix')
         _integer(self.episodes, 1, 1000, 'episodes')
         _integer(self.master_seed, 0, 2**256 - 1, 'master_seed')
         _integer(self.max_decisions, 0, 10000 if self.scenario == 'match' else 256, 'max_decisions')
@@ -82,6 +89,10 @@ class JobConfig:
             raise ValueError('Unknown scenario')
         if any(type(p) is not str or p not in POLICIES for p in (self.home_policy, self.away_policy)):
             raise ValueError('Unknown policy ID')
+        for side in ('home', 'away'):
+            PolicySpecV1(getattr(self, side + '_policy'),
+                         SeedSpec(0, purpose='policy-' + side),
+                         getattr(self, side + '_policy_config'))
         if self.input_profile != 'primary':
             raise ValueError('This generator supports the authorized primary profile only')
         if type(self.output) is not str or not self.output.strip():
@@ -95,53 +106,24 @@ class JobConfig:
                           max_decisions=max(1, self.max_decisions), max_steps=self.max_steps)
 
 
-class ReferencePolicy:
-    """An owned private RNG and closed policy ID; no Game or seed in act inputs."""
-
-    def __init__(self, policy_id, seed):
-        if policy_id not in POLICIES:
-            raise ValueError('Unknown policy ID')
-        self.policy_id = policy_id
-        self.rng = seed.generator()
-        self.closed = False
-        self._last_type = None
-
-    def act(self, features, legal):
-        if self.closed or not legal.actions:
-            raise ValueError('Policy has no live legal decision')
-        if self.policy_id == 'random':
-            return legal.actions[int(self.rng.randint(len(legal.actions)))]
-        # END_SETUP is an accepted no-op when placement is incomplete. Install
-        # the shipped formation first on each setup, then submit END_SETUP.
-        if self._last_type not in ('SETUP_FORMATION_SPREAD', 'SETUP_FORMATION_WEDGE'):
-            for action in legal.actions:
-                if action.type in ('SETUP_FORMATION_SPREAD', 'SETUP_FORMATION_WEDGE'):
-                    self._last_type = action.type
-                    return action
-        # A bounded lifecycle smoke script. It claims no tactical strength.
-        for name in ('START_GAME', 'HEADS', 'RECEIVE', 'END_SETUP',
-                     'SETUP_FORMATION_SPREAD', 'SETUP_FORMATION_WEDGE', 'END_TURN'):
-            for action in legal.actions:
-                if action.type == name:
-                    self._last_type = action.type
-                    return action
-        self._last_type = legal.actions[0].type
-        return legal.actions[0]
-
-    def close(self):
-        self.closed = True
-
-
-def build_plan(config):
+def build_plan(config, *, _legacy=False):
     """Validate the entire job and materialize all seeds before any execution."""
     if type(config) is not JobConfig:
         raise ValueError('Expected JobConfig')
     config.__post_init__()
     job = asdict(config)
     del job['output']
+    if _legacy:
+        if config.episode_prefix != 'episode':
+            raise ValueError('Unsupported legacy episode prefix')
+        del job['episode_prefix']
+        for side in ('home', 'away'):
+            if getattr(config, side + '_policy') not in ('random', 'scripted') or getattr(config, side + '_policy_config') is not None:
+                raise ValueError('Unsupported legacy policy')
+            del job[side + '_policy_config']
     entries = []
     for index in range(config.episodes):
-        episode_id = 'episode-%06d' % index
+        episode_id = '%s-%06d' % (config.episode_prefix, index)
         components = {'scenario': 'recipes-v1', 'engine': 'generator-v1',
                       'policy-home': config.home_policy + '-v1',
                       'policy-away': config.away_policy + '-v1', 'observation': 'primary-v1'}
@@ -171,7 +153,12 @@ def build_plan(config):
                                       'sources': sources},
                         'start': 'match_start' if config.scenario == 'match' else 'synthetic_turn',
                         'horizon': config.horizon, 'decision_budget': config.max_decisions})
-    return {'schema_version': VERSION, 'generator': 'botbowl.lab.generate-v1',
+        if not _legacy:
+            entries[-1]['policy_specs'] = {side: PolicySpecV1(
+                getattr(config, side + '_policy'), SeedSpec(**sources['policy-' + side]),
+                getattr(config, side + '_policy_config')).to_json() for side in ('home', 'away')}
+    return {'schema_version': 1 if _legacy else VERSION,
+            'generator': 'botbowl.lab.generate-v1' if _legacy else 'botbowl.lab.generate-v2',
             'job': job, 'profile': PRIMARY_PROFILE.to_json(), 'episodes': entries}
 
 
@@ -180,7 +167,7 @@ def _validate_plan(plan):
         raise ValueError('Invalid generation plan')
     try:
         config = JobConfig(output='unused', **plan['job'])
-        expected = build_plan(config)
+        expected = build_plan(config, _legacy=plan.get('schema_version') == 1)
     except (TypeError, ValueError) as error:
         raise ValueError('Invalid generation plan') from error
     if encode_json(plan) != encode_json(expected):
@@ -238,12 +225,14 @@ def _run(entry, config, destination, supplied=None):
         policies = {}
         if supplied is None:
             for side in ('home', 'away'):
-                policy = ReferencePolicy(entry['policies'][side]['id'],
-                    SeedSpec(**entry['seed_plan']['sources']['policy-' + side]))
+                policy = (create_policy(entry['policy_specs'][side]) if 'policy_specs' in entry else
+                          ReferencePolicy(entry['policies'][side]['id'],
+                              SeedSpec(**entry['seed_plan']['sources']['policy-' + side])))
                 resources.callback(policy.close)
                 policies[side] = policy
         result = session.observe()
         count = 0
+        options = []
         while _end(result, count, entry) is None:
             legal = session.legal_actions()
             if supplied is not None:
@@ -251,8 +240,13 @@ def _run(entry, config, destination, supplied=None):
                     raise ValueError('Supplied actions ended before the declared episode boundary')
                 action = supplied[count]
             else:
-                features = project_inputs({'primary': result.primary}, PRIMARY_PROFILE)['features']
-                action = policies[result.next_actor].act(features, deepcopy(legal))
+                if 'policy_specs' in entry:
+                    features, control = policy_inputs(result.primary)
+                    action = policies[result.next_actor].act(features, deepcopy(legal), control)
+                else:
+                    features = project_inputs({'primary': result.primary}, PRIMARY_PROFILE)['features']
+                    action = policies[result.next_actor].act(features, deepcopy(legal))
+            counts = option_counts(legal, action) if 'policy_specs' in entry else None
             try:
                 result = session.step(action, legal.state_revision)
                 count += 1
@@ -261,16 +255,26 @@ def _run(entry, config, destination, supplied=None):
                 # budget exhaustion is a partial continuation, never a defeat.
                 count += 1
                 result = session.observe()
+            if counts is not None:
+                options.append(counts)
         end = _end(result, count, entry)
         if supplied is not None and count != len(supplied):
             raise ValueError('Supplied actions continue past the declared episode boundary')
-        recorder.append_channel('privileged', 1, {'generation': {
+        generation = {
             'origin_family_id': entry['origin_family_id'], 'start': entry['start'],
-            'horizon': entry['horizon'], 'decision_budget': entry['decision_budget'], 'end': end}})
+            'horizon': entry['horizon'], 'decision_budget': entry['decision_budget'], 'end': end}
+        if 'policy_specs' in entry:
+            generation.update(policy_specs=entry['policy_specs'], options=options)
+        recorder.append_channel('privileged', 1, {'generation': generation})
         summary = {'episode_id': entry['episode_id'], 'origin_family_id': entry['origin_family_id'],
                    'end': end}
 
         def prepare_summary(manifest, channels):
+            if 'policy_specs' in entry:
+                summary.update(scenario=config.scenario, policy_specs=entry['policy_specs'],
+                    coverage=episode_coverage(options, channels['events'],
+                        decision_budget=entry['decision_budget'], max_steps=config.max_steps,
+                        horizon=entry['horizon']))
             summary.update(semantic_sha256=_episode_hash({'manifest': manifest, 'channels': channels}),
                            manifest_sha256=_hash(manifest))
             encode_json(summary)
@@ -306,7 +310,7 @@ def execute_plan(plan, output, *, _replay=None):
             except OSError:
                 pass  # Preserve the original failure and visible partial writer.
             raise
-    dataset = {'schema_version': VERSION, 'plan_sha256': _hash(plan),
+    dataset = {'schema_version': plan['schema_version'], 'plan_sha256': _hash(plan),
                'replay_episode_id': None if _replay is None else _replay[0], 'episodes': results}
     _atomic_json(destination / 'dataset.json', dataset)
     return dataset
@@ -330,7 +334,7 @@ def _validate_dataset(destination):
     config = _validate_plan(plan)
     dataset = decode_json((root / 'dataset.json').read_bytes())
     if (set(dataset) != {'schema_version', 'plan_sha256', 'replay_episode_id', 'episodes'} or
-            type(dataset['schema_version']) is not int or dataset['schema_version'] != VERSION or
+            type(dataset['schema_version']) is not int or dataset['schema_version'] != plan['schema_version'] or
             type(dataset['episodes']) is not list or dataset['plan_sha256'] != _hash(plan)):
         raise ValueError('Dataset plan identity mismatch')
     entries = {entry['episode_id']: entry for entry in plan['episodes']}
@@ -345,6 +349,22 @@ def _validate_dataset(destination):
         manifest = episode['manifest']
         rules = entry['recipe']['rules'] if entry['recipe']['kind'] == 'match' else entry['recipe']['spec']['rules']
         generation = episode['channels']['privileged'][0]['channel']['data']['generation']
+        expected_generation = {'origin_family_id': entry['origin_family_id'],
+            'start': entry['start'], 'horizon': entry['horizon'],
+            'decision_budget': entry['decision_budget'], 'end': summary['end']}
+        if 'policy_specs' in entry:
+            options = generation['options']
+            expected_generation.update(policy_specs=entry['policy_specs'], options=options)
+            transitions = episode['channels']['transitions']
+            if (len(options) != len(transitions) or
+                    any(row['actor'] != t['actor_id'] or row['selected'] != t['action']['type']
+                        for row, t in zip(options, transitions)) or
+                    summary['policy_specs'] != entry['policy_specs'] or
+                    summary['scenario'] != config.scenario or
+                    summary['coverage'] != episode_coverage(options, episode['channels']['events'],
+                        decision_budget=entry['decision_budget'], max_steps=config.max_steps,
+                        horizon=entry['horizon'])):
+                raise ValueError('Dataset coverage mismatch')
         if (_episode_hash(episode) != summary['semantic_sha256'] or
                 _hash(manifest) != summary['manifest_sha256'] or
                 manifest['episode_id'] != episode_id or manifest['profile'] != plan['profile'] or
@@ -354,9 +374,7 @@ def _validate_dataset(destination):
                 manifest['provenance']['rules'] != rules or
                 manifest['provenance']['policies'] != entry['policies'] or
                 manifest['provenance']['seed_plan'] != entry['seed_plan'] or
-                generation != {'origin_family_id': entry['origin_family_id'],
-                    'start': entry['start'], 'horizon': entry['horizon'],
-                    'decision_budget': entry['decision_budget'], 'end': summary['end']} or
+                generation != expected_generation or
                 manifest['end']['reason'] != summary['end']['reason'] or
                 len(episode['channels']['transitions']) != summary['end']['decisions']):
             raise ValueError('Dataset episode identity/outcome mismatch')
@@ -395,6 +413,9 @@ def main(argv=None):
     run.add_argument('--side', choices=('home', 'away'), default='home')
     run.add_argument('--home-policy', choices=POLICIES, default='scripted')
     run.add_argument('--away-policy', choices=POLICIES, default='random')
+    run.add_argument('--episode-prefix', default='episode')
+    run.add_argument('--home-policy-config', type=json.loads, default=None)
+    run.add_argument('--away-policy-config', type=json.loads, default=None)
     run.add_argument('--input-profile', choices=('primary',), default='primary')
     run.add_argument('--horizon', type=int)
     check = commands.add_parser('validate', help='Validate every stored episode and its inputs')

@@ -67,7 +67,7 @@ constructor. The engine receives the planned engine SeedSpec explicitly. The
 primary observer is deterministic and consumes no RNG, but its reserved stream
 identity is retained. No global RNG is seeded or consumed.
 
-Both policy IDs have version `1` and own a private RNG:
+The two original policy IDs have version `1` and own a private RNG:
 
 - `random` samples uniformly among the session's enumerated legal semantic
   actions. Accepted no-op actions such as incomplete `END_SETUP` remain possible;
@@ -75,6 +75,12 @@ Both policy IDs have version `1` and own a private RNG:
 - `scripted` installs a shipped setup formation, ends setup, then ends turns,
   with deterministic pregame choices and first-offered fallbacks. It is a bounded
   lifecycle smoke script, not an objective-solving or competitive agent.
+
+The versioned [policy catalog and coverage report](policies.md) additionally provide
+`possession`, `cautious`, and `risk_taking` styles, per-seat JSON configuration,
+private state capture/restore, and held-out comparisons. New plan/dataset format 2
+records full policy specifications and coverage; baseline format-1 plans remain
+readable and replayable.
 
 Policy calls receive projected primary features and copied legal action control.
 Seeds, origin IDs, future events and outcomes never enter those features. Both
