@@ -22,15 +22,15 @@ def test_hypnotize(success, reroll):
     opp_square = Square(2, 2)
     game.put(opp_player, opp_square)
     
-    D6.FixedRolls.clear()
+    game.dice.clear(D6)
     
     if reroll: 
-        D6.fix(1)
+        game.dice.fix(D6, 1)
         
     if success: 
-        D6.fix(6)
+        game.dice.fix(D6, 6)
     else: 
-        D6.fix(1)
+        game.dice.fix(D6, 1)
         
         
     game.step(Action(ActionType.START_MOVE, player=player))

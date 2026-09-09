@@ -7,11 +7,11 @@ This module contains pathfinding functionalities for botbowl.
 """
 from typing import Tuple, List, Optional
 
-from botbowl.core.table import Rules
+from botbowl.core.table import Rules, PlayerActionType
 from botbowl.core.model import Square
 from botbowl.core.forward_model import treat_as_immutable
 from botbowl.core.table import Skill, WeatherType
-import copy
+from contextlib import contextmanager
 import numpy as np
 from queue import PriorityQueue
 
@@ -235,7 +235,8 @@ class Pathfinder:
         self.gfis = self.player.num_gfis_left()
         self.ma = self.player.num_moves_left()
         self.carries_ball = self.player is self.game.get_ball_carrier()
-        self.ball_position = self.game.get_ball_position() if self.game.get_ball().on_ground else None
+        ball = self.game.get_ball()
+        self.ball_position = ball.position if ball is not None and ball.on_ground else None
         self.endzone_x = 1 if self.player.team is self.game.state.home_team else self.game.arena.width - 2
         self.gfi_target = 3 if self.game.state.weather is WeatherType.BLIZZARD else 2
 
@@ -250,7 +251,7 @@ class Pathfinder:
                     euclidean_distance=0,
                     rr_states=rr_states,
                     can_foul=self.can_foul,
-                    can_handoff=self.can_handoff,
+                    can_handoff=self.can_handoff and self.game.has_ball(self.player),
                     can_block=self.can_block)
         if not self.player.state.up:
             node = self._expand_stand_up(node)
@@ -309,8 +310,8 @@ class Pathfinder:
 
     def _expand(self, node: Node, target=None):
         if target is not None:
-            # TODO: handoff?
-            if type(target) == Square and target.distance(node.position) > node.moves_left + node.gfis_left:
+            # The recipient's square is a terminal handoff, not a movement step.
+            if type(target) == Square and target.distance(node.position) > node.moves_left + node.gfis_left + int(node.can_handoff):
                 return
             if type(target) == int and abs(target - node.position.x) > node.moves_left + node.gfis_left:
                 return
@@ -545,7 +546,7 @@ class Pathfinder:
         return paths
 
 
-def get_safest_path(game, player, position, from_position=None, allow_team_reroll=False, num_moves_used=0, blitz=False):
+def get_safest_path(game, player, position, from_position=None, allow_team_reroll=False, num_moves_used=None, blitz=False):
     """
     :param game:
     :param player: the player to move
@@ -555,14 +556,12 @@ def get_safest_path(game, player, position, from_position=None, allow_team_rerol
     :return a path containing the list of squares that forms the safest (and thereafter shortest) path for the given player to the
     given position and the probability of success.
     """
-    if from_position is not None and num_moves_used != 0:
-        orig_player, orig_ball = _alter_state(game, player, from_position, num_moves_used)
-    can_handoff = game.is_handoff_available() and game.get_ball_carrier() == player
-    finder = Pathfinder(game, player, trr=allow_team_reroll, can_block=blitz, can_handoff=can_handoff)
-    path = finder.get_path(target=position)
-    if from_position is not None and num_moves_used != 0:
-        _reset_state(game, player, orig_player, orig_ball)
-    return path
+    with _temporary_state(game, player, from_position, num_moves_used):
+        # Handoff action-start detection from upstream #234, Mattias Bermell.
+        can_handoff = (game.is_handoff_available() or
+                       game.get_player_action_type() is PlayerActionType.HANDOFF) and game.has_ball(player)
+        finder = Pathfinder(game, player, trr=allow_team_reroll, can_block=blitz, can_handoff=can_handoff)
+        return finder.get_path(target=position)
 
 
 def get_safest_path_to_endzone(game, player, from_position=None, allow_team_reroll=False, num_moves_used=None):
@@ -575,14 +574,10 @@ def get_safest_path_to_endzone(game, player, from_position=None, allow_team_rero
     :return: a path containing the list of squares that forms the safest (and thereafter shortest) path for the given player to
     a position in the opponent endzone.
     """
-    if from_position is not None and num_moves_used != 0:
-        orig_player, orig_ball = _alter_state(game, player, from_position, num_moves_used)
-    x = game.get_opp_endzone_x(player.team)
-    finder = Pathfinder(game, player, trr=allow_team_reroll)
-    path = finder.get_path(target=x)
-    if from_position is not None and num_moves_used != 0:
-        _reset_state(game, player, orig_player, orig_ball)
-    return path
+    with _temporary_state(game, player, from_position, num_moves_used):
+        x = game.get_opp_endzone_x(player.team)
+        finder = Pathfinder(game, player, trr=allow_team_reroll)
+        return finder.get_path(target=x)
 
 
 def get_all_paths(game, player, from_position=None, allow_team_reroll=False, num_moves_used=None, blitz=False):
@@ -596,38 +591,49 @@ def get_all_paths(game, player, from_position=None, allow_team_reroll=False, num
     :return a path containing the list of squares that forms the safest (and thereafter shortest) path for the given player to
     a position that is adjacent to the other player and the probability of success.
     """
-    if from_position is not None and num_moves_used != 0:
-        orig_player, orig_ball = _alter_state(game, player, from_position, num_moves_used)
-    finder = Pathfinder(game, player, trr=allow_team_reroll, can_block=blitz)
-    paths = finder.get_paths()
-    if from_position is not None and num_moves_used != 0:
-        _reset_state(game, player, orig_player, orig_ball)
-
-    return paths
+    with _temporary_state(game, player, from_position, num_moves_used):
+        finder = Pathfinder(game, player, trr=allow_team_reroll, can_block=blitz)
+        return finder.get_paths()
 
 
-def _alter_state(game, player, from_position, moves_used):
-    orig_player, orig_ball = None, None
-    if from_position is not None or moves_used is not None:
-        orig_player = copy.deepcopy(player)
-        orig_ball = copy.deepcopy(game.get_ball())
-    # Move player if another starting position is used
+@contextmanager
+def _temporary_state(game, player, from_position, moves_used):
+    """Apply query overrides without replacing live objects or recording moves.
+
+    None preserves the current value; zero explicitly resets used movement.
+    A hypothetical start on a ground ball assumes the pickup already succeeded.
+    """
+    if from_position is None and moves_used is None:
+        yield
+        return
     if from_position is not None:
-        assert game.get_player_at(from_position) is None or game.get_player_at(from_position) == player
-        game.move(player, from_position)
-        if from_position == game.get_ball_position() and game.get_ball().on_ground:
-            game.get_ball().carried = True
-    if moves_used != None:
+        assert not game.is_out_of_bounds(from_position)
+        assert game.get_player_at(from_position) in (None, player)
+    if moves_used is not None:
         assert moves_used >= 0
-        player.state.moves = moves_used
-        if moves_used > 0:
-            player.state.up = True
-    return orig_player, orig_ball
 
-
-def _reset_state(game, player, orig_player, orig_ball):
-    if orig_player is not None:
-        game.move(player, orig_player.position)
-        player.state = orig_player.state
-    if orig_ball is not None:
-        game.ball = orig_ball
+    position, moves, up = player.position, player.state.moves, player.state.up
+    ball = game.get_ball()
+    ball_position, carried = (ball.position, ball.is_carried) if ball is not None else (None, False)
+    trajectory_enabled = game.trajectory.enabled
+    game.trajectory.enabled = False
+    try:
+        if from_position is not None:
+            if from_position != player.position:
+                game.move(player, from_position)
+            if ball is not None and from_position == ball.position and ball.on_ground:
+                ball.is_carried = True
+        if moves_used is not None:
+            player.state.moves = moves_used
+            if moves_used > 0:
+                player.state.up = True
+        yield
+    finally:
+        try:
+            if player.position != position:
+                game.move(player, position)
+            player.state.moves, player.state.up = moves, up
+            if ball is not None:
+                ball.position, ball.is_carried = ball_position, carried
+        finally:
+            game.trajectory.enabled = trajectory_enabled

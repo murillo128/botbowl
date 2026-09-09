@@ -1,80 +1,167 @@
 # Installation
-botbowl is a pip-installable python package. We recommend installing with [Anaconda](https://docs.anaconda.com/anaconda/install/) but it is not a requirement. 
 
-## Python version
-botbowl currently works with python 3.6 - 3.10 
-Verify your python version with 
-```
-python --version
-```
-If you just installed Anaconda, create and activate a new environment. 
-```
-conda create --name botbowl python=3.8
-conda activate botbowl
+The current maintained-fork pre-release proposal is `2.0.0a1`. The version has a
+single source and is available after installation with
+`python -m botbowl --version`; see [release preparation](releasing.md) and the
+[migration guide](migration.md). No package-index publication is implied.
+
+This fork's new packaging line requires CPython **3.11 or newer**, replacing the
+older 3.8 baseline. Use an isolated environment:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install 'git+https://github.com/murillo128/botbowl'
 ```
 
-## Installation with pip
-```
-pip install git+https://github.com/njustesen/botbowl
-```
-Or, use ```pip3``` if your pip points to a python 2 installation.
+The default installation is a headless engine with Python pathfinding. It needs
+NumPy and untangle (with its XML parser dependency), and runs without a display,
+Gym, Flask, Docker, matplotlib, pytest, or a compiler. Package rules, teams,
+formations, arenas, and configurations load independently of the working directory.
+This remains the Bot Bowl framework described in the README, with upstream
+attribution and rules preserved.
 
-## Installation with git
+## Optional integrations
 
-Alternatively, if you want to run our examples or develop on botbowl, you can clone the repository and install it locally.
+The legacy `rl` extra is supported only on CPython **3.11 and 3.12**. It uses
+Gym 0.26.2 and NumPy <2. It is **unsupported on 3.13/3.14**: Gym's checker
+accesses `np.bool8`, removed in NumPy 2, while NumPy 1.26 supports Python only
+through 3.12. The separate `gymnasium` extra supplies the versioned v5 adapter on CPython
+3.11–3.14 with NumPy 2; see [its API and migration guide](gymnasium.md).
+Do not install this extra on newer interpreters expecting compatibility.
+
+Install only the integrations you use, for example from a checkout:
+
+```bash
+python -m pip install '.[web]'
+python -m pip install '.[rl]'
+python -m pip install '.[gymnasium]'
+python -m pip install '.[competition]'
+python -m pip install '.[render]'
+python -m pip install '.[dev]'
 ```
-git clone https://github.com/njustesen/botbowl
-cd botbowl
+
+| Extra | Capability | Additional requirements |
+| --- | --- | --- |
+| `web` | Existing Flask HTTP routes | Flask and its dependencies |
+| `rl` | Legacy Gym environments and wrappers | Gym 0.26.2, NumPy <2; see compatibility below |
+| `gymnasium` | Versioned Gymnasium v5 adapter and explicit controllers | Gymnasium >=1.3,<2; CPython 3.11–3.14, NumPy 2 |
+| `multiagent` | Two-coach PettingZoo AEC adapter ([contract](lab/pettingzoo.md)) | PettingZoo 1.25.0, Gymnasium >=1.3,<2 |
+| `competition` | Competition helpers and socket/Docker agents | Docker Python client, tabulate; a daemon is needed only to run container agents |
+| `render` | Matplotlib plotting in examples | Matplotlib; the legacy `EnvRenderer` separately needs the interpreter's Tk installation and a display when constructed |
+| `dev` | Tests and package builds | pytest, build, more-itertools; install other extras for their tests |
+
+`import botbowl` loads the engine and bot helpers without loading these optional
+integrations or starting services. Named exports such as `botbowl.BotBowlEnv`,
+`botbowl.Competition`, and `botbowl.EnvRenderer` resolve on first use. Wildcard
+imports also request optional exports, so use named imports for a minimal client.
+Installed Gym plugins register the existing `botbowl-v4` and sized IDs when Gym
+loads; `botbowl.ai.register_envs()` is an idempotent explicit alternative.
+
+The wheel and sdist include the web templates and required JavaScript/CSS source,
+with existing third-party license notices preserved. They exclude graphics and
+fonts whose permissions are distinct from the source-code license. The `web`
+extra supplies the Python HTTP API and web application source; installed browser
+pages lack the excluded artwork. For the existing complete graphical UI, run
+from a checkout with its existing assets and applicable permissions:
+
+```bash
+python examples/server_example.py
+```
+
+The package does not claim the source-code license covers artwork. See the
+README's copyright notice; a distributable browser asset policy remains separate
+work. The existing save/replay storage semantics are also unchanged.
+
+## Build Python or native artifacts
+
+The backend is setuptools; metadata lives in `pyproject.toml`. A runtime extra
+cannot control an isolated build, so native selection uses an explicit environment
+variable:
+
+```bash
+python -m pip install build
+BOTBOWL_BUILD_NATIVE=0 python -m build  # default: Python wheel and sdist
+BOTBOWL_BUILD_NATIVE=1 python -m build  # mandatory C++ pathfinding extension
+```
+
+Cython is a build dependency installed in the isolated build environment. It is
+not a runtime dependency. Native builds require a working C++ compiler and fail
+if compilation fails; there is no silent fallback after an explicit native
+request. `BOTBOWL_BUILD_NATIVE` accepts only `0` or `1`. For installation directly
+from source or VCS, the same environment variable applies:
+
+```bash
+BOTBOWL_BUILD_NATIVE=1 python -m pip install --no-cache-dir 'git+https://github.com/murillo128/botbowl'
+```
+
+Set the variable at the **build** step. Installing an already built wheel keeps
+that wheel's backend. Build output remains under the build directory; ordinary
+wheel builds do not copy extensions back into the source package. Use fresh
+build directories or fresh source trees when comparing build modes.
+
+To verify that a default source distribution also supports a later native build,
+run the explicit packaging regression with a C++ compiler and `build` installed:
+
+```bash
+python tests/packaging/verify_sdist.py --output /tmp/botbowl-sdist-check
+```
+
+This exports committed `HEAD` into a fresh directory, builds the Python wheel and
+sdist with an unavailable compiler, then builds and smoke-tests a native wheel
+from that sdist. It ignores local build and manifest caches. The output directory
+must be new; use `--revision` to test another commit.
+
+Verify the actual installed backend:
+
+```bash
+python -c 'import botbowl.core.pathfinding as p; print(p.get_safest_path.__module__)'
+```
+
+The result ends with `python_pathfinding` or `cython_pathfinding`. Native module
+files also carry the platform extension suffix. Both implementations are tested
+against the inherited semantic corpus; this is not a claim of complete parity for
+all possible skill interactions.
+
+## Development and editable installs
+
+The repository-native setup remains available:
+
+```bash
 python setup.py build
-pip install -e .
-```
-To test the installation, run the following:
-```
-python -c "import botbowl"
-```
-This should not produce an import error.
-
-If you cloned the repository and installed locally, you can start the web server:
-```
-python examples/server_example.py 
-```
-and then go the [http://127.0.0.1:1234/](http://127.0.0.1:1234/) to play a game.
-
-If you ran into issues, please seek help at our [Discord server](https://discord.gg/MTXMuae).
-
-## Compiling with Cython
-"[Cython](https://github.com/cython/cython) is a language that makes writing C extensions for Python as easy as Python itself."
-
-Some of the botbowl modules are prepared for compilation with Cython. Compiling them will make the framework run faster. 
-
-Installation through pip will automatically build with Cython if possible. You can test if botbowl was compiled successfully by running `import botbowl.core.pathfinding.cython_pathfinding` in a python prompt. If it doesn't raise an error, you're good to go.  
-
-If you cloned the repository with git, you need to manually call the build script by standing in the root of the repo and running:
-```
-python setup.py build 
-```
-If you get the following message ```You've built botbowl without cython compilation, error message=<error message here>```, 
-something went wrong (you can still use botbowl, just not with the speedup). Possible error messages and solutions: 
-
-* **"No compiler found"** - the distutils module did not find a compiler. See the section below about how to install one.
-* **"Cython could not be imported"** - python could not import the cython module, in should be installed when you run `pip install -e .`. If that's not working try manually installing it via pip, double check [requirements.txt](../requirements.txt) for the version botbowl uses.
-* **"No compatible windows compiler"** - the installation script is built to use the MS Visual Studio C++ compiler. Other compiler (e.g. Clang) could raise this error. Try installing Visual Studio with the instructions below. 
- 
-If you're still stuck, come ask in the [Discord server](https://discord.gg/MTXMuae), we're happy to help!     
-
-### Installing a compiler 
-**Windows**
-
-Install [Build Tools for Visual Studio 2022](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2019) (you find it on the bottom of the page under Tools for Visual Studio 2022).
-
-**Linux (Ubuntu/Debian)**
-
-```
-apt install g++
+python -m pip install -e '.[dev,web,rl,competition,render]'
+python -m pytest --require-pathfinding=python
 ```
 
-**MacOS**
+For an explicit native editable build:
 
+```bash
+BOTBOWL_BUILD_NATIVE=1 python setup.py build
+BOTBOWL_BUILD_NATIVE=1 python -m pip install -e '.[dev,web,rl,competition,render]'
+python -m pytest --require-pathfinding=native
 ```
-xcode-select –install
-```
+
+PEP 660/setuptools manages the extension for editable installs; the project has
+no post-install binary-copy hook. A previous native editable build can leave an
+untracked extension in the source tree: use a fresh checkout for a Python-only
+comparison. `requirements.txt` is a constrained development install for CPython 3.11/3.12
+with all extras, including legacy RL. Library compatibility ranges live in
+`pyproject.toml`; dated CI pins live in `requirements/`. For core development on
+3.13/3.14, use `python -m pip install -c requirements/core.txt -e
+'.[dev,web,competition]'` and omit the unsupported RL extra. See
+[CI profiles and dependency maintenance](ci.md) for the exact test commands.
+
+## Compatibility evidence
+
+The proposed core/native matrix is CPython 3.11–3.14. Installation and test results,
+including exact tested dependency versions and limits, are recorded in
+[the packaging report](reports/packaging-issue-5.md). No platform or optional
+integration is supported merely because `requires-python` permits installation.
+The legacy Gym adapter still uses its old reset/step API and emits existing
+warnings. The [v5 adapter](gymnasium.md) has separate IDs, spaces and wrappers;
+its runtime evidence does not expand the legacy adapter boundary.
+
+Choose a bounded path from the [core](quickstart-core.md),
+[bots](quickstart-bots.md), [Gymnasium](quickstart-gymnasium.md), or
+[web](quickstart-web.md) quickstart. Rules, RNG, replay and snapshot claims are
+summarized in [support boundaries](support.md).

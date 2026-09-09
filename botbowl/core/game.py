@@ -6,17 +6,122 @@ Year: 2018
 This module contains the Game class, which is the main class and interface used to interact with a game in botbowl.
 """
 from contextlib import contextmanager
+from dataclasses import dataclass, field
+from functools import wraps
 import itertools
+from numbers import Integral
 
 from botbowl.core.load import *
 from botbowl.core.procedure import *
+from botbowl.core.probability import (
+    PassRerollPolicy, BlockRerollPolicy, RerollProbabilityInfo,
+    PassOutcomeProbabilities, BlockOutcomeProbabilities,
+)
 from botbowl.core.forward_model import Trajectory, MovementStep, Step
 from copy import deepcopy
-from typing import Optional, Tuple, List, Union, Any
+from typing import TYPE_CHECKING, Optional, Tuple, List, Union, Any, Callable, TypeVar, cast
+
+if TYPE_CHECKING:
+    from botbowl.lab.timeline import DecisionEnvelope
+
+
+_SnapshotMethod = TypeVar('_SnapshotMethod', bound=Callable[..., Any])
+
+
+def _snapshot_boundary(method: _SnapshotMethod) -> _SnapshotMethod:
+    """Expose only successfully settled public boundaries to lab snapshots."""
+    @wraps(method)
+    def guarded(self, *args, **kwargs):
+        was_ready = self._snapshot_ready
+        was_initialized = self._initialized
+        self._snapshot_busy += 1
+        succeeded = False
+        try:
+            result = method(self, *args, **kwargs)
+            succeeded = True
+            return result
+        except InvalidActionError:
+            succeeded = was_ready
+            raise
+        finally:
+            self._snapshot_busy -= 1
+            if not self._snapshot_busy and method.__name__ == 'init' and was_initialized:
+                self._snapshot_ready = was_ready
+            elif not self._snapshot_busy:
+                self._snapshot_ready = succeeded and self._initialized and (
+                    self.state.game_over or bool(self.state.available_actions))
+    return cast(_SnapshotMethod, guarded)
 
 
 class InvalidActionError(Exception):
-    pass
+    def __init__(self, message, code="invalid_action"):
+        super().__init__(message)
+        self.code = code
+
+
+class NoProgressError(RuntimeError):
+    """No legal forced continuation; the game has no manufactured result."""
+
+    def __init__(self, game, reason, code="no_progress"):
+        self.code = code
+        super().__init__(f"Game {game.game_id}: {reason}; "
+                         f"procedures={game.get_procedure_names()}; "
+                         f"choices={[c.action_type.name for c in game.state.available_actions]}")
+
+
+class GameTruncatedError(NoProgressError):
+    """An administrative execution budget expired, not a sporting defeat."""
+
+
+class StepBudget:
+    """Finite engine steps and policy attempts, shareable across driver retries."""
+
+    def __init__(self, steps: int = 100000) -> None:
+        if type(steps) is not int or steps < 0:
+            raise ValueError("Step budget must be a nonnegative integer")
+        self.remaining = steps
+
+    def consume(self, game):
+        if self.remaining == 0:
+            raise GameTruncatedError(game, "execution budget exhausted", code="step_budget")
+        self.remaining -= 1
+
+
+def _step_budget(value):
+    return value if isinstance(value, StepBudget) else StepBudget(value)
+
+
+@dataclass(frozen=True)
+class ActionValidationResult:
+    """Side-effect-free validation outcome; code and message are stable strings."""
+    allowed: bool
+    code: str
+    message: str
+
+
+@dataclass(frozen=True)
+class DecisionResult:
+    """One advance's new reports and the next decision owner (None at terminal).
+
+    Events are ordered Outcome objects, as in Game.state.reports. The tuple
+    captures this call's report interval, not a copy of the whole game.
+    """
+
+    actor: Optional[Agent]
+    events: Tuple[Outcome, ...]
+    terminal: bool
+    decisions: Tuple['DecisionEnvelope', ...] = ()
+
+
+@dataclass(frozen=True)
+class GameCheckpoint:
+    """In-memory ancestor checkpoint for one game's enabled trajectory."""
+
+    step: int
+    rng_state: DiceSourceState
+    _trajectory: Trajectory = field(repr=False, compare=False)
+    _anchor: Optional[Step] = field(repr=False, compare=False)
+    timeline: Any = None
 
 
 class Game:
@@ -44,7 +149,9 @@ class Game:
                  ruleset: Optional[RuleSet] = None,
                  state: Optional[GameState] = None,
                  seed=None,
-                 record: bool = False):
+                 record: bool = False,
+                 external_control: bool = False,
+                 time_source=None):
         assert config is not None
         assert home_team.team_id != away_team.team_id
         self.replay = Replay(replay_id=game_id) if record else None
@@ -55,15 +162,48 @@ class Game:
         self.arena = load_arena(config.arena) if arena is None else arena
         self.ruleset = load_rule_set(config.ruleset) if ruleset is None else ruleset
         self.state = state if state is not None else GameState(self, deepcopy(home_team), deepcopy(away_team))
-        self.rng = np.random.RandomState(seed)
+        self.dice = DiceSource(seed)
         self.ff_map = None
         self.start_time = None
         self.end_time = None
         self.last_request_time = None
         self.last_action_time = None
         self.action = None
+        self.external_control = external_control
+        self._initialized = False
+        self._closed = False
+        self._end_notified = False
+        self.finalization_errors = []
+        self.time_source = time_source
         self.trajectory = Trajectory()
         self.square_shortcut = self.state.pitch.squares
+        self.timeline = None
+        self.rule_trace = None
+        self._snapshot_busy = 0
+        self._snapshot_ready = False
+
+    @property
+    def closed(self) -> bool:
+        return self._closed
+
+    def close(self) -> None:
+        """Stop accepting decisions, retaining inspectable state without a result.
+
+        Idempotent. Pause clocks, but do not finish the match, call end_game or
+        write a replay. Caller-owned policies/resources remain caller-owned.
+        """
+        if not self._closed:
+            self.pause_clocks()
+            self._closed = True
+
+    @property
+    def rng(self):
+        """The existing NumPy RandomState stream, also used by natural dice."""
+        return self.dice.rng
+
+    @rng.setter
+    def rng(self, rng):
+        self.dice.rng = rng
 
     def to_json(self, ignore_reports: bool = False):
         return {
@@ -96,11 +236,11 @@ class Game:
         """
         home_agent = self.home_agent 
         away_agent = self.away_agent
-        rng = self.rng
+        dice = self.dice
         replay = self.replay
         self.away_agent = Agent(home_agent.name, human=True) 
         self.home_agent = Agent(home_agent.name, human=True) 
-        self.rng = np.random.RandomState()
+        self.dice = DiceSource()
         self.replay = None
 
         try: 
@@ -108,7 +248,7 @@ class Game:
         finally:
             self.home_agent = home_agent 
             self.away_agent = away_agent
-            self.rng = rng
+            self.dice = dice
             self.replay = replay
 
 
@@ -131,18 +271,71 @@ class Game:
 
     def revert(self, to_step: int) -> List[Step]:
         """
+        Undo trajectory state only; RNG and forced queues remain advanced.
         :param to_step: reverts the gamestate to this step, this step should come from self.get_step()
         :returns: list of the undone steps that can be used to redo the steps with function self.foward()
         """
         assert self.trajectory.enabled
-        return self.trajectory.revert(to_step)
+        steps = self.trajectory.revert(to_step)
+        if steps:
+            self._snapshot_ready = False
+        return steps
 
     def forward(self, steps: List[Step]) -> None:
         """
         :param steps: re-does previously reverted with function self.revert().
         """
         assert self.trajectory.enabled
+        self._snapshot_ready = False
         self.trajectory.step_forward(steps)
+
+    def capture_rng_state(self) -> DiceSourceState:
+        """Capture the complete game RNG and forced queues, excluding policy RNGs."""
+        return self.dice.get_state()
+
+    def restore_rng_state(self, state: DiceSourceState) -> None:
+        """Restore RNG and forced queues only, within the same test contexts."""
+        self.dice.set_state(state)
+        if self.dice.chance is not None:
+            self.dice.chance._game = self
+
+    def capture_checkpoint(self) -> GameCheckpoint:
+        """Capture trajectory position plus RNG for repeatable action sequences.
+
+        Requires the forward model. Covers trajectory-managed state and game
+        randomness, not external policy state, wall clocks or persistent replays.
+        """
+        if not self.trajectory.enabled:
+            raise RuntimeError("Checkpoints require the forward model")
+        step = self.get_step()
+        anchor = self.trajectory.action_log[step - 1] if step else None
+        timeline = None if self.timeline is None else self.timeline.capture()
+        return GameCheckpoint(step, self.capture_rng_state(), self.trajectory, anchor, timeline)
+
+    def restore_checkpoint(self, checkpoint: GameCheckpoint) -> List[Step]:
+        """Undo to a live ancestor checkpoint and restore its complete game RNG.
+
+        Returned steps retain the legacy state-only `forward` behavior. A
+        checkpoint from another game or a discarded branch is rejected before
+        changing state. Active forced-roll contexts must match the capture.
+        """
+        if not isinstance(checkpoint, GameCheckpoint):
+            raise TypeError("Expected a GameCheckpoint from capture_checkpoint()")
+        if not self.trajectory.enabled or checkpoint._trajectory is not self.trajectory:
+            raise ValueError("Checkpoint belongs to another or disabled trajectory")
+        if not 0 <= checkpoint.step <= self.get_step() or (
+                checkpoint.step and self.trajectory.action_log[checkpoint.step - 1] is not checkpoint._anchor):
+            raise ValueError("Checkpoint is not an ancestor of the current trajectory")
+        self.dice._validate_state(checkpoint.rng_state)
+        if (self.timeline is None) != (checkpoint.timeline is None):
+            raise ValueError('Checkpoint timeline instrumentation differs')
+        if self.timeline is not None:
+            self.timeline._validate_checkpoint(checkpoint.timeline)
+        steps = self.revert(checkpoint.step)
+        self.restore_rng_state(checkpoint.rng_state)
+        if self.timeline is not None:
+            self.timeline.restore(checkpoint.timeline)
+        return steps
 
     @property
     def active_team(self) -> Optional[Team]:
@@ -155,10 +348,18 @@ class Game:
     def actor(self) -> Optional[Agent]:
         return self.get_team_agent(self.active_team)
 
-    def init(self) -> None:
+    @_snapshot_boundary
+    def init(self, *, max_steps=100000) -> None:
         """
-        Initialized the Game. The START_GAME action must still be called after this if humans are in the game.
+        Initialize once. External control always waits for START_GAME, even
+        with two bots. Legacy games auto-start when both agents are bots.
+        Lifecycle callbacks retain the legacy non-human-agent convention.
         """
+        if self.closed:
+            raise InvalidActionError("Game is closed", code="game_closed")
+        if self._initialized:
+            return
+        self._initialized = True
         EndGame(self)
         Pregame(self)
         if not self.away_agent.human:
@@ -170,223 +371,313 @@ class Game:
         if self.replay is not None:
             self.replay.record_step(self)
         # Start game if no humans
-        if not self.away_agent.human and not self.home_agent.human:
+        if not self.external_control and not self.away_agent.human and not self.home_agent.human:
             start_action = Action(ActionType.START_GAME)
             # Record state
             if self.replay is not None:
                 self.replay.record_action(start_action)
-            self.step(start_action)
+            self.step(start_action, max_steps=max_steps)
 
-    def step(self, action=None) -> None:
+    def step(self, action=None, *, max_steps=100000) -> None:
         """
-        Runs until an action from a human is required. If game requires an action to continue one must be given.
-        :param action: Action to perform, can be None if game does not require any.
-        :return:
+        Legacy policy driver: run until human input (or a slow-mode tick).
+        With external_control=True, delegate to advance without querying bots.
+        The historical None return value is preserved; use advance for results.
         """
+        if self.external_control:
+            self.advance(action, max_steps=max_steps)
+        else:
+            from botbowl.core.driver import LegacyPolicyDriver
+            LegacyPolicyDriver(self).run(action, max_steps=max_steps)
 
-        # Ensure player points to player object
-        if action is not None:
-            action.player = self.get_player(action.player.player_id) if action.player is not None else None
-            action.position = self.get_square(action.position.x, action.position.y) if action.position is not None else None
+    def advance(self, action: Optional[Action] = None, *, max_steps: Union[int, StepBudget] = 100000) -> DecisionResult:
+        """Apply one decision and resolve automatic consequences, without act().
 
-        # Set action as a property so other methods can access it
+        Stops at every next offered decision, including consecutive decisions
+        by the same actor. Ignores fast_mode and does not enforce wall clocks.
+        Call init first. None/CONTINUE is legal only without a pending decision;
+        after terminal, None returns an empty terminal result. Invalid input is
+        rejected before changing state, RNG, replay, clocks, or self.action.
+        Select external_control at construction for human-independent choices.
+        """
+        return self._advance(action, budget=_step_budget(max_steps))
+
+    @_snapshot_boundary
+    def _advance(self, action, single_step=False, budget=None, *, internal=False) -> DecisionResult:
+        # Reject public input before changing even self.action. Normalization only
+        # writes a new Action, never the object owned by a caller or bot.
+        action = self._validated_action(action)
+        if self.state.game_over:
+            return DecisionResult(None, (), True)
+        budget = _step_budget(100000 if budget is None else budget)
+        timeline = self.timeline
+        # Clock forcing executes normal rules but is not submitted coach input.
+        semantic = None if timeline is None or internal else timeline._prepare(action)
+        report_start = len(self.state.reports)
         self.action = action
-
-        # Update game
-        while True:
-
-            # Perform game step
-            done = self._one_step(self.action)
-
-            # Game over
-            if self.state.game_over:
-                self._end_game()
-                break
-
-            if self.state.stack.is_empty():
-                print("Somethings wrong")
-
-            # if procedure is ready for input
-            if done:
-
-                # If human player - wait for input
-                if self.actor is None or self.actor.human:
-                    break
-
-                # Query agent for action
-                self.last_request_time = time.time()
-                self.action = self._safe_act()
-
-                # Check if time limit was violated
-                self.last_action_time = time.time()
-
-                # Check clocks if competition mode
-                if self.config.competition_mode:
-                    self._check_clocks()  # Might override the action if clock was violated
-
-                # Did the game terminate?
+        first = True
+        try:
+            while True:
+                budget.consume(self)
+                if first and timeline is not None:
+                    timeline._begin(semantic)
+                first = False
+                done = self._one_step(self.action)
                 if self.state.game_over:
+                    self.state.available_actions = []
                     self._end_game()
                     break
-            else:
-
-                # If not in fast mode - wait for input before continuing
-                if not self.config.fast_mode:
+                if done or single_step:
                     break
-
-                # Else continue procedure with no action
                 self.action = None
+        except Exception as error:
+            if timeline is not None:
+                timeline._settle(failed=True)
+                timeline._failure(error)
+            raise
+        decisions = () if timeline is None else timeline._settle()
+        return DecisionResult(self.actor if not self.state.game_over else None,
+                              tuple(self.state.reports[report_start:]), self.state.game_over, decisions)
 
-    def refresh(self) -> None:
+    def refresh(self, *, max_steps=100000) -> None:
         """
         Checks clocks and runs forced actions. Useful in called in human games.
         """
+        if self.closed:
+            raise InvalidActionError("Game is closed", code="game_closed")
+        if self.state.game_over:
+            return
+        budget = _step_budget(max_steps)
         self.action = None
         if self.config.competition_mode:
-            self._check_clocks()
+            self._check_clocks(max_steps=budget)
         if not self.state.game_over and len(self.state.available_actions) == 0:
-            self.step(None)
+            self.step(None, max_steps=budget)
 
-    def _check_clocks(self) -> None:
+    def _check_clocks(self, *, max_steps=100000) -> bool:
+        """Resolve one expired clock, discarding any stale bot action.
+
+        A paused clock stays paused. Procedure transitions own resumption.
+        Return whether forcing changed the decision boundary.
         """
-        Checks if clocks are done.
-        """
-
-        # No time limit for this action
-        if not self.has_agent_clock(self.actor):
-            return
-
-        # Agent too slow?
+        if self.state.game_over:
+            return False
         clock = self.get_agent_clock(self.actor)
-        if clock is not None and clock.is_done():
-
-            # End the actor's turn
-            done = True
-            clock = self.get_agent_clock(self.actor)
-            while clock in self.state.clocks:
-
-                # Request timout action
-                if done:
-                    action = self._forced_action()
-                else:
-                    action = None
-
-                # Take action if it doesn't end the turn
-                if self.config.debug_mode:
-                    print(f"Forcing action: {self.action.to_json() if self.action is not None else 'None'}")
-                if self.action is None or self.action.action_type not in [ActionType.END_TURN, ActionType.END_SETUP]:
-                    done = self._one_step(action)
-                else:
-                    break
-
-        if clock is not None and not clock.is_running():
-            clock.resume()
+        if clock is None or not clock.is_done():
+            return False
+        budget = _step_budget(max_steps)
+        while clock in self.state.clocks and not self.state.game_over:
+            action = self._forced_action() if self.state.available_actions else None
+            self._advance(action, budget=budget, internal=True)
+        self.action = None
+        return True
 
     def _end_game(self) -> None:
         """
         End the game
         """
-        # Game ended when the last action was received - to avoid timout during finishing procedures
-        self.end_time = self.last_action_time
+        if self._end_notified:
+            return
+        self._end_notified = True
+        self.end_time = time.time()
+        self.pause_clocks()
 
-        # Let agents know that the game ended
-        if not self.home_agent.human:
-            self.home_agent.end_game(self)
-        if not self.away_agent.human:
-            self.away_agent.end_game(self)
-
-        # Record state
+        # Attempt every finalizer once, even when an earlier callback fails.
+        for agent in (self.home_agent, self.away_agent):
+            if not agent.human:
+                try:
+                    agent.end_game(self)
+                except Exception as error:
+                    self.finalization_errors.append(error)
         if self.replay is not None:
-            self.replay.record_step(self)
-            self.replay.dump(self)
+            for finalize in (self.replay.record_step, self.replay.dump):
+                try:
+                    finalize(self)
+                except Exception as error:
+                    self.finalization_errors.append(error)
+        if self.finalization_errors:
+            raise self.finalization_errors[0]
 
-    def _is_action_allowed(self, action: Action) -> bool:
+    def validate_action(self, action: Optional[Action]) -> ActionValidationResult:
         """
-        Checks whether the specified action is allowed by comparing to actions in self.state.available_actions.
-        :param action:
-        :return: True if the specified actions is allowed.
+        Validate against the current available choices without changing game or input.
+
+        Player references from copies of this game are resolved by ID and team.
+        A square may select a player, and a player may supply a target square.
+        None and CONTINUE are allowed only when no decision is pending. This
+        checks the choices already published by the procedure, not future rules.
         """
+        return self._validate_action(action)[0]
+
+    def is_action_allowed(self, action: Optional[Action]) -> bool:
+        """Return whether an action is legal, without normalization side effects."""
+        return self.validate_action(action).allowed
+
+    def _is_action_allowed(self, action: Optional[Action]) -> bool:
+        """Compatibility shim for callers of the former private validator."""
+        return self.is_action_allowed(action)
+
+    def _validated_action(self, action: Optional[Action]) -> Optional[Action]:
+        result, normalized = self._validate_action(action)
+        if not result.allowed:
+            raise InvalidActionError(result.message, code=result.code)
+        return normalized
+
+    def _validate_action(self, action: Optional[Action]) -> Tuple[ActionValidationResult, Optional[Action]]:
+        def reject(code, message):
+            return ActionValidationResult(False, code, message), None
+
+        if self.closed:
+            return reject("game_closed", "Game is closed")
+        allowed = ActionValidationResult(True, "ok", "Action is allowed.")
+        if self.state.game_over:
+            if action is None:
+                return allowed, None
+            return reject("game_over", "No decisions are accepted after the game is over.")
         if action is None:
-            return True
-        for action_choice in self.state.available_actions:
-            if action.action_type == action_choice.action_type:
-                # Type checking
-                if type(action.action_type) is not ActionType:
-                    print("Illegal action type: ", type(action.action_type))
-                    return False
-                if action.player is not None and not isinstance(action.player, Player):
-                    print("Illegal player type: ", type(action.action_type), action, self.state.stack.peek())
-                    return False
-                if action.position is not None and not isinstance(action.position, Square):
-                    print("Illegal position type:", type(action.position), action.action_type.name)
-                    return False
-                # Check if player argument is used instead of position argument
-                if len(action_choice.players) == 0 and action.player is not None and action.position is None:
-                    action.position = action.player.position
-                    # Check if player argument is used instead of position argument
-                elif len(action_choice.positions) == 0 and action.position is not None and action.player is None:
-                    action.player = self.get_player_at(action.position)
-                # Check player argument
-                if len(action_choice.players) > 1 and action.player not in action_choice.players:
-                    if action.player is None:
-                        print("Illegal player: None")
-                    else:
-                        print("Illegal player:", action.player.to_json(), action.action_type.name)
-                    return False
-                # Check position argument
-                if len(action_choice.positions) > 0 and action.position not in action_choice.positions:
-                    if action.position is None:
-                        print("Illegal position: None")
-                    else:
-                        print("Illegal position:", action.position.to_json(), action.action_type.name)
-                    return False
-                return True
-        return False
+            if self.state.available_actions:
+                return reject("action_required", "An action is required while a decision is pending.")
+            return allowed, None
+        if not isinstance(action, Action):
+            return reject("invalid_action_type", "Action must be an Action or None.")
+        if type(action.action_type) is not ActionType:
+            return reject("invalid_action_type", "Action type must be an ActionType.")
+
+        player = action.player
+        if player is not None:
+            if not isinstance(player, Player):
+                return reject("invalid_player_type", "Player must be a Player or None.")
+            if not isinstance(player.player_id, str):
+                return reject("invalid_player_id", "Player ID must be a string.")
+            canonical = self.state.player_by_id.get(player.player_id)
+            if canonical is None:
+                return reject("unknown_player", "Player ID does not belong to this game.")
+            if not isinstance(player.team, Team) or player.team.team_id != canonical.team.team_id:
+                return reject("invalid_player_team", "Player team does not match this game's roster.")
+            player = canonical
+
+        position = action.position
+        if position is not None:
+            if not isinstance(position, Square):
+                return reject("invalid_position_type", "Position must be a Square or None.")
+            if any(isinstance(n, bool) or not isinstance(n, Integral) for n in (position.x, position.y)):
+                return reject("invalid_coordinates", "Position coordinates must be integers.")
+            # Board edges can be legal crowd-push targets; negative indices and
+            # coordinates beyond the allocated board are never public targets.
+            if not (0 <= position.x < self.arena.width and 0 <= position.y < self.arena.height):
+                return reject("position_out_of_bounds", "Position is outside the board.")
+            position = self.square_shortcut[position.y][position.x]
+
+        if action.action_type == ActionType.CONTINUE:
+            if self.state.available_actions:
+                return reject("action_required", "An action is required while a decision is pending.")
+            return allowed, None
+
+        choices = [choice for choice in self.state.available_actions
+                   if choice.action_type == action.action_type and not choice.disabled]
+        if not choices:
+            return reject("action_not_available", "Action type is not currently available.")
+        for choice in choices:
+            # Each choice gets its own candidate: a failed alternative must not
+            # influence normalization for later choices of the same action type.
+            candidate = Action(action.action_type, position=position, player=player)
+            if choice.positions and not choice.players and player is not None and position is None:
+                candidate.position = player.position
+            elif choice.players and not choice.positions and position is not None and player is None:
+                candidate.player = self.get_player_at(position)
+
+            if choice.players:
+                # Legacy skill decisions can omit their sole eligible player.
+                if candidate.player is None and position is None and len(choice.players) == 1:
+                    candidate.player = choice.players[0]
+                if candidate.player not in choice.players:
+                    continue
+                if candidate.player.team != choice.team:
+                    continue
+            elif candidate.player is not None:
+                # A rival is a legitimate position target (e.g. BLOCK), never
+                # an unrelated actor on the choosing team's action.
+                if candidate.player.team != choice.team and (
+                        not choice.positions or candidate.player.position != candidate.position):
+                    continue
+
+            # Type-only choices ignore redundant squares (legacy reroll callers
+            # may repeat the previous target). Input bounds/types still apply.
+
+            if choice.positions and candidate.position not in choice.positions:
+                continue
+            return allowed, candidate
+        return reject("invalid_target", "Player or position does not match any available choice.")
 
     def _safe_act(self) -> Optional[Action]:
         """
         Gets action from agent and sets correct player reference.
         """
         assert self.actor is not None
-        action = self.actor.act(self)
-        if not type(action) == Action:
-            return None
-        # Correct player object
-        if action.player is not None:
-            if action.player.player_id not in self.state.player_by_id.keys():
-                print(f"Unknown player id {action.player.player_id}")
-                action.player = None
-            else:
-                action.player = self.state.player_by_id[action.player.player_id]
-        return action
+        return self._validated_action(self.actor.act(self))
 
     def _forced_action(self) -> Action:
-        """
-        Return action that prioritize to end the player's turn.
-        """
+        """Select a validated continuation in finite time, favoring turn end."""
+        available_actions = [choice for choice in self.state.available_actions if not choice.disabled]
+        if self.state.stack.items and isinstance(self.get_procedure(), Setup):
+            return self._forced_setup()
         # Take first negative action
         for action_type in [ActionType.END_TURN, ActionType.END_SETUP, ActionType.END_PLAYER_TURN,
                             ActionType.SELECT_NONE, ActionType.HEADS, ActionType.KICK, ActionType.SELECT_DEFENDER_DOWN,
                             ActionType.SELECT_DEFENDER_STUMBLES, ActionType.SELECT_ATTACKER_DOWN,
                             ActionType.SELECT_PUSH, ActionType.SELECT_BOTH_DOWN, ActionType.DONT_USE_REROLL,
                             ActionType.DONT_USE_APOTHECARY]:
-            for action in self.state.available_actions:
+            for action in available_actions:
                 if action.action_type == action_type:
-                    if action_type == ActionType.END_SETUP:
-                        if self.is_setup_legal(self.get_agent_team(self.actor)): # type: ignore
-                            return Action(action_type)
-                    else:
-                        return Action(action_type)
-        # Take random action
-        while True:
-            action_choice = self.rng.choice(self.state.available_actions)
-            # Ignore PLACE_PLAYER actions
-            if action_choice.action_type != botbowl.ActionType.PLACE_PLAYER:
-                break
-        action_choice = self.rng.choice(self.state.available_actions)
-        position = self.rng.choice(action_choice.positions) if len(action_choice.positions) > 0 else None
-        player = self.rng.choice(action_choice.players) if len(action_choice.players) > 0 else None
-        return Action(action_choice.action_type, position=position, player=player)
+                    candidate = Action(action_type)
+                    if self.is_action_allowed(candidate):
+                        return candidate
+        # Sample only the finite eligible set, never resample the original list.
+        choices = [c for c in available_actions if c.action_type not in
+                   (ActionType.PLACE_PLAYER, ActionType.END_SETUP)]
+        for index in self.rng.permutation(len(choices)):
+            choice = choices[index]
+            players = choice.players or [None]
+            positions = choice.positions or [None]
+            for p in self.rng.permutation(len(players)):
+                for s in self.rng.permutation(len(positions)):
+                    candidate = Action(choice.action_type, player=players[p], position=positions[s])
+                    if self.is_action_allowed(candidate):
+                        return candidate
+        raise NoProgressError(self, "no legal forced action")
+
+    def _forced_setup(self) -> Action:
+        proc = self.get_procedure()
+        end = Action(ActionType.END_SETUP)
+        if self.is_setup_legal(proc.team) and self.is_action_allowed(end):
+            return end
+        macros = {"Wedge": ActionType.SETUP_FORMATION_WEDGE,
+                  "Line": ActionType.SETUP_FORMATION_LINE,
+                  "Spread": ActionType.SETUP_FORMATION_SPREAD,
+                  "Zone": ActionType.SETUP_FORMATION_ZONE}
+        cause = ValueError("No usable formation or placement is available")
+        for formation in proc.formations:
+            try:
+                plan = formation.actions(self, proc.team)
+            except ValueError as error:
+                cause = error
+                continue
+            targets = [a for a in plan if a.position is not None]
+            selected = {a.player for a in targets}
+            changes = [Action(ActionType.PLACE_PLAYER, player=p) for p in
+                       self.get_players_on_pitch(proc.team) if p not in selected]
+            changes += [a for a in targets if a.player.position != a.position]
+            if not changes:
+                continue
+            macro = macros.get(formation.name)
+            if macro is not None and self.is_action_allowed(Action(macro)):
+                return Action(macro)
+            # Apply an actual difference from the legal plan. Replaying its
+            # remove-all prefix on every call would repeatedly undo placements.
+            for action in changes:
+                if self.is_action_allowed(action):
+                    return action
+        raise NoProgressError(self, f"cannot complete setup: {cause}") from cause
 
     def _squares_moved(self) -> list:
         """
@@ -404,6 +695,7 @@ class Game:
         out = [sq.to_json() for sq in self.state.active_player.state.squares_moved]
         return out
 
+    @_snapshot_boundary
     def _one_step(self, action: Optional[Action]) -> bool:
         """
         Executes one step in the game if it is allowed.
@@ -411,32 +703,10 @@ class Game:
         :return: True if game requires action or game is over, False if not
         """
 
-        # Get proc
+        # Bot and clock-forced actions pass through the same boundary. Do not
+        # catch procedure failures below: those are internal errors, not input.
+        action = self._validated_action(action)
         proc = self.state.stack.peek()
-
-        # If no action and action is required
-        if action is None and len(self.state.available_actions) > 0:
-            raise InvalidActionError("None action is not allowed when actions are available")
-
-        # If action but it's not available
-        if action is not None:
-            if action.action_type == ActionType.CONTINUE:
-                if len(self.state.available_actions) == 0:
-                    # Consider this as a None action
-                    action = None
-                else:
-                    if self.config.debug_mode:
-                        print("CONTINUE action is not allowed when actions are available")
-                    return True  # Game needs user input
-            else:
-                # Only allowed actions
-                if not self._is_action_allowed(action):
-
-                    if type(action) is Action:
-                        raise InvalidActionError(
-                            f"Action not allowed {action.to_json() if action is not None else 'None'}")
-                    else:
-                        raise InvalidActionError(f"Action not allowed {action}")
 
         # Run proc
         if self.config.debug_mode:
@@ -444,7 +714,8 @@ class Game:
             print("Action={}".format(action.action_type if action is not None else "None"))
             print("Players on Field={}".format(len(self.get_players_on_pitch())))
 
-        proc.done = proc.step(action)
+        proc.done = (proc.step(action) if self.rule_trace is None else
+                     self.rule_trace._call(proc, 'step', action))
 
         if self.config.debug_mode:
             print("Done={}".format(proc.done))
@@ -471,13 +742,21 @@ class Game:
                 print("--Proc={}".format(self.state.stack.peek()))
             # Call end before removing
             proc_end = self.state.stack.peek()
-            proc_end.end()
+            if self.rule_trace is None:
+                proc_end.end()
+            else:
+                self.rule_trace._call(proc_end, 'end')
             self.state.stack.remove(proc_end)
 
         # Record state
         if self.replay is not None:
-            if action is not None and action.action_type is not ActionType.PLACE_BALL:
-                self.replay.record_step(self)
+            if action is not None:
+                if action.action_type is ActionType.PLACE_BALL:
+                    # Controller macros submit a real placement; retain its exact
+                    # target before subsequent kick scatter changes the ball.
+                    self.replay.record_action(action)
+                else:
+                    self.replay.record_step(self)
 
         # Is game over
         if self.state.stack.is_empty():
@@ -489,7 +768,10 @@ class Game:
         # Initialize if not
         if not self.state.stack.peek().started:
             proc = self.state.stack.peek()
-            proc.start()
+            if self.rule_trace is None:
+                proc.start()
+            else:
+                self.rule_trace._call(proc, 'start')
             proc.started = True
 
         # Update available actions
@@ -502,7 +784,7 @@ class Game:
             return False  # Can continue without user input
 
         # End player turn if only action available
-        if len(self.state.available_actions) == 1 and \
+        if not self.external_control and len(self.state.available_actions) == 1 and \
                 self.state.available_actions[0].action_type == ActionType.END_PLAYER_TURN:
             return self._one_step(Action(ActionType.END_PLAYER_TURN))
 
@@ -527,7 +809,8 @@ class Game:
         """
         Returns the clock belonging to the given team.
         """
-        for clock in self.state.clocks:
+        # A secondary clock may belong to the same team as its paused primary.
+        for clock in reversed(self.state.clocks):
             if clock.team == team:
                 return clock
         return None
@@ -536,10 +819,7 @@ class Game:
         """
         Returns the clock belonging to the given agent's team.
         """
-        for clock in self.state.clocks:
-            if clock.team == self.get_agent_team(agent):
-                return clock
-        return None
+        return self.get_clock(self.get_agent_team(agent))
 
     def has_clock(self, team: Team) -> bool:
         """
@@ -581,7 +861,7 @@ class Game:
         """
         self.pause_clocks()
         assert team is not None and type(team) == Team
-        clock = Clock(team, self.config.time_limits.secondary)
+        clock = Clock(team, self.config.time_limits.secondary, time_source=self.time_source)
         self.state.clocks.append(clock)
 
     def add_primary_clock(self, team: Team) -> None:
@@ -590,7 +870,7 @@ class Game:
         """
         self.state.clocks.clear()
         assert team is not None and type(team) == Team
-        clock = Clock(team, self.config.time_limits.turn, is_primary=True)
+        clock = Clock(team, self.config.time_limits.turn, is_primary=True, time_source=self.time_source)
         self.state.clocks.append(clock)
 
     def get_seconds_left(self, team: Optional[Team] = None) -> Optional[float]:
@@ -603,10 +883,8 @@ class Game:
             t = self.get_agent_team(self.actor)
         else:
             t = team
-        for clock in self.state.clocks:
-            if clock.team == t:
-                return clock.get_seconds_left()
-        return None
+        clock = self.get_clock(t)
+        return clock.get_seconds_left() if clock is not None else None
 
     # redefined below
     #def is_started(self):
@@ -639,7 +917,8 @@ class Game:
 
     def set_seed(self, seed: int) -> None:
         '''
-        Sets the random seed of the game.
+        Restart the game's RNG stream only; do not seed policies or clear forced
+        queues. Use restore_rng_state to resume an advanced stream exactly.
         '''
         self.seed = seed
         self.rng = np.random.RandomState(self.seed)
@@ -656,6 +935,12 @@ class Game:
         Adds the outcome to the game's reports.
         """
         self.state.reports.append(outcome)
+        if self.timeline is not None:
+            self.timeline._report(outcome)
+
+    def _timeline_phase(self, kind, **data) -> None:
+        if self.timeline is not None:
+            self.timeline._phase(kind, **data)
 
     def is_started(self) -> bool:
         return self.start_time is not None
@@ -812,12 +1097,14 @@ class Game:
     def get_dugout(self, team: Team) -> Dugout:
         return self.state.dugouts[team.team_id]
 
-    def get_reserves(self, team: Team) -> List[Player]:
+    def get_reserves(self, team: Team, include_heated: bool = True) -> List[Player]:
         """
-        :param team: 
-        :return: The reserves in the dugout of this team.
+        :param team:
+        :param include_heated: Include players sitting out due to Sweltering Heat.
+        :return: The reserves list, or a filtered copy for setup eligibility.
         """
-        return self.get_dugout(team).reserves
+        reserves = self.get_dugout(team).reserves
+        return reserves if include_heated else [player for player in reserves if not player.state.heated]
 
     def get_knocked_out(self, team: Team) -> List[Player]:
         """
@@ -1196,6 +1483,11 @@ class Game:
         assert piece_b.position is not None
         pos_a = piece_a.position
         pos_b = piece_b.position
+        # Positions and board cells bypass generic reversible assignment. Record
+        # both removals before either placement so undo restores occupied squares.
+        for piece, position in ((piece_a, pos_a), (piece_b, pos_b)):
+            if type(piece) is Player:
+                self.trajectory.log_state_change(MovementStep(self.state.pitch.board, piece, position, put=False))
         piece_a.position = pos_b
         piece_b.position = pos_a
         if type(piece_b) is Player:
@@ -1203,6 +1495,7 @@ class Game:
             if ball is not None:
                 self.move(ball, pos_a)
             self.state.pitch.board[pos_a.y][pos_a.x] = piece_b
+            self.trajectory.log_state_change(MovementStep(self.state.pitch.board, piece_b, pos_a))
         elif type(piece_b) is Catchable:
             piece_b.move_to(pos_a)
         if type(piece_a) is Player:
@@ -1210,6 +1503,7 @@ class Game:
             if ball is not None:
                 self.move(ball, pos_b)
             self.state.pitch.board[pos_b.y][pos_b.x] = piece_a
+            self.trajectory.log_state_change(MovementStep(self.state.pitch.board, piece_a, pos_b))
         elif isinstance(piece_a, Catchable):
             piece_a.move_to(pos_b)
 
@@ -1239,6 +1533,9 @@ class Game:
         for opp_player in self.get_opp_team(catcher.team).players:
             if opp_player.has_skill(Skill.DISTURBING_PRESENCE) and opp_player.position and opp_player.position.distance(catcher.position) <= 3:
                 modifiers -= 1
+        if self.rule_trace is not None:
+            self.rule_trace.conditions('Intercept' if interception else 'Catch',
+                                       {'accurate': accurate, 'handoff': handoff, 'interception': interception})
         return modifiers
 
     def get_pass_modifiers(self, passer: Player, pass_distance: PassDistance, ttm: bool = False) -> int:
@@ -1277,6 +1574,9 @@ class Game:
             if opp_player.has_skill(Skill.DISTURBING_PRESENCE) and opp_player.position and opp_player.position.distance(passer.position) <= 3:
                 modifiers -= 1
 
+        if self.rule_trace is not None:
+            self.rule_trace.conditions('PassAttempt', {'tackle_zones': tackle_zones, 'ttm': ttm})
+
         return modifiers
 
     def get_leap_modifiers(self, player: Player) -> int:
@@ -1286,11 +1586,13 @@ class Game:
         """
         return 1 if player.has_skill(Skill.VERY_LONG_LEGS) else 0
 
-    def get_dodge_modifiers(self, player: Player, position: Square, include_diving_tackle: bool = False) -> int:
+    def get_dodge_modifiers(self, player: Player, position: Square, include_diving_tackle: bool = False,
+                            from_position: Optional[Square] = None) -> int:
         """
         :param player:
         :param position: The position the player is dodging to
         :param include_diving_tackle:
+        :param from_position: Optional hypothetical origin; the player is not moved.
         :return: the modifier to be added to the dodge roll.
         """
         modifiers = 1
@@ -1306,17 +1608,23 @@ class Game:
         if player.has_skill(Skill.TWO_HEADS):
             modifiers += 1
 
-        prehensile_tailers = self.get_adjacent_opponents(player, skill=Skill.PREHENSILE_TAIL)
+        origin = player.position if from_position is None else from_position
+        opponents = self.get_opp_team(player.team)
+        prehensile_tailers = self.get_adjacent_players(origin, team=opponents, skill=Skill.PREHENSILE_TAIL)
         modifiers -= len(prehensile_tailers)  # subtract 1 for each prehensile tail detractor
 
         if not ignore_opp_mods:
             modifiers -= tackle_zones_to
 
         if include_diving_tackle:
-            diving_tacklers = self.get_adjacent_opponents(player, skill=Skill.DIVING_TACKLE)
+            diving_tacklers = self.get_adjacent_players(origin, team=opponents, skill=Skill.DIVING_TACKLE)
             if len(diving_tacklers) > 0:
                 modifiers -= 2
 
+        if self.rule_trace is not None:
+            self.rule_trace.conditions('Dodge', {'tackle_zones': tackle_zones_to,
+                'ignore_opp_mods': ignore_opp_mods, 'prehensile_tails': len(prehensile_tailers),
+                'include_diving_tackle': include_diving_tackle})
         return modifiers
 
     def get_pickup_modifiers(self, player: Player, position: Square) -> int:
@@ -1340,6 +1648,8 @@ class Game:
         if player.has_skill(Skill.EXTRA_ARMS):
             modifiers += 1
 
+        if self.rule_trace is not None:
+            self.rule_trace.conditions('Pickup', {'tackle_zones': tackle_zones})
         return modifiers
 
     def num_tackle_zones_in(self, player: Player) -> int:
@@ -1397,7 +1707,8 @@ class Game:
         :param min_players: The minimum number of players in the area.
         :return: True if team is setup legally in the specified tile area.
         """
-        min_players_checked = min(min_players, len(self.get_reserves(team)) + len(self.get_players_on_pitch(team)))
+        min_players_checked = min(min_players, len(self.get_reserves(team, include_heated=False)) +
+                                  len(self.get_players_on_pitch(team)))
         cnt = 0
 
         if tile is None:
@@ -1669,14 +1980,38 @@ class Game:
         """
         :param from_position: The position of the attacker.
         :param to_position: The position of the defender.
-        :return: Possible square to push the player standing on pos_to on to.
+        :return: Legal destinations, including ordinary push/chain-push fallback
+                 when Side Step has no empty in-bounds neighbour. Stand Firm is
+                 an optional decision before choosing a destination.
         """
         attacker = self.get_player_at(from_position)
         defender = self.get_player_at(to_position)
         assert attacker is not None 
         assert defender is not None
-        if defender.has_skill(Skill.SIDE_STEP) and not attacker.has_skill(Skill.GRAB):
-            return self.get_adjacent_squares(to_position, out=True, occupied=False)
+        return self._get_push_squares_at(attacker, defender, from_position)
+
+    def _get_push_squares_at(self, attacker: Player, defender: Player, from_position: Square,
+                             grab: bool = False) -> List[Square]:
+        """Read push geometry with only the attacker's occupancy relocated."""
+        to_position = defender.position
+
+        def occupant(square):
+            if square == from_position:
+                return attacker
+            if square == attacker.position:
+                return None
+            return self.get_player_at(square)
+
+        # The engine resolves direct Grab choices before calling its shared
+        # fallback. Enable them only for the direct-block query, not for that
+        # fallback (which is also used for chain pushes where Grab cannot act).
+        side_step = defender.has_skill(Skill.SIDE_STEP) and not attacker.has_skill(Skill.GRAB)
+        use_grab = grab and attacker.has_skill(Skill.GRAB) and not defender.has_skill(Skill.SIDE_STEP)
+        if side_step or use_grab:
+            free = [square for square in self.get_adjacent_squares(to_position)
+                    if occupant(square) is None]
+            if free:
+                return free
         squares_to = self.get_adjacent_squares(to_position, out=True)
         squares_empty = []
         squares_out = []
@@ -1692,7 +2027,7 @@ class Game:
             if include:
                 if square.out_of_bounds:
                     squares_out.append(square)
-                elif self.get_player_at(square) is None:
+                elif occupant(square) is None:
                     squares_empty.append(square)
                 squares.append(square)
         if len(squares_empty) > 0:
@@ -1889,73 +2224,280 @@ class Game:
         return self.num_block_dice_at(attacker, defender, attacker.position, blitz, dauntless_success)
 
     def get_block_probs(self, attacker: Player, defender: Player) -> Tuple[float, float, float, float]:
+        """Probabilities of (attacker down, defender down, attacker ball loss,
+        defender ball loss) for one block, without rerolls. Down includes crowd
+        removal; ball loss means the current carrier releases the ball, before
+        bounce/catch/throw-in resolution. These are overlapping marginals.
+
+        The dice chooser first avoids their own down/removal, then seeks the
+        opponent's, then avoids their own ball loss, then seeks the opponent's.
+        Remaining face ties prefer POW, stumble, push, both down, skull.
+        Stand Firm is used; Side Step chooses a safe destination. Ordinary
+        pushes prefer crowd, with destination ties ordered by (y, x).
+
+        This is a fixed local policy, not a unique strategic probability. See
+        docs/probability-queries.md for the supported skills and exclusions.
+        No live game state, dice, policy state or trajectory is changed.
         """
-        :param attacker:
-        :param defender:
-        :return: a tuple containing the knock-down probabilities of the attacker and defender.
-        """
-        dice = self.num_block_dice(attacker, defender)
-        push_squares = self.get_push_squares(attacker.position, defender.position)
-        crowd_push = self.arena.board[push_squares[0].y][push_squares[0].x] == Tile.CROWD and not defender.has_skill(Skill.STAND_FIRM)
-        p_self = 1.0 / 6.0 if attacker.has_skill(Skill.BLOCK) else 2.0 / 6.0
-        p_opp = 2.0 / 6.0 if attacker.has_skill(Skill.BLOCK) else 2.0 / 6.0
-        if crowd_push:
-            p_opp += 2.0 / 6.0
-        if not crowd_push:
-            p_opp -= (1.0 / 6.0 if defender.has_skill(Skill.DODGE) and not attacker.has_skill(Skill.TACKLE) else 0.0)
-        if dice == 2:
-            p_self -= (1.0 - p_self) * p_self
-            p_opp += (1.0 - p_opp) * p_opp
-        if dice == 3:
-            p_self -= (1.0 - p_self) * p_self
-            p_opp += (1.0 - p_opp) * p_opp
-        if dice == -2:
-            p_self += (1.0 - p_self) * p_self
-            p_opp -= (1.0 - p_opp) * p_opp
-        if dice == -3:
-            p_self += (1.0 - p_self) * p_self
-            p_opp -= (1.0 - p_opp) * p_opp
-        p_fumble_opp = 0.0
-        p_fumble_self = 0.0
-        if self.get_ball_carrier() == defender:
-            p_fumble_opp = p_opp
-            if not crowd_push and attacker.has_skill(Skill.STRIP_BALL) and not defender.has_skill(Skill.SURE_HANDS):
-                p_fumble_opp += 2.0 / 6.0
-        elif self.get_ball_carrier() == attacker:
-            p_fumble_self = p_self
-        return p_self, p_opp, p_fumble_self, p_fumble_opp
+        return self._get_block_probs_at(attacker, attacker.position, defender, blitz=False)
+
+    def _validate_query_position(self, player: Player, position: Square) -> None:
+        if player.position is None or position is None or self.is_out_of_bounds(position):
+            raise ValueError("Probability queries require an on-pitch player and origin")
+        occupant = self.get_player_at(position)
+        if occupant is not None and occupant != player:
+            raise ValueError("Hypothetical origin is occupied by another player")
+
+    def _get_block_probs_at(self, attacker: Player, position: Square, defender: Player,
+                            blitz: bool) -> Tuple[float, float, float, float]:
+        dice, counts, outcomes = self._get_block_face_counts_at(attacker, position, defender, blitz)
+        return tuple(sum(count * outcome[event] for count, outcome in zip(counts, outcomes)) / (6 ** abs(dice))
+                     for event in range(4))
+
+    def _get_block_face_counts_at(self, attacker: Player, position: Square, defender: Player,
+                                  blitz: bool, strict: bool = False):
+        """The shared #8 evaluator, retaining selected face identities/counts."""
+        self._validate_query_position(attacker, position)
+        if defender.position is None or self.is_out_of_bounds(defender.position) or \
+                position.distance(defender.position) != 1:
+            raise ValueError("Block probability queries require an adjacent on-pitch defender")
+        dice = self.num_block_dice_at(attacker, defender, position, blitz=blitz)
+        if strict and (isinstance(dice, bool) or not isinstance(dice, Integral)):
+            raise ValueError("dice: probability queries require an integer dice count")
+        if dice not in (-3, -2, -1, 1, 2, 3):
+            raise ValueError("Block probability queries require one, two or three dice")
+        if strict:
+            dice = int(dice)
+
+        # Resolve only direct push effects. Stand Firm is always used when
+        # available; taken root is already a state, not a new skill decision.
+        crowd = False
+        if not defender.has_skill(Skill.STAND_FIRM) and not defender.state.taken_root:
+            squares = self._get_push_squares_at(attacker, defender, position, grab=True)
+            side_step = defender.has_skill(Skill.SIDE_STEP) and not attacker.has_skill(Skill.GRAB)
+            destination = min(squares, key=lambda square: (
+                self.is_out_of_bounds(square) if side_step else not self.is_out_of_bounds(square),
+                square.y, square.x))
+            crowd = self.is_out_of_bounds(destination)
+
+        carrying_attacker = self.has_ball(attacker)
+        carrying_defender = self.has_ball(defender)
+        strip = attacker.has_skill(Skill.STRIP_BALL) and not defender.has_skill(Skill.SURE_HANDS)
+        faces = (BBDieResult.DEFENDER_DOWN, BBDieResult.DEFENDER_STUMBLES,
+                 BBDieResult.PUSH, BBDieResult.PUSH, BBDieResult.BOTH_DOWN,
+                 BBDieResult.ATTACKER_DOWN)
+        outcomes = []
+        for face in faces:
+            self_down = face == BBDieResult.ATTACKER_DOWN or (
+                face == BBDieResult.BOTH_DOWN and not attacker.has_skill(Skill.BLOCK))
+            pushes = face in (BBDieResult.PUSH, BBDieResult.DEFENDER_STUMBLES, BBDieResult.DEFENDER_DOWN)
+            opp_down = (face == BBDieResult.BOTH_DOWN and not defender.has_skill(Skill.BLOCK)) or \
+                face == BBDieResult.DEFENDER_DOWN or (face == BBDieResult.DEFENDER_STUMBLES and (
+                    not defender.has_skill(Skill.DODGE) or attacker.has_skill(Skill.TACKLE))) or (pushes and crowd)
+            outcomes.append((self_down, opp_down, carrying_attacker and self_down,
+                             carrying_defender and (opp_down or (pushes and strip))))
+
+        def preference(outcome):
+            own_down, other_down, own_loss, other_loss = outcome if dice > 0 else (
+                outcome[1], outcome[0], outcome[3], outcome[2])
+            return own_down, not other_down, own_loss, not other_loss
+
+        # Stable sorting implements the documented face tie order. For rank i,
+        # all n dice must have rank >= i and at least one must have rank i.
+        # Count those disjoint rolls with integers, then divide just once. The
+        # duplicated push face has its actual multiplicity on the six-sided die.
+        ranked = sorted(zip(faces, outcomes), key=lambda item: preference(item[1]))
+        n = abs(dice)
+        order = (BBDieResult.ATTACKER_DOWN, BBDieResult.BOTH_DOWN, BBDieResult.PUSH,
+                 BBDieResult.DEFENDER_STUMBLES, BBDieResult.DEFENDER_DOWN)
+        counts = [0] * 5
+        for i, (face, outcome) in enumerate(ranked):
+            count = (6 - i) ** n - (5 - i) ** n
+            counts[order.index(face)] += count
+        return dice, tuple(counts), tuple(outcomes[faces.index(face)] for face in order)
 
     def get_blitz_probs(self, attacker: Player, attack_position: Square, defender: Player) -> Tuple[float, float, float, float]:
+        """The get_block_probs policy for one block from attack_position.
+
+        Includes Horns and assists at that origin. Conditions on reaching it;
+        movement, GFI, activation rolls and a possible second Frenzy block are
+        excluded. Reads hypothetical occupancy without moving player or ball.
         """
-        :param attacker:
-        :param attack_position:
-        :param defender:
-        :return: a tuple containing the knock-down probabilities of the attacker and defender given that attacker
-        blitzes from attack_position.
+        return self._get_block_probs_at(attacker, attack_position, defender, blitz=True)
+
+    def _validate_probability_options(self, policy, policies, already_rerolled):
+        if not isinstance(policy, str) or policy not in policies:
+            raise ValueError("policy: unsupported probability reroll policy")
+        if type(already_rerolled) is not bool:
+            raise ValueError("already_rerolled: expected bool")
+        if getattr(self.config, 'ruleset', None) != 'BB2016' or getattr(self.ruleset, 'name', None) != 'BB2016':
+            raise ValueError("ruleset: probability queries require BB2016 consistently")
+        if not isinstance(self.state.weather, WeatherType):
+            raise ValueError("weather: unrecognized probability query weather")
+
+    def _validate_probability_square(self, position, category):
+        if not isinstance(position, Square):
+            raise ValueError(category + ": expected an on-pitch Square")
+        if any(isinstance(c, bool) or not isinstance(c, Integral) for c in (position.x, position.y)):
+            raise ValueError(category + ": coordinates must be integers")
+        if self.is_out_of_bounds(position):
+            raise ValueError(category + ": square is off pitch")
+
+    def _validate_probability_player(self, player):
+        if not isinstance(player, Player):
+            raise ValueError("player: expected a registered Player")
+        team = player.team
+        if not isinstance(team, Team) or not any(team is t for t in self.state.teams) or \
+                self.state.team_by_id.get(team.team_id) is not team or \
+                self.state.player_by_id.get(player.player_id) is not player or \
+                self.state.team_by_player_id.get(player.player_id) is not team or \
+                not any(player is p for p in team.players):
+            raise ValueError("player: foreign or unregistered player/team")
+        self._validate_probability_square(player.position, 'origin')
+        if self.get_player_at(player.position) is not player:
+            raise ValueError("origin: player is not on the pitch at its position")
+
+    def _apply_probability_reroll(self, player, counts, denominator, triggers,
+                                  policy, already_rerolled, passing=False):
+        """Transform integer counts, dividing only when constructing public values."""
+        pass_available = bool(passing and player.can_use_skill(Skill.PASS))
+        team_available = bool(self.can_use_reroll(player.team))
+        source = 'none'
+        if not already_rerolled and policy != 'never':
+            if pass_available:
+                source = 'pass'
+            elif team_available and policy in ('pass_skill_then_team', 'avoid_attacker_down'):
+                source = 'team'
+        loner_denominator = 2 if source == 'team' and player.has_skill(Skill.LONER) else 1
+        bad = sum(count for count, trigger in zip(counts, triggers) if trigger)
+        use = bad / denominator if source != 'none' else 0.0
+        info = RerollProbabilityInfo(
+            policy, already_rerolled, pass_available, team_available, source,
+            1 / loner_denominator, use / loner_denominator,
+            use if source == 'pass' else 0.0, use if source == 'team' else 0.0)
+        if source != 'none':
+            counts = tuple(count * (denominator * loner_denominator - denominator * trigger + bad)
+                           for count, trigger in zip(counts, triggers))
+            denominator = denominator ** 2 * loner_denominator
+        return counts, denominator, info
+
+    def get_block_outcome_probs(self, attacker: Player, defender: Player, *,
+                                reroll_policy: BlockRerollPolicy = 'never',
+                                already_rerolled: bool = False) -> BlockOutcomeProbabilities:
+        """One conditional block's direct effects under issue8_local_v1 selection.
+
+        avoid_attacker_down replaces all dice only after a selected self-down,
+        using the attacker's eligible team resource (and an unrerolled Loner 4+).
+        See docs/probability-queries.md for optional-skill/continuation conditions.
         """
-        orig_position = self.get_square(attacker.position.x, attacker.position.y)
-        if attacker.position != attack_position:
-            self.move(attacker, attack_position)
-        p_self, p_opp, p_fumble_self, p_fumble_opp = self.get_block_probs(attacker, defender)
-        if attacker.position != orig_position:
-            self.move(attacker, orig_position)
-        return p_self, p_opp, p_fumble_self, p_fumble_opp
+        return self._get_block_outcome_probs_at(attacker, None, defender, False,
+                                                reroll_policy, already_rerolled)
+
+    def get_blitz_outcome_probs(self, attacker: Player, attack_position: Square, defender: Player, *,
+                                reroll_policy: BlockRerollPolicy = 'never',
+                                already_rerolled: bool = False) -> BlockOutcomeProbabilities:
+        """The typed block experiment at a hypothetical origin, including Horns.
+
+        Conditions on reaching this one block; excludes travel and continuation.
+        Juggernaut blitzes are unsupported. No player or carried ball is moved.
+        """
+        return self._get_block_outcome_probs_at(attacker, attack_position, defender, True,
+                                                reroll_policy, already_rerolled)
+
+    def _get_block_outcome_probs_at(self, attacker, position, defender, blitz, policy, already_rerolled):
+        self._validate_probability_options(policy, ('never', 'avoid_attacker_down'), already_rerolled)
+        self._validate_probability_player(attacker)
+        self._validate_probability_player(defender)
+        if attacker is defender or attacker.team is defender.team:
+            raise ValueError("players: block requires distinct opposing players")
+        if not blitz:
+            position = attacker.position
+        self._validate_probability_square(position, 'origin')
+        if position.distance(defender.position) != 1:
+            raise ValueError("target: block requires an adjacent defender")
+        if len(self.state.pitch.balls) > 1 or any(not isinstance(b, Ball) for b in self.state.pitch.balls):
+            raise ValueError("ball: blocks support zero or one pitch Ball")
+        if blitz and attacker.has_skill(Skill.JUGGERNAUT):
+            raise ValueError("Juggernaut: blitz probability queries are unsupported")
+        dice, counts, outcomes = self._get_block_face_counts_at(attacker, position, defender, blitz, strict=True)
+        counts, denominator, info = self._apply_probability_reroll(
+            attacker, counts, 6 ** abs(dice), tuple(o[0] for o in outcomes), policy, already_rerolled)
+        marginals = tuple(sum(c * o[i] for c, o in zip(counts, outcomes)) / denominator for i in range(4))
+        return BlockOutcomeProbabilities(
+            *marginals, tuple(c / denominator for c in counts), 'BB2016', 'single_block_direct_effects_v1',
+            'issue8_local_v1', int(dice), 'attacker' if dice > 0 else 'defender', 'attacker', blitz,
+            (int(position.x), int(position.y)), info)
+
+    def get_pass_outcome_probs(self, player: Player, piece: Ball, position: Square, *,
+                               reroll_policy: PassRerollPolicy = 'pass_skill',
+                               already_rerolled: bool = False) -> PassOutcomeProbabilities:
+        """Accurate/inaccurate/fumble conditional on a normal ball launch roll.
+
+        Interception has not stopped the launch; catch and continuation are
+        excluded. Preserves PassAttempt's accuracy-first branch order, including
+        high AG and natural six. Safe Throw, TTM, bombs and Hail Mary are rejected.
+        See docs/probability-queries.md for policies, costs and the complete domain.
+        """
+        self._validate_probability_options(reroll_policy, ('never', 'pass_skill', 'pass_skill_then_team'),
+                                            already_rerolled)
+        self._validate_probability_player(player)
+        self._validate_probability_square(position, 'target')
+        if position == player.position:
+            raise ValueError("target: pass target equals origin")
+        if not isinstance(piece, Ball) or len(self.state.pitch.balls) != 1 or self.state.pitch.balls[0] is not piece:
+            raise ValueError("ball: pass requires the game's single registered pitch Ball")
+        if player.has_skill(Skill.SAFE_THROW):
+            raise ValueError("Safe Throw: held-ball fourth outcome is unsupported")
+        distance = self.get_pass_distance(player.position, position)
+        if distance not in (PassDistance.QUICK_PASS, PassDistance.SHORT_PASS,
+                             PassDistance.LONG_PASS, PassDistance.LONG_BOMB):
+            raise ValueError("distance: Hail Mary or unsupported pass range")
+        if self.state.weather == WeatherType.BLIZZARD and distance in (PassDistance.LONG_PASS, PassDistance.LONG_BOMB):
+            raise ValueError("Blizzard: only quick and short passes are supported")
+        agility = player.get_ag()
+        if isinstance(agility, bool) or not isinstance(agility, Integral) or not 1 <= agility <= 10:
+            raise ValueError("agility target: expected effective integer AG in 1..10")
+        target = Rules.agility_table[agility]
+        modifier = self.get_pass_modifiers(player, distance, ttm=False)
+        for category, value in (('agility target', target), ('modifier', modifier)):
+            if isinstance(value, bool) or not isinstance(value, Integral):
+                raise ValueError(category + ": expected a finite integer")
+        target, modifier = int(target), int(modifier)
+        counts = [0, 0, 0]
+        for raw in range(1, 7):
+            if raw == 6 or (raw != 1 and raw + modifier >= target):
+                counts[0] += 1
+            elif raw == 1 or raw + modifier <= 1:
+                counts[2] += 1
+            else:
+                counts[1] += 1
+        counts, denominator, info = self._apply_probability_reroll(
+            player, counts, 6, (False, True, True), reroll_policy, already_rerolled, passing=True)
+        return PassOutcomeProbabilities(
+            *(c / denominator for c in counts), 'BB2016', 'normal_ball_launch_reached_v1',
+            int(target), int(modifier), distance, self.state.weather,
+            (int(player.position.x), int(player.position.y)), (int(position.x), int(position.y)), info)
 
     def get_dodge_prob(self, player: Player, position: Square, allow_dodge_reroll: bool=True, allow_team_reroll: bool=False) -> float:
+        """Probability of a single dodge with the existing optional reroll flags.
+
+        Uses the same conditional roll model as get_dodge_prob_from; does not
+        consume a reroll, roll dice, or resolve optional Diving Tackle choices.
         """
-        :param player:
-        :param position:
-        :param allow_dodge_reroll:
-        :param allow_team_reroll:
-        :return: the probability of a successful dodge for player to position.
-        """
-        if self.num_tackle_zones_in(player) == 0:
+        return self._get_dodge_prob_at(player, player.position, position, allow_dodge_reroll, allow_team_reroll)
+
+    def _get_dodge_prob_at(self, player: Player, origin: Square, position: Square,
+                           allow_dodge_reroll: bool, allow_team_reroll: bool) -> float:
+        if self.num_tackle_zones_at(player, origin) == 0:
             return 1.0
-        ag_roll = Rules.agility_table[player.get_ag()] - self.get_dodge_modifiers(player, position)
+        ag_roll = Rules.agility_table[player.get_ag()] - self.get_dodge_modifiers(
+            player, position, from_position=origin)
         ag_roll = max(2, min(6, ag_roll))
         successful_outcomes = 6 - (ag_roll - 1)
         p = successful_outcomes / 6.0
-        if allow_dodge_reroll and player.has_skill(Skill.DODGE) and not self.get_adjacent_opponents(player, down=False, skill=Skill.TACKLE):
+        tacklers = self.get_adjacent_players(origin, team=self.get_opp_team(player.team),
+                                            down=False, skill=Skill.TACKLE)
+        if allow_dodge_reroll and player.has_skill(Skill.DODGE) and not tacklers:
             p += (1.0-p)*p
         elif allow_team_reroll and self.can_use_reroll(player.team):
             p += (1.0 - p) * p
@@ -1992,11 +2534,8 @@ class Game:
         :param allow_team_reroll:
         :return: the probability of a successful dodge for player from from_position to to_position.
         """
-        orig_position = self.get_square(player.position.x, player.position.y)
-        self.move(player, from_position)
-        p = self.get_dodge_prob(player, to_position, allow_dodge_reroll, allow_team_reroll)
-        self.move(player, orig_position)
-        return p
+        self._validate_query_position(player, from_position)
+        return self._get_dodge_prob_at(player, from_position, to_position, allow_dodge_reroll, allow_team_reroll)
 
     def get_pickup_prob(self, player: Player, position: Square, allow_pickup_reroll: bool=True,
                         allow_team_reroll: bool=False) -> float:
@@ -2019,13 +2558,12 @@ class Game:
 
     def get_pass_prob(self, player: Player, piece: Piece, position: Square,
                       allow_pass_reroll: bool = True, allow_team_reroll: bool = False) -> float:
-        """
-        :param player: passer
-        :param piece: piece to pass
-        :param position: the position of the ball
-        :param allow_pass_reroll:
-        :param allow_team_reroll:
-        :return: the probability of a successful catch for player.
+        """Historical accuracy-threshold estimate, not catch/whole-pass success.
+
+        Retains the quick/short TTM approximation and at most one reroll based
+        on has_skill(PASS) or team eligibility. Used Pass, Loner and already-
+        rerolled history are deliberately not modeled. For an explicit ordinary
+        ball launch distribution use get_pass_outcome_probs instead.
         """
         distance = self.get_pass_distance(from_position=player.position, to_position=position)
         ttm = type(piece) != Ball
@@ -2314,7 +2852,8 @@ class Game:
         """
         return self.state.weather
 
-    def apply_casualty(self, player: Player, inflictor: Player, casualty, effect: CasualtyEffect, roll: DiceRoll) \
+    def apply_casualty(self, player: Player, inflictor: Player, casualty, effect: CasualtyEffect, roll: DiceRoll,
+                       apothecary: bool = False) \
             -> None:
         """
         Applies a casualty to a player and moves it to the dugout.
@@ -2323,10 +2862,14 @@ class Game:
         :param casualty: the Casualty to apply.
         :param effect: The CasualtyEffect to apply.
         :param roll: The casualty roll that caused the casualty.
+        :param apothecary: Whether a treated Badly Hurt result may return to reserves.
         """
         # Move to casualty box
         if player.position is not None:
-            self.pitch_to_casualties(player)
+            if apothecary and effect is CasualtyEffect.NONE:
+                self.pitch_to_reserves(player)
+            else:
+                self.pitch_to_casualties(player)
         # Report effect and MNG
         if effect == CasualtyEffect.NONE:
             self.report(Outcome(OutcomeType.BADLY_HURT, player=player, opp_player=inflictor, team=player.team,

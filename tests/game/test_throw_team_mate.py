@@ -41,8 +41,8 @@ def test_failed_pickup_teammate():
     right_stuff_position = Square(2, 1)
     game.put(right_stuff, right_stuff_position)
     game.step(Action(ActionType.START_PASS, player=passer))
-    D6.fix(1)  # Cause fumble
-    D6.fix(6)  # Land
+    game.dice.fix(D6, 1)  # Cause fumble
+    game.dice.fix(D6, 6)  # Land
     game.step(Action(ActionType.PICKUP_TEAM_MATE, player=passer, position=right_stuff.position))
     assert right_stuff.state.in_air
     game.step(Action(ActionType.THROW_TEAM_MATE, player=passer, position=Square(5, 5)))
@@ -72,11 +72,11 @@ def test_successfull_land():
     right_stuff_position = Square(2, 1)
     game.put(right_stuff, right_stuff_position)
     game.step(Action(ActionType.START_PASS, player=passer))
-    D6.fix(6)  # Accurate pass
-    D8.fix(5)  # Forward scatter
-    D8.fix(5)  # Forward scatter
-    D8.fix(5)  # Forward scatter
-    D6.fix(6)  # Land
+    game.dice.fix(D6, 6)  # Accurate pass
+    game.dice.fix(D8, 5)  # Forward scatter
+    game.dice.fix(D8, 5)  # Forward scatter
+    game.dice.fix(D8, 5)  # Forward scatter
+    game.dice.fix(D6, 6)  # Land
     game.step(Action(ActionType.PICKUP_TEAM_MATE, player=passer, position=right_stuff.position))
     assert right_stuff.state.in_air
     target_square = Square(5, 5)
@@ -105,12 +105,12 @@ def test_successfull_land_on_ball():
     right_stuff_position = Square(2, 1)
     game.put(right_stuff, right_stuff_position)
     game.step(Action(ActionType.START_PASS, player=passer))
-    D6.fix(6)  # Accurate pass
-    D8.fix(5)  # Forward scatter
-    D8.fix(5)  # Forward scatter
-    D8.fix(5)  # Forward scatter
-    D6.fix(6)  # Land
-    D6.fix(6)  # potential pickup ball
+    game.dice.fix(D6, 6)  # Accurate pass
+    game.dice.fix(D8, 5)  # Forward scatter
+    game.dice.fix(D8, 5)  # Forward scatter
+    game.dice.fix(D8, 5)  # Forward scatter
+    game.dice.fix(D6, 6)  # Land
+    game.dice.fix(D6, 6)  # potential pickup ball
     game.step(Action(ActionType.PICKUP_TEAM_MATE, player=passer, position=right_stuff.position))
     assert right_stuff.state.in_air
     target_square = Square(5, 5)
@@ -144,13 +144,13 @@ def test_failed_landing():
     right_stuff_position = Square(2, 1)
     game.put(right_stuff, right_stuff_position)
     game.step(Action(ActionType.START_PASS, player=passer))
-    D6.fix(6)  # Accurate pass
-    D8.fix(5)  # Forward scatter
-    D8.fix(5)  # Forward scatter
-    D8.fix(5)  # Forward scatter
-    D6.fix(1)  # Land
-    D6.fix(1)  # Armor roll
-    D6.fix(1)  # Armor roll
+    game.dice.fix(D6, 6)  # Accurate pass
+    game.dice.fix(D8, 5)  # Forward scatter
+    game.dice.fix(D8, 5)  # Forward scatter
+    game.dice.fix(D8, 5)  # Forward scatter
+    game.dice.fix(D6, 1)  # Land
+    game.dice.fix(D6, 1)  # Armor roll
+    game.dice.fix(D6, 1)  # Armor roll
     game.step(Action(ActionType.PICKUP_TEAM_MATE, player=passer, position=right_stuff.position))
     assert right_stuff.state.in_air
     target_square = Square(5, 5)
@@ -184,13 +184,13 @@ def test_failed_landing_ball():
     ball.is_carried = True
     game.put(right_stuff, right_stuff_position)
     game.step(Action(ActionType.START_PASS, player=passer))
-    D6.fix(6)  # Accurate pass
-    D8.fix(5)  # Forward scatter
-    D8.fix(5)  # Forward scatter
-    D8.fix(5)  # Forward scatter
-    D6.fix(1)  # Land
-    D6.fix(1)  # Armor roll
-    D6.fix(1)  # Armor roll
+    game.dice.fix(D6, 6)  # Accurate pass
+    game.dice.fix(D8, 5)  # Forward scatter
+    game.dice.fix(D8, 5)  # Forward scatter
+    game.dice.fix(D8, 5)  # Forward scatter
+    game.dice.fix(D6, 1)  # Land
+    game.dice.fix(D6, 1)  # Armor roll
+    game.dice.fix(D6, 1)  # Armor roll
     game.step(Action(ActionType.PICKUP_TEAM_MATE, player=passer, position=right_stuff.position))
     assert right_stuff.state.in_air
     target_square = Square(5, 5)
@@ -219,11 +219,11 @@ def test_successful_landing_with_ball():
     ball.is_carried = True
     assert game.has_ball(right_stuff)
     game.step(Action(ActionType.START_PASS, player=passer))
-    D6.fix(6)  # Accurate pass
-    D8.fix(5)  # Forward scatter
-    D8.fix(5)  # Forward scatter
-    D8.fix(5)  # Forward scatter
-    D6.fix(6)  # Land
+    game.dice.fix(D6, 6)  # Accurate pass
+    game.dice.fix(D8, 5)  # Forward scatter
+    game.dice.fix(D8, 5)  # Forward scatter
+    game.dice.fix(D8, 5)  # Forward scatter
+    game.dice.fix(D6, 6)  # Land
     game.step(Action(ActionType.PICKUP_TEAM_MATE, player=passer, position=right_stuff.position))
     assert right_stuff.state.in_air
     target_square = Square(5, 5)
@@ -269,14 +269,14 @@ def test_successful_landing_endzone():
     ball.position = right_stuff.position
     ball.is_carried = True
     game.step(Action(ActionType.START_PASS, player=passer))
-    D6.fix(6)  # Accurate pass
-    D8.fix(4)  # Backward scatter
-    D8.fix(5)  # Forward scatter
+    game.dice.fix(D6, 6)  # Accurate pass
+    game.dice.fix(D8, 4)  # Backward scatter
+    game.dice.fix(D8, 5)  # Forward scatter
     if x_endzone == 1:
-        D8.fix(4)  # Backward scatter
+        game.dice.fix(D8, 4)  # Backward scatter
     else:
-        D8.fix(5)  # Forward scatter
-    D6.fix(6)  # Land
+        game.dice.fix(D8, 5)  # Forward scatter
+    game.dice.fix(D6, 6)  # Land
     game.step(Action(ActionType.PICKUP_TEAM_MATE, player=passer, position=right_stuff.position))
     assert right_stuff.state.in_air
     game.step(Action(ActionType.THROW_TEAM_MATE, player=passer, position=target_square))
@@ -302,12 +302,12 @@ def test_successful_landing_crowd():
     right_stuff.extra_skills = [Skill.RIGHT_STUFF]
     game.put(right_stuff, right_stuff_square)
     game.step(Action(ActionType.START_PASS, player=passer))
-    D6.fix(6)  # Accurate pass
-    D8.fix(4)  # Backward scatter
-    D8.fix(5)  # Forward scatter
-    D8.fix(2)  # Up scatter
-    D6.fix(1)  # injury
-    D6.fix(1)  # injury
+    game.dice.fix(D6, 6)  # Accurate pass
+    game.dice.fix(D8, 4)  # Backward scatter
+    game.dice.fix(D8, 5)  # Forward scatter
+    game.dice.fix(D8, 2)  # Up scatter
+    game.dice.fix(D6, 1)  # injury
+    game.dice.fix(D6, 1)  # injury
     game.step(Action(ActionType.PICKUP_TEAM_MATE, player=passer, position=right_stuff.position))
     assert right_stuff.state.in_air
     game.step(Action(ActionType.THROW_TEAM_MATE, player=passer, position=target_square))
@@ -341,20 +341,20 @@ def test_successful_landing_on_opp_players():
     game.put(opp_player_a, Square(9, 8))
     game.put(opp_player_b, Square(10, 8))
     game.step(Action(ActionType.START_PASS, player=passer))
-    D6.fix(6)  # Accurate pass
-    D8.fix(4)  # Backward scatter
-    D8.fix(5)  # Forward scatter
-    D8.fix(5)  # Forward scatter
-    D6.fix(6)  # Armor
-    D6.fix(6)  # Armor
-    D6.fix(4)  # injury
-    D6.fix(5)  # injury
-    D8.fix(5)  # Forward scatter
-    D6.fix(6)  # Armor (in case)
-    D6.fix(6)  # Armor (in case)
-    D6.fix(6)  # Injury (in case)
-    D6.fix(6)  # Injury (in case)
-    D6.fix(6)  # Land
+    game.dice.fix(D6, 6)  # Accurate pass
+    game.dice.fix(D8, 4)  # Backward scatter
+    game.dice.fix(D8, 5)  # Forward scatter
+    game.dice.fix(D8, 5)  # Forward scatter
+    game.dice.fix(D6, 6)  # Armor
+    game.dice.fix(D6, 6)  # Armor
+    game.dice.fix(D6, 4)  # injury
+    game.dice.fix(D6, 5)  # injury
+    game.dice.fix(D8, 5)  # Forward scatter
+    game.dice.fix(D6, 6)  # Armor (in case)
+    game.dice.fix(D6, 6)  # Armor (in case)
+    game.dice.fix(D6, 6)  # Injury (in case)
+    game.dice.fix(D6, 6)  # Injury (in case)
+    game.dice.fix(D6, 6)  # Land
     game.step(Action(ActionType.PICKUP_TEAM_MATE, player=passer, position=right_stuff.position))
     assert right_stuff.state.in_air
     game.step(Action(ActionType.THROW_TEAM_MATE, player=passer, position=target_square))
@@ -388,16 +388,16 @@ def test_successful_landing_on_own_player():
     player = team.players[3]
     game.put(player, Square(9, 8))
     game.step(Action(ActionType.START_PASS, player=passer))
-    D6.fix(6)  # Accurate pass
-    D8.fix(4)  # Backward scatter
-    D8.fix(5)  # Forward scatter
-    D8.fix(5)  # Forward scatter
-    D6.fix(6)  # Armor
-    D6.fix(6)  # Armor
-    D6.fix(4)  # injury
-    D6.fix(5)  # injury
-    D8.fix(5)  # Forward scatter
-    D6.fix(6)  # Land
+    game.dice.fix(D6, 6)  # Accurate pass
+    game.dice.fix(D8, 4)  # Backward scatter
+    game.dice.fix(D8, 5)  # Forward scatter
+    game.dice.fix(D8, 5)  # Forward scatter
+    game.dice.fix(D6, 6)  # Armor
+    game.dice.fix(D6, 6)  # Armor
+    game.dice.fix(D6, 4)  # injury
+    game.dice.fix(D6, 5)  # injury
+    game.dice.fix(D8, 5)  # Forward scatter
+    game.dice.fix(D6, 6)  # Land
     game.step(Action(ActionType.PICKUP_TEAM_MATE, player=passer, position=right_stuff.position))
     assert right_stuff.state.in_air
     game.step(Action(ActionType.THROW_TEAM_MATE, player=passer, position=target_square))
@@ -462,11 +462,11 @@ def test_throw_teammate_while_having_ball():
     right_stuff_position = Square(2, 1)
     game.put(right_stuff, right_stuff_position)
     game.step(Action(ActionType.START_PASS, player=passer))
-    D6.fix(6)  # Accurate pass
-    D8.fix(5)  # Forward scatter
-    D8.fix(5)  # Forward scatter
-    D8.fix(5)  # Forward scatter
-    D6.fix(6)  # Land
+    game.dice.fix(D6, 6)  # Accurate pass
+    game.dice.fix(D8, 5)  # Forward scatter
+    game.dice.fix(D8, 5)  # Forward scatter
+    game.dice.fix(D8, 5)  # Forward scatter
+    game.dice.fix(D6, 6)  # Land
     game.step(Action(ActionType.PICKUP_TEAM_MATE, player=passer, position=right_stuff.position))
     assert right_stuff.state.in_air
     assert not (ActionType.PASS in [aa.action_type for aa in game.state.available_actions])
@@ -511,8 +511,8 @@ def test_throw_ball_no_pickup():
     catcher.role.ag = 3
     game.put(catcher, Square(3, 3))
     game.step(Action(ActionType.START_PASS, player=passer))
-    D6.fix(6)  # Accurate pass
-    D6.fix(6)  # Successful catch
+    game.dice.fix(D6, 6)  # Accurate pass
+    game.dice.fix(D6, 6)  # Successful catch
     game.step(Action(ActionType.PASS, player=passer, position=catcher.position))
     assert not (ActionType.PICKUP_TEAM_MATE in [aa.action_type for aa in game.state.available_actions])
     assert ball.position == catcher.position
