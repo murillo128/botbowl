@@ -24,6 +24,15 @@ from .session import SessionResult as SessionResult
 from .session import SessionSnapshot as SessionSnapshot
 from .session import SimulationSession as SimulationSession
 from .session import StaleRevision as StaleRevision
+from .scenarios import SCENARIO_RECIPES as SCENARIO_RECIPES
+from .scenarios import ScenarioError as ScenarioError
+from .scenarios import ScenarioRecipeV1 as ScenarioRecipeV1
+from .scenarios import ScenarioResult as ScenarioResult
+from .scenarios import ScenarioSession as ScenarioSession
+from .scenarios import ScenarioSnapshot as ScenarioSnapshot
+from .scenarios import ScenarioSpecV1 as ScenarioSpecV1
+from .scenarios import create_scenario as create_scenario
+from .scenarios import scenario_spec as scenario_spec
 from .replays import IndexedReplayEvent as IndexedReplayEvent
 from .replays import ReplayContinuation as ReplayContinuation
 from .replays import ReplayReader as ReplayReader
@@ -56,6 +65,15 @@ __all__ = [
     "ReplayReader",
     "ReplayRecorder",
     "Scenario",
+    "SCENARIO_RECIPES",
+    "ScenarioError",
+    "ScenarioRecipeV1",
+    "ScenarioResult",
+    "ScenarioSession",
+    "ScenarioSnapshot",
+    "ScenarioSpecV1",
+    "create_scenario",
+    "scenario_spec",
     "SessionClosed",
     "SessionConfig",
     "SessionDiagnostic",
