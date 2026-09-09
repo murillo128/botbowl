@@ -4,6 +4,7 @@
   const $ = id => document.getElementById(id);
   let library = [], canFork = false, limit = 32 * 1024 * 1024, token = '', selectedEntity = null;
   let generation = 0, playing = false, timer = null, interiorEvent = false, actions = [];
+  let selectionGeneration = 0, searchGeneration = 0;
   const labels = {observed:'Observed', simulated_alternative:'Simulated continuation',
     model_prediction:'Model prediction', retrospective_analysis:'Retrospective analysis', human_annotation:'Human annotation'};
   const say = message => { $('status').textContent = message; };
@@ -26,6 +27,12 @@
     playing = false; clearTimeout(timer); $('play').textContent = 'Play navigation';
     $('play').setAttribute('aria-pressed', 'false');
   }
+  function invalidateSelection(clearEvents = false) {
+    ++selectionGeneration; ++generation;
+    if (clearEvents) $('event').replaceChildren(new Option('Choose event', ''));
+  }
+  const selectionIsCurrent = (root, current) =>
+    selectionGeneration === current && factual() && factual().id === root.id;
   const run = fn => async event => {if (event) event.preventDefault(); try {await fn(event);} catch (error) {stop(); say(error.message);}};
   function options(select, rows, first) {
     const old = select.value; select.replaceChildren(new Option(first, ''));
@@ -127,19 +134,20 @@
     $('fork').disabled=true; actions=[]; $('action').replaceChildren();
     say('Connected · navigation is read-only');
   }
-  async function navigate(value) {
+  async function navigate(value, clearEvents = false) {
+    invalidateSelection(clearEvents); $('event').value='';
     interiorEvent=false; $('boundary').textContent=''; $('event-detail').textContent='';
     $('decision').value=String(value); await render();
   }
-  $('connect').addEventListener('submit',run(async () => {stop();say('Connecting…');token=$('token').value;await refresh();await render();say('Connected · navigation is read-only');}));
+  $('connect').addEventListener('submit',run(async () => {stop();invalidateSelection();say('Connecting…');token=$('token').value;await refresh();await render();say('Connected · navigation is read-only');}));
   $('upload').addEventListener('change',run(async () => {
     const file=$('upload').files[0]; if (!file) return;
     if (file.size>limit) throw new Error('Replay file too large');
     say('Validating replay…');const row=await api('replays',JSON.parse(await file.text())); await refresh();
-    $('factual').value=row.id;updateBranches();await navigate(row.initial.decision_seq);
+    $('factual').value=row.id;updateBranches();await navigate(row.initial.decision_seq,true);
   }));
-  $('factual').addEventListener('change',run(async()=>{stop();interiorEvent=false;selectedEntity=null;updateBranches();if(factual())await navigate(factual().initial.decision_seq);}));
-  ['branch-a','branch-b'].forEach(id=>$(id).addEventListener('change',run(async()=>{stop();await render();})));
+  $('factual').addEventListener('change',run(async()=>{stop();interiorEvent=false;selectedEntity=null;updateBranches();await navigate(factual()?factual().initial.decision_seq:0,true);}));
+  ['branch-a','branch-b'].forEach(id=>$(id).addEventListener('change',run(async()=>{stop();invalidateSelection();await render();})));
   $('go').addEventListener('click',run(async()=>{stop();await navigate(Number($('decision').value));}));
   $('previous').addEventListener('click',run(async()=>{stop();await navigate(Number($('decision').value)-1);}));
   $('next').addEventListener('click',run(async()=>{stop();await navigate(Number($('decision').value)+1);}));
@@ -151,19 +159,32 @@
   }));
   $('search').addEventListener('click',run(async()=>{
     const root=factual();if(!root)return;
-    const result=await api(`replays/${root.id}/events?kind=${encodeURIComponent($('kind').value)}&entity=${encodeURIComponent($('event-entity').value)}`);
-    $('event').replaceChildren(new Option('Choose event',''));
-    result.events.forEach(e=>$('event').add(new Option(`${e.context.event_seq} · ${e.kind} · decision ${e.decision_seq}`,String(e.context.event_seq))));
-    say(`${result.events.length} events found`);
+    const current=selectionGeneration, request=++searchGeneration;
+    const isCurrent=()=>selectionIsCurrent(root,current) && searchGeneration===request;
+    try {
+      const result=await api(`replays/${root.id}/events?kind=${encodeURIComponent($('kind').value)}&entity=${encodeURIComponent($('event-entity').value)}`);
+      if(!isCurrent())return;
+      $('event').replaceChildren(new Option('Choose event',''));
+      result.events.forEach(e=>$('event').add(new Option(`${e.context.event_seq} · ${e.kind} · decision ${e.decision_seq}`,String(e.context.event_seq))));
+      say(`${result.events.length} events found`);
+    } catch(error) {if(isCurrent())throw error;}
   }));
+  ['kind','event-entity'].forEach(id=>$(id).addEventListener('input',()=>{++searchGeneration;}));
   $('event').addEventListener('change',run(async()=>{
-    if(!$('event').value)return;stop();const root=factual();
-    const result=await api(`replays/${root.id}/event?event=${$('event').value}`);
-    interiorEvent=true;$('decision').value=String(result.previous_decision);await render();
-    $('event-detail').textContent=showJSON(result.event);
-    $('boundary').textContent=`Interior event ${result.event.context.event_seq}. Board is the preceding restorable decision ${result.previous_decision}; next boundary ${result.next_decision}. Use Go to decision to explicitly select a branch point.`;
+    stop();invalidateSelection();const root=factual(), event=$('event').value;
+    if(!root || !event)return;
+    const current=selectionGeneration;
+    const isCurrent=()=>selectionIsCurrent(root,current) && $('event').value===event;
+    try {
+      const result=await api(`replays/${root.id}/event?event=${event}`);
+      if(!isCurrent())return;
+      interiorEvent=true;$('decision').value=String(result.previous_decision);await render();
+      if(!isCurrent())return;
+      $('event-detail').textContent=showJSON(result.event);
+      $('boundary').textContent=`Interior event ${result.event.context.event_seq}. Board is the preceding restorable decision ${result.previous_decision}; next boundary ${result.next_decision}. Use Go to decision to explicitly select a branch point.`;
+    } catch(error) {if(isCurrent())throw error;}
   }));
-  $('decision').addEventListener('input',()=>{stop();actions=[];$('fork').disabled=true;});
+  $('decision').addEventListener('input',()=>{stop();invalidateSelection();actions=[];$('fork').disabled=true;});
   $('load-actions').addEventListener('click',run(async()=>{
     const source=factual().id, decision=$('decision').value;
     const result=await api(`replays/${source}/actions?decision=${decision}`);

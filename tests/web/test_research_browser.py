@@ -8,6 +8,8 @@ import pytest
 playwright = pytest.importorskip('playwright.sync_api')
 pytest.importorskip('flask')
 from werkzeug.serving import make_server
+from botbowl.lab.research import pack_replay
+from tests.lab.test_replays import record
 from tests.lab.test_research_viewer import research, auth, prediction  # noqa: F401
 
 expect = playwright.expect
@@ -164,3 +166,62 @@ def test_invalid_file_missing_resource_and_keyboard_navigation(page):
     button.press('Enter')
     expect(page.locator('.context')).to_contain_text('"decision_seq": 2')
     assert page.request.get(page.url + 'replays/missing/frame?decision=0', headers=auth()).status == 404
+
+
+@pytest.mark.parametrize('pending', ['event', 'search', 'frame'])
+@pytest.mark.parametrize('destination', ['replay', 'decision'])
+def test_navigation_discards_delayed_event_work(page, tmp_path, pending, destination):
+    page, store, bundle = page
+    game, _, _, _, _ = record(tmp_path, decisions=0, name='empty')
+    try:
+        empty = store.upload('viewer', pack_replay(tmp_path / 'empty'))
+    finally:
+        game.close()
+    assert empty['final']['event_seq'] == 0
+    connect(page, 'editor')
+    open_replay(page, bundle)
+    root = page.locator('#factual').input_value()
+    page.get_by_role('button', name='Search events').click()
+    expect(page.locator('#event option').nth(1)).to_be_attached()
+    event = page.locator('#event option').nth(1).get_attribute('value')
+    suffix = {'event': '/event?event=' + event, 'search': '/events?*', 'frame': '/frame?*'}[pending]
+    held = []
+
+    def hold_response(route):
+        if held:
+            route.continue_()
+            return
+        held.append((route, route.fetch()))
+        page.locator('body').evaluate("body => body.dataset.responseHeld = 'yes'")
+
+    page.route('**/replays/' + root + suffix, hold_response)
+    if pending == 'search':
+        page.get_by_role('button', name='Search events').click()
+    else:
+        page.get_by_label('Event', exact=True).select_option(event)
+    expect(page.locator('body')).to_have_attribute('data-response-held', 'yes')
+    assert len(held) == 1
+    # Only the captured response remains delayed; navigation uses the real server.
+    if destination == 'replay':
+        page.locator('#factual').select_option(empty['id'])
+        expect(page.locator('.panel')).to_have_attribute('data-replay-id', empty['id'])
+        target = 0
+    else:
+        go(page, 3)
+        target = 3
+    before = page.locator('.context').text_content()
+    route, response = held[0]
+    with page.expect_response(response.url) as released:
+        route.fulfill(response=response)
+    released.value.finished()
+    # Let fetch consumers run before waiting for any frame requests they start.
+    page.evaluate('() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))')
+    page.wait_for_load_state('networkidle')
+    expect(page.locator('.context')).to_have_text(before)
+    expect(page.locator('#decision')).to_have_value(str(target))
+    expect(page.locator('#boundary')).to_be_empty()
+    expect(page.locator('#event-detail')).to_be_empty()
+    expect(page.get_by_role('button', name='Load legal alternatives')).to_be_enabled()
+    expect(page.get_by_role('status')).to_have_text('Connected · navigation is read-only')
+    if destination == 'replay':
+        expect(page.locator('#event option')).to_have_count(1)
