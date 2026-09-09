@@ -87,7 +87,7 @@ def main():
     plan = json.loads(args.plan.read_text()) if args.mode == 'run' else None
     receipt = dict(source_revision=args.revision, backend=args.backend,
                    python=sys.version, part=args.part, collected=[], selected=[], executed=[],
-                   exit_code=None)
+                   failed=[], exit_code=None)
 
     class Receipt:
         @pytest.hookimpl(trylast=True)
@@ -107,7 +107,13 @@ def main():
             items[:] = [i for i in items if i.nodeid in selected_set]
             receipt['selected'] = selected
 
+        def pytest_collectreport(self, report):
+            if report.failed:
+                receipt['failed'].append({'nodeid': report.nodeid, 'phase': 'collection'})
+
         def pytest_runtest_logreport(self, report):
+            if report.failed:
+                receipt['failed'].append({'nodeid': report.nodeid, 'phase': report.when})
             # Teardown receipts include legitimate capability skips/xfails. The
             # pytest exit code still rejects failed setup, call and teardown.
             if report.when == 'teardown':
