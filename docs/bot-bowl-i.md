@@ -1,6 +1,6 @@
 # Bot Bowl I
 
-Bot Bowl I was the first AI competition in Blood Bowl! The competition uses the [Fantasy Football AI (botbowl) framework](www.github.com/njustesen/botbowl) and the results were be presented at the IEEE Conference on Games in London, 21st August, 2019.
+Bot Bowl I was the first AI competition in Blood Bowl! The competition uses the [Fantasy Football AI (Bot Bowl) framework](https://github.com/njustesen/botbowl) and the results were be presented at the IEEE Conference on Games in London, 21st August, 2019.
 
 Bot Bowl I featured one track which used the traditional board size of 26×15 squares with 11 players on each side. Participants are, however, limited to use a prefixed human team. In future competitions, we plan to allow all teams and the option to customized rosters.
 
@@ -51,5 +51,4 @@ The two bots play very similarly, which is not at all surprising. Things they ne
 - Long term planning. This is the really difficult stuff so it’s hard to be too critical, but you’d see things like a bot taking great risks to move a catcher into scoring range, and then next turn just moving him backwards. They just don’t feel like they’re playing with a consistent plan.
 - No use of Thrower. Neither bot ever tried to use their thrower to do anything, which is notable. Maybe they just don’t value Sure Hands as a skill, maybe they ignore it completely, I don’t know. They were mostly using catchers to carry the ball, which has its logic, but I’d like to see them try to get more value out of the few players with skills that they do have.
 
-We hope to see these things improved in the bots that will be submitted to [Bot Bowl II](docs/bot-bowl-ii.md). which will either be in the summer of 2020.
-
+We hope to see these things improved in the bots that will be submitted to [Bot Bowl II](bot-bowl-ii.md), which was planned for the summer of 2020.
