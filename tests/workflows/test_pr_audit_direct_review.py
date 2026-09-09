@@ -1,8 +1,7 @@
 """Regression checks for the isolated PR-audit launch contract.
 
-These tests run from the workflow's copied validation snapshot, so they intentionally
-assert only launcher behavior and do not depend on repository skills being copied
-into that temporary directory.
+These tests run from the workflow's copied validation snapshot, so they assert
+launcher behavior without duplicating the audit/reviewer skills' policy text.
 """
 
 from pathlib import Path
@@ -14,23 +13,32 @@ WORKFLOW = (ROOT / ".github/workflows/codex-review-ready.yml").read_text(encodin
 
 
 class DirectAuditReviewTests(unittest.TestCase):
-    def test_isolated_workflow_reviews_directly_then_returns_to_controller(self):
-        self.assertIn("fresh isolated audit session", WORKFLOW)
-        self.assertIn("Apply codex-independent-review directly yourself in this same session", WORKFLOW)
-        self.assertIn("do not spawn, delegate to, or wait for another reviewer or subagent", WORKFLOW)
-        self.assertIn("During the technical review phase remain read-only", WORKFLOW)
-        self.assertIn("leave the reviewer role and resume codex-pr-audit controller duties", WORKFLOW)
-
-    def test_positive_controller_path_is_merge_complete_close(self):
-        self.assertIn("automatic merge -> completed -> close sequence", WORKFLOW)
-        self.assertIn("positive final-capable audit will be merged and completed by the audit controller", WORKFLOW)
-        self.assertIn("Recheck BOTH head and base before recording and again before applying the verdict", WORKFLOW)
-
-    def test_reviewer_phase_itself_has_no_mutation_authority(self):
-        self.assertIn(
-            "During the technical review phase remain read-only: do not inherit or resume the executor conversation, use its worktree, edit implementation, switch branches, merge, label, or close anything",
-            WORKFLOW,
+    def test_prompt_only_supplies_dynamic_identity_and_trusted_policy_location(self):
+        expected = (
+            'task_prompt="Audit PR #${PR_NUMBER} for issue #${ISSUE_NUMBER} as the isolated audit controller. '
+            'Use trusted instructions at ${state_dir}/control/AGENTS.md and '
+            '${state_dir}/control/skills/codex-pr-audit/SKILL.md."'
         )
+        self.assertIn(expected, WORKFLOW)
+        for duplicated_policy in (
+            "Apply codex-independent-review directly yourself",
+            "do not spawn, delegate to, or wait for another reviewer or subagent",
+            "During the technical review phase remain read-only",
+            "automatic merge -> completed -> close sequence",
+            "Recheck BOTH head and base before recording",
+        ):
+            self.assertNotIn(duplicated_policy, WORKFLOW)
+
+    def test_prelaunch_guard_rechecks_current_control_plane_before_model_turn(self):
+        self.assertIn("Pre-launch guard: issue is no longer solely review-ready", WORKFLOW)
+        self.assertIn("Pre-launch guard: expected exactly one open PR", WORKFLOW)
+        self.assertIn('current["head"]["sha"] != expected_head', WORKFLOW)
+        self.assertIn('current["base"]["sha"] != expected_base', WORKFLOW)
+        self.assertIn("require a fresh audit launch", WORKFLOW)
+
+    def test_actions_token_is_available_only_to_guard_and_removed_from_codex(self):
+        self.assertIn("GITHUB_TOKEN: ${{ github.token }}", WORKFLOW)
+        self.assertIn("env -u GH_TOKEN -u GITHUB_TOKEN", WORKFLOW)
 
 
 if __name__ == "__main__":

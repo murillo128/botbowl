@@ -56,6 +56,8 @@ Fail closed on ambiguous ownership, contradictory issue references, wrong workfl
 
 ## Exact target invariants
 
+A fresh audit always targets the pull request's **current head at audit start**. `audit_head` and `audit_base` are snapshots captured only to detect races and prevent a moving PR from being reviewed or merged accidentally; they are not caller-selectable historical review targets. If the PR has advanced, start a fresh audit of its new current head instead of intentionally reviewing an older commit.
+
 The technical review covers the complete PR diff `audit_base..audit_head`, not merely the last commit.
 
 Immediately before recording a verdict and again immediately before any verdict-derived mutation, re-read the PR and require:
@@ -137,43 +139,3 @@ For `PASS` or `PASS_WITH_NOTES`:
 The independent reviewer did not merge anything: the review ended before step 3. Automatic integration is a separate controller action authorized by this audit workflow.
 
 If the exact-head merge cannot be completed because required GitHub checks or mergeability are temporarily unresolved, leave the issue `review-ready` and the PR open. Do not falsely mark `completed`; retry the audit/controller reconciliation later. Use `BLOCKED` only for a genuine unavailable required capability with no safe alternative, not ordinary pending checks.
-
-### Failed audit path
-
-For `FAIL`, preserve the finding in the canonical record, make the PR draft if necessary, replace `review-ready` with `execution-ready`, verify both, and stop. The audit controller does not fix the defect. The execution-ready transition launches or makes available the normal executor correction path.
-
-### Blocked audit path
-
-Use `BLOCKED` only when the review cannot be completed because indispensable evidence/capability is genuinely unavailable and there is no safe alternative. Preserve the exact cause. Do not use it for a technical failure, merge conflict, pending CI, or ordinary transport retry.
-
-## Idempotency and recovery
-
-Every mutation is verified before the next one.
-
-- Positive record + already merged exact head + open `review-ready` issue: finish `completed` + close without reviewing or merging a second time when this is clearly recovery of the same recorded audit.
-- Positive record + merged exact head + already `completed` closed issue: no-op success.
-- Positive record + unmerged unchanged PR: the controller may retry the exact-head merge after revalidating all positive preconditions.
-- `FAIL` record + draft PR + `execution-ready` issue: no-op success.
-- Any incompatible state or different head/base: stop rather than overwrite another workflow.
-
-Never reuse a verdict for a different head. Never label an issue `completed` before the matching PR merge is actually observed.
-
-## Scheduler interaction
-
-The executor releases the child at `review-ready`; that state does **not** satisfy DAG dependencies. A positive PR audit advances the child to `completed` only after merge. The `completed` label event is therefore the durable signal that may wake `codex-epic-scheduler` to schedule newly unblocked children.
-
-The audit controller does not itself choose the next child or run the scheduler.
-
-## Handoff
-
-Report only:
-
-- PR and controlling issue;
-- reviewed head/base;
-- verdict and final-capable status;
-- material findings/notes;
-- whether the PR was merged;
-- final issue state/open-closed status;
-- next bounded action.
-
-Positive audits terminate with the PR merged and issue `completed`/closed. `FAIL` terminates with executor correction next. `BLOCKED` terminates with restoration of the named capability/evidence next.
