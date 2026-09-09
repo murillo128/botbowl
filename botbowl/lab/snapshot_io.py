@@ -23,6 +23,7 @@ from botbowl.core.game import Game
 from botbowl.core.util import Stack
 from . import snapshots as memory
 from . import snapshot_schema as schema
+from .chance import ChancePolicy
 from .observations import ObservationControl
 from .rules import (CAPABILITIES_VERSION, RULESET_IMPLEMENTATION_VERSION,
                     RulesDescriptor, _backend_id, describe_rules)
@@ -158,7 +159,7 @@ def _versions(adapters, names=()):
             'schema': _digest({'fields': dict(CODEC_SCHEMA), 'lazy': schema.LAZY, 'episode': schema.EPISODE,
                               'action_targets': schema.ACTION_TARGETS,
                               'key_work_version': 1, 'semantic_version': 3,
-                              'resource_limits_version': 1,
+                              'resource_limits_version': 1, 'chance_adapter_version': 1,
                               'enums': {tag: list(cls.__members__) for tag, cls in _ENUMS.items()}}),
             'adapters': {name: 1 for name in sorted(names)}}
 
@@ -212,6 +213,8 @@ class _Encoder:
                         queues=[[[atom(v) for v in frame[die]]
                                  for die in (model.D3, model.D6, model.D8, model.BBDie)]
                                 for frame in value._queues], strict=list(value._strict))
+            if value.chance is not None:
+                node['chance'] = _json(value.chance.to_json()).decode('utf-8')
         else:
             _require(cls in _TAGS, 'Unknown reachable object or procedure type')
             attrs = vars(value)
@@ -660,6 +663,13 @@ class _Validator:
                      math.isfinite(node['cached_gaussian']), 'Invalid RNG index or Gaussian cache')
         elif tag == 'dice':
             expected.update(('rng', 'queues', 'strict'))
+            if 'chance' in node:
+                expected.add('chance')
+            chance = node.get('chance')
+            _require(chance is None or type(chance) is str, 'Invalid chance adapter state')
+            if chance is not None:
+                self.work.spend(len(chance))
+                ChancePolicy.from_json(_bounded_json(chance.encode('utf-8'), self.limits))
             self.atom(node.get('rng'), index)
             self.expect(node.get('rng'), {'rng'})
             queues, strict = node.get('queues'), node.get('strict')
@@ -913,6 +923,9 @@ class _Validator:
         if episode is not None:
             attrs = dict(self.items(episode))
             _require(set(attrs) == set(memory._EPISODE_DATA), 'Invalid episode fields')
+            _require(type(attrs['_chance_spec']) is str, 'Invalid chance reset adapter')
+            self.work.spend(len(attrs['_chance_spec']))
+            ChancePolicy.from_json(_bounded_json(attrs['_chance_spec'].encode('utf-8'), self.limits))
             self.expect(attrs['_control'], {'ObservationControl'})
             self.expect(attrs['_streams'], {'dict'})
             for name in ('decisions', '_max_decisions', '_max_steps'):
@@ -979,6 +992,7 @@ class _Decoder:
                              for frame in node['queues']]
             value._strict = list(node['strict'])
             value._scopes = [object() for _ in node['strict'][1:]]
+            value.chance = None if node.get('chance') is None else ChancePolicy.from_json(json.loads(node['chance']))
         else:
             value = object.__new__(_CLASSES[tag])
             self.memo[index] = value
@@ -1064,7 +1078,8 @@ class _CanonicalGraph:
                     self.literal(owner, ('array',), self.data([node['dtype'], node['shape']]))
             elif tag == 'dice':
                 self.atom(owner, ('rng',), node['rng'], opaque)
-                self.literal(owner, ('dice',), self.data([node['queues'], node['strict']]))
+                self.literal(owner, ('dice',), self.data([node['queues'], node['strict']] +
+                    ([node['chance']] if node.get('chance') is not None else [])))
             else:  # MT19937's scalar arrays/index/cache are ordered metadata.
                 self.literal(owner, ('rng-state',), self.data([
                     node['algorithm'], node['keys'], node['position'], node['has_gauss'], node['cached_gaussian']]))
@@ -1362,6 +1377,29 @@ def _descriptor(game):
                           game.state.home_team, game.state.away_team).to_json()
 
 
+def snapshot_hash(snapshot, *, adapters=None, limits=SnapshotLimits()):
+    """Return the persistent codec's validated semantic hash without writing.
+
+    This is the stable state identity used by executable replay transitions.
+    It covers the same bounded graph and compatibility checks as
+    :func:`write_snapshot` and never changes the supplied snapshot.
+    """
+    try:
+        _require(type(snapshot) is memory.Snapshot, 'Expected capture_snapshot() result')
+        graph = _Encoder(limits)
+        roots = {name: graph.atom(value) for name, value in (
+            ('game', snapshot._game), ('episode', snapshot._episode),
+            ('components', snapshot._components))}
+        payload = {'roots': roots, 'nodes': graph.nodes}
+        _, semantic = _validate_and_hash(payload, snapshot.scope, limits, adapters)
+        memory.clone_from_snapshot(snapshot, adapters=adapters)
+        return semantic
+    except memory.SnapshotError:
+        raise
+    except (TypeError, ValueError, KeyError, AttributeError, OverflowError, RecursionError) as error:
+        raise SnapshotFileError('Cannot hash snapshot data') from error
+
+
 def write_snapshot(path, snapshot, *, adapters=None, limits=SnapshotLimits(), provenance=None):
     """Atomically persist a SIM-02 Snapshot; return its data-only file envelope.
 
@@ -1444,6 +1482,8 @@ def read_snapshot(path, *, adapters=None, limits=SnapshotLimits()):
         decoder = _Decoder(validator)
         game, episode, components = (decoder.atom(roots[name]) for name in ('game', 'episode', 'components'))
         # No Game/Procedure/Clock/Episode init, rule execution or random draw.
+        if game.dice.chance is not None:
+            game.dice.chance._game = game
         game.square_shortcut = game.state.pitch.squares
         game.ff_map = game.replay = None
         game.finalization_errors = []

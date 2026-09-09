@@ -22,6 +22,10 @@ provenance=None)` returns a data-only `SnapshotFileV1` envelope.
 process-local SIM-02 `Snapshot`. Pass the same trusted adapter registry to read,
 clone and restore for episode scope. The two-process executable example is
 [`examples/lab/snapshot_files.py`](../../examples/lab/snapshot_files.py).
+`snapshot_hash(snapshot, *, adapters=None, limits=SnapshotLimits())` runs the
+same bounded graph validation and returns its semantic state hash without
+writing a file. Executable [ReplayV1](replays.md) transitions use this identity
+for their pre/post divergence checks.
 
 ## Wire grammar and registry
 

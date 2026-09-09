@@ -182,3 +182,9 @@ state, reset and exception residue, clock independence, natural termination,
 metadata allowlisting and feature exclusion. Process probes compare a bounded
 natural pregame prefix; movement fixtures explicitly install micropositions and
 forced dice. These tests make no exhaustive all-game/all-rule claim.
+
+## Chance comparison modes
+
+Episodes now install an independent chance policy by default. See
+[chance experiments](chance.md) for strict dice tapes, forced provenance, fresh
+branch sources, bounded GFI matching, and their privileged snapshot adapters.
