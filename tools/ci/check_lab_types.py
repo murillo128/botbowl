@@ -9,7 +9,7 @@ def main():
     root = Path(__file__).resolve().parents[2]
     command = [sys.executable, "-m", "mypy", "--follow-imports=silent", "--strict",
                "--show-error-codes", "--no-incremental"]
-    positive = ["botbowl/lab/protocols.py", "botbowl/lab/adapters.py", "botbowl/lab/__init__.py",
+    positive = ["botbowl/lab/protocols.py", "botbowl/lab/adapters/__init__.py", "botbowl/lab/__init__.py",
                 "examples/lab_protocols.py", "tests/typing/lab_protocols_valid.py"]
     subprocess.run(command + positive, cwd=root, check=True, timeout=120)
     negative = "tests/typing/lab_protocols_invalid.py"
