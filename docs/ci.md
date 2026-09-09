@@ -27,7 +27,8 @@ only in Python, and the inherited strict end-time xfail belongs to #16. No other
 engine failure is waived; known forward-model findings remain failures.
 
 Each core job first collects all core identities, including the investigation.
-It then runs unit/regression and integration (AI, forward-model, server, full-game)
+It then runs unit/regression and integration (AI, forward-model, server, full-game,
+and the generation/recording/validation/replay pipeline in `tests/lab/test_generate.py`)
 portions in two deterministic shards: SHA-256 of the UTF-8 pytest node ID modulo
 two. The four subprocesses run concurrently in fresh processes without xdist,
 preserving order within each portion/shard and collecting all siblings even after
@@ -49,6 +50,10 @@ stale receipts and failed execution fail the gate. Lint runs synthetic negative
 controls for this accounting and real-process controls for parallel execution,
 failure, timeout, missing/invalid receipts and child cleanup. These controls are
 not functional execution evidence.
+Generator selection controls also verify exclusive integration assignment with
+unchanged hash placement, collection order and ordinary coverage, and reject old
+receipts that assign those tests to unit shards. Other lab modules retain their
+existing classification; all generator tests and execution budgets are preserved.
 
 Tests and examples are copied outside the checkout; only the built wheel supplies
 `botbowl`. `--require-pathfinding` verifies the actual module and native extension
