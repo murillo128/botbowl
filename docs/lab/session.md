@@ -91,3 +91,11 @@ raise `SessionClosed`; `observe()` remains available for the final copied state.
 
 Run the external example from any current directory with
 `python /path/to/examples/lab_session.py`.
+
+`set_paused(paused, expected_revision)` controls the explicit driver of a local,
+noncompetition session. It freezes only running clocks and increments revision
+when the pause state changes. `paused` reports this control state; paused steps
+are rejected. Snapshot capture normalizes driver-paused clocks in a detached
+copy, preserving live read purity. Restore and reset release driver pause.
+Scenario sessions expose the same control through their underlying session.
+Transport authorization is specified in [HTTP V1](http.md).

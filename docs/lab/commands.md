@@ -1,6 +1,7 @@
 # Session command gateway
 
-`botbowl.lab.commands` is an in-process command boundary for a future transport.
+`botbowl.lab.commands` is an in-process command boundary. The optional
+[HTTP transport and SDK](http.md) reuse this boundary.
 It opens no ports and does not change the trusted legacy TCP/pickle protocol.
 
 Trusted application setup constructs a `SessionRegistry`, registers sessions with
@@ -104,8 +105,8 @@ one registry lifetime.
 | Spectator | Yes, public view | No | None |
 | Evaluator | Yes, public view | No | Only explicitly configured capabilities |
 
-Evaluator capability names are `labels`, `snapshot`, `restore`, `reset`, and
-`close`. They are immutable trusted grants on each individual session. A role
+Evaluator capability names are `labels`, `snapshot`, `restore`, `reset`,
+`close`, `pause`, and `resume`. They are immutable trusted grants on each individual session. A role
 never grants these implicitly. Labels are supplied through trusted registration
 and never included in state, command receipts, or reconnect events.
 
@@ -123,6 +124,9 @@ Trusted code can register an independent branch using
 are explicit and independent of the source grants. A remote principal can access
 only branch session IDs granted to it. Remote requests cannot allocate branches
 or grant themselves access; branch creation and labels belong to trusted setup.
+The optional `creators` gateway configuration permits bounded standard/scenario
+session allocation with operator-owned grants; see [HTTP V1](http.md) for its
+Command and idempotency contract.
 
 ## Reconnection and resource limits
 

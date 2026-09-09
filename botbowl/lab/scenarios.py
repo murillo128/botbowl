@@ -324,6 +324,14 @@ class ScenarioSession:
         return self._session.closed
 
     @property
+    def paused(self):
+        return self._session.paused
+
+    def set_paused(self, paused, expected_revision):
+        self._session.set_paused(paused, expected_revision)
+        return self.observe()
+
+    @property
     def metadata(self):
         own, opponents, target = _layout(self._spec, self._session._game)
         return {"spec": self._spec.to_json(), "variant_id": self._spec.variant_id,
