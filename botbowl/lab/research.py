@@ -4,6 +4,7 @@ Uploaded files are inert JSON. Only private temporary directories hold executabl
 checkpoints; HTTP responses never contain snapshots, seeds or chance tapes.
 """
 import base64
+import hashlib
 from copy import deepcopy
 from dataclasses import dataclass
 import json
@@ -12,9 +13,12 @@ import re
 import shutil
 import tempfile
 import threading
+import struct
 import uuid
+import zlib
 
 from .actions import ActionControl, ActionV1
+from .annotations import AnnotationBundleV1, public_entity_ids, validate_replay
 from .branches import BranchSpec, BranchTree, PredictionV1
 from .chance import ChancePolicy
 from .commands import Access, Forbidden, InvalidRequest, CapacityExceeded
@@ -107,7 +111,7 @@ class ResearchStore:
             game.close()
         self.entries[identity] = {'reader': reader, 'manifest': manifest, 'events': events,
                                   'provenance': provenance, 'predictions': [], 'annotations': [],
-                                  'record_bytes': 0}
+                                  'external_annotations': [], 'record_bytes': 0}
         return self.summary(identity)
 
     def upload(self, principal, data):
@@ -141,13 +145,99 @@ class ResearchStore:
             shutil.rmtree(directory)
             raise
 
-    def summary(self, identity):
+    def summary(self, identity, principal=None):
         entry = self._entry(identity)
         m = entry['manifest']
         return deepcopy({'id': identity, 'replay_id': m['replay_id'], 'origin_family_id': m['origin_family_id'],
                          'initial': m['initial_context'], 'final': m['final_context'], 'end': m['end'],
                          'provenance': entry['provenance'], 'turns': entry['reader'].turn_index,
-                         'predictions': entry['predictions'], 'annotations': entry['annotations']})
+                         'predictions': entry['predictions'], 'annotations': entry['annotations'],
+                         'external_annotations': self.annotation_bundles(identity, principal)})
+
+    def annotation_bundles(self, identity, principal=None):
+        """Public by default; privileged data stays within evaluator research views."""
+        privileged = principal is not None and self.access(principal).role == 'evaluator'
+        result = []
+        for bundle in self._entry(identity)['external_annotations']:
+            visible = deepcopy(bundle)
+            visible['items'] = [item for item in visible['items']
+                                if privileged or item['provenance']['access'] == 'public']
+            if visible['items']:
+                result.append(visible)
+        return result
+
+    def import_annotations(self, principal, identity, data):
+        grant = self.access(principal)
+        bundle = AnnotationBundleV1(data)
+        row = bundle.to_json()
+        if any(i['provenance']['access'] == 'privileged' for i in row['items']) and grant.role != 'evaluator':
+            raise Forbidden()
+        entry = self._entry(identity)
+        existing = entry['external_annotations']
+        if sum(len(b['items']) for b in existing) + len(row['items']) > self.limits.max_records:
+            raise CapacityExceeded()
+        if any(b['bundle_id'] == row['bundle_id'] for b in existing):
+            raise InvalidRequest()
+        validate_replay(bundle, entry['reader'])
+        self._retain(entry, 'external_annotations', row)
+        return bundle.to_json()
+
+    def export_fragment(self, principal, identity, data):
+        """Export public replay views and synthetic PNGs, never executable checkpoints."""
+        self.access(principal)
+        if type(data) is not dict or set(data) != {'decisions'}:
+            raise InvalidRequest()
+        decisions = data['decisions']
+        if (type(decisions) is not list or not 1 <= len(decisions) <= 16 or
+                any(type(d) is not int for d in decisions) or decisions != sorted(set(decisions))):
+            raise InvalidRequest()
+        entry = self._entry(identity)
+        source = {'replay_id': entry['manifest']['replay_id'],
+                  'origin_family_id': entry['manifest']['origin_family_id'],
+                  'provenance': deepcopy(entry['provenance']),
+                  'manifest_sha256': hashlib.sha256(json.dumps(entry['manifest'], sort_keys=True,
+                                                               separators=(',', ':')).encode()).hexdigest()}
+        files, frames, links = {}, [], []
+        for index, decision in enumerate(decisions):
+            frame = self.frame(identity, decision)
+            name = 'frame-%04d.png' % index
+            png = _png(frame['image'])
+            files[name] = base64.b64encode(png).decode('ascii')
+            frames.append({'context': frame['context'], 'observation': frame['observation']})
+            links.append({'file': name, 'sha256': hashlib.sha256(png).hexdigest(),
+                          'frame_index': index, 'context': frame['context'],
+                          'entity_ids': public_entity_ids(frame['observation'])})
+        # Events are included only for selected transitions ending at a frame.
+        events = [e for e in entry['events'] if e['context']['decision_seq'] in decisions]
+        event_contexts = [e['context'] for e in events]
+        frame_contexts = [f['context'] for f in frames]
+        bundles = []
+        for bundle in self.annotation_bundles(identity, principal):
+            bundle['items'] = [i for i in bundle['items'] if i['target'] in
+                               (frame_contexts if i['target_kind'] == 'decision' else event_contexts)]
+            if bundle['items']:
+                bundles.append(bundle)
+        fragment = {'format': 'ResearchFragmentV1', 'source': source, 'frames': frames,
+                    'events': deepcopy(events), 'annotation_bundles': bundles}
+        payload = json.dumps(fragment, sort_keys=True, allow_nan=False).encode('utf-8')
+        files['fragment.json'] = base64.b64encode(payload).decode('ascii')
+        manifest = {'format': 'ResearchExportV1', 'source': source, 'frames': links,
+                    'events': [{'event_id': [e['context']['episode_id'], e['context']['branch_id'],
+                                            e['context']['event_seq']], 'context': e['context']}
+                               for e in events],
+                    'fragment': {'file': 'fragment.json', 'sha256': hashlib.sha256(payload).hexdigest()},
+                    'annotations': [{'bundle_id': b['bundle_id'], 'annotation_id': i['annotation_id'],
+                                     'target': i['target'], 'target_kind': i['target_kind'],
+                                     'entity_ids': i['entity_ids'], 'issued_at': i['issued_at'],
+                                     'horizon': i['horizon'], 'provenance': i['provenance']}
+                                    for b in bundles for i in b['items']],
+                    'image_kind': 'synthetic geometric renderer; external layers stored separately',
+                    'claims': 'External declarations; projections and scores do not establish causality.'}
+        files['manifest.json'] = base64.b64encode(json.dumps(manifest, sort_keys=True).encode()).decode('ascii')
+        result = {'format': 'ResearchExportUploadV1', 'encoding': 'base64', 'files': files}
+        if len(json.dumps(result).encode()) > self.limits.max_bytes:
+            raise CapacityExceeded()
+        return result
 
     def frame(self, identity, decision, entity=None):
         entry = self._entry(identity)
@@ -282,3 +372,15 @@ class ResearchStore:
     def close(self):
         self.entries.clear()
         self._temporary.cleanup()
+
+
+def _png(image):
+    """Encode the existing synthetic RGB renderer without an image dependency."""
+    def chunk(kind, payload):
+        return (struct.pack('!I', len(payload)) + kind + payload +
+                struct.pack('!I', zlib.crc32(kind + payload) & 0xffffffff))
+    width, height = image['width'], image['height']
+    rgb = base64.b64decode(image['rgb'])
+    scanlines = b''.join(b'\0' + rgb[y * width * 3:(y + 1) * width * 3] for y in range(height))
+    return (b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('!2I5B', width, height, 8, 2, 0, 0, 0)) +
+            chunk(b'IDAT', zlib.compress(scanlines)) + chunk(b'IEND', b''))

@@ -5,6 +5,7 @@
   let library = [], canFork = false, limit = 32 * 1024 * 1024, token = '', selectedEntity = null;
   let generation = 0, playing = false, timer = null, interiorEvent = false, actions = [];
   let selectionGeneration = 0, searchGeneration = 0;
+  const hiddenLayers = new Set();
   const labels = {observed:'Observed', simulated_alternative:'Simulated continuation',
     model_prediction:'Model prediction', retrospective_analysis:'Retrospective analysis', human_annotation:'Human annotation'};
   const say = message => { $('status').textContent = message; };
@@ -29,6 +30,7 @@
   }
   function invalidateSelection(clearEvents = false) {
     ++selectionGeneration; ++generation;
+    $('event-layers').replaceChildren();
     if (clearEvents) $('event').replaceChildren(new Option('Choose event', ''));
   }
   const selectionIsCurrent = (root, current) =>
@@ -54,6 +56,7 @@
     const result = await api('replays'); library = result.replays; canFork = result.can_fork;
     limit = result.max_bytes; $('horizon').max = String(result.max_horizon);
     options($('factual'), library.filter(row => row.provenance.kind === 'observed'), 'Open a replay');
+    options($('annotation-replay'), library, 'Choose replay');
     updateBranches();
   }
   function entityDetails(player, kind) {
@@ -94,7 +97,56 @@
       node('pre',showJSON(frame.context),'context'),node('pre',showJSON({replay_id:row.replay_id,
         origin_family_id:row.origin_family_id,...row.provenance,end:row.end}),'provenance'));
     p.append(details);
+    if (!exhausted) p.append(externalLayers(row, frame));
     return p;
+  }
+  function externalLayers(row, frame, target = frame.context, targetKind = 'decision') {
+    const section = node('section', undefined, 'external-layers');
+    (row.external_annotations || []).forEach(bundle => {
+      const items = bundle.items.filter(i => i.target_kind === targetKind &&
+        i.branch_id === target.branch_id && i.target.decision_seq === target.decision_seq &&
+        i.target.event_seq === target.event_seq);
+      if (!items.length) return;
+      const key = row.id + ':' + bundle.bundle_id;
+      const label = node('label', 'External layer · ' + bundle.bundle_id);
+      const toggle = node('input'); toggle.type = 'checkbox'; toggle.checked = !hiddenLayers.has(key);
+      const content = node('div', undefined, 'external-layer-content'); content.hidden = !toggle.checked;
+      toggle.addEventListener('change', () => {
+        if(toggle.checked) hiddenLayers.delete(key); else hiddenLayers.add(key);
+        content.hidden = !toggle.checked;
+      });
+      label.prepend(toggle); section.append(label, content);
+      items.forEach(item => {
+        content.append(node('h3', 'External ' + item.kind + (item.retrospective ? ' · retrospective' : ' · declared prior/contemporaneous')),
+          node('p', `${item.method.method_id} · ${item.method.version} · issued at decision ${item.issued_at.decision_seq} · horizon ${item.horizon} · ${item.provenance.access}`));
+        if (item.kind === 'human_note') {
+          content.append(node('p', item.entity_ids.join(', ') + ': ' + item.data));
+        } else {
+          const table=node('table'), header=node('tr'); header.append(node('th','Entity'),node('th','External values'));table.append(header);
+          // Replay order deliberately drives display; matrix rows are joined by ID.
+          [...frame.observation.players,...frame.observation.teams].filter(p=>item.entity_ids.includes(p.id)).forEach(player=>{
+            const tr=node('tr');tr.dataset.annotationEntity=player.id;
+            tr.append(node('td',player.id),node('td',showJSON(item.data.values[item.entity_ids.indexOf(player.id)])));table.append(tr);
+          });
+          content.append(table);
+          if(item.kind === 'projection_2d') {
+            const plot=node('canvas'), points=item.data.values;plot.width=300;plot.height=200;
+            plot.setAttribute('role','img');plot.setAttribute('aria-label','External two-dimensional projection; coordinates in the entity table');
+            const ctx=plot.getContext('2d');ctx.fillStyle='#ffffff';ctx.fillRect(0,0,300,200);
+            // Normalize before subtracting to avoid overflow for finite float64 extremes.
+            const scale=Math.max(1,...points.flat().map(Math.abs));
+            const normalized=points.map(p=>p.map(v=>v/scale));
+            const xs=normalized.map(p=>p[0]),ys=normalized.map(p=>p[1]);
+            const minX=Math.min(...xs),minY=Math.min(...ys),dx=Math.max(...xs)-minX||1,dy=Math.max(...ys)-minY||1;
+            normalized.forEach((p,i)=>{const x=20+240*(p[0]-minX)/dx,y=170-140*(p[1]-minY)/dy;
+              ctx.fillStyle='#62389c';ctx.fillRect(x-3,y-3,6,6);ctx.fillText(item.entity_ids[i],x+5,y);});
+            content.append(plot);
+          }
+        }
+        const details=node('details');details.append(node('summary','External source, fitting partitions and exact context'),node('pre',showJSON(item)));content.append(details);
+      });
+    });
+    return section;
   }
   function records() {
     const root=factual(); $('records').replaceChildren();
@@ -181,6 +233,7 @@
       interiorEvent=true;$('decision').value=String(result.previous_decision);await render();
       if(!isCurrent())return;
       $('event-detail').textContent=showJSON(result.event);
+      $('event-layers').replaceChildren(externalLayers(root,result.frame,result.event.context,'event'));
       $('boundary').textContent=`Interior event ${result.event.context.event_seq}. Board is the preceding restorable decision ${result.previous_decision}; next boundary ${result.next_decision}. Use Go to decision to explicitly select a branch point.`;
     } catch(error) {if(isCurrent())throw error;}
   }));
@@ -199,4 +252,16 @@
   }));
   $('import-prediction').addEventListener('click',run(async()=>{await api(`replays/${factual().id}/predictions`,JSON.parse($('prediction').value));await refresh();await render();}));
   $('annotate').addEventListener('click',run(async()=>{await api(`replays/${factual().id}/annotations`,{decision:Number($('decision').value),text:$('annotation').value});await refresh();await render();}));
+  $('annotation-upload').addEventListener('change',run(async()=>{
+    const file=$('annotation-upload').files[0], source=$('annotation-replay').value;
+    if(!file)return;if(!source)throw new Error('Choose an annotation replay');
+    if(file.size>1024*1024)throw new Error('Annotation bundle too large');
+    await api(`replays/${source}/annotation-bundles`,JSON.parse(await file.text()));await refresh();await render();
+  }));
+  $('export-fragment').addEventListener('click',run(async()=>{
+    const source=$('annotation-replay').value;if(!source)throw new Error('Choose an annotation replay');
+    const result=await api(`replays/${source}/export`,{decisions:[Number($('decision').value)]});
+    const url=URL.createObjectURL(new Blob([showJSON(result)],{type:'application/json'}));
+    const link=node('a');link.href=url;link.download='research-export.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  }));
 })();

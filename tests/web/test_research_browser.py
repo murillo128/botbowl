@@ -225,3 +225,39 @@ def test_navigation_discards_delayed_event_work(page, tmp_path, pending, destina
     expect(page.get_by_role('status')).to_have_text('Connected · navigation is read-only')
     if destination == 'replay':
         expect(page.locator('#event option')).to_have_count(1)
+
+
+def test_external_layers_entity_join_text_toggle_and_download(page):
+    from tests.lab.test_annotations import annotation_bundle
+    page, store, bundle = page
+    connect(page)
+    open_replay(page, bundle)
+    root = page.locator('#factual').input_value()
+    go(page, 1)
+    frame = store.frame(root, 1)
+    data = annotation_bundle(frame['context'], kind='projection_2d')
+    note = annotation_bundle(frame['context'], kind='human_note')['items'][0]
+    note['annotation_id'] = 'html-note'
+    data['items'].append(note)
+    before = store.summary(root)['predictions']
+    page.get_by_label('Annotation / export replay').select_option(root)
+    page.get_by_label('AnnotationBundleV1 JSON file').set_input_files({
+        'name': 'annotations.json', 'mimeType': 'application/json', 'buffer': json.dumps(data).encode()})
+    toggle = page.get_by_label('External layer · artificial', exact=True)
+    expect(toggle).to_be_checked()
+    expect(page.locator('[data-annotation-entity="home:0"]')).to_contain_text('[\n  1,\n  4\n]')
+    expect(page.locator('[data-annotation-entity="away:0"]')).to_contain_text('[\n  2,\n  3\n]')
+    expect(page.locator('.external-layer-content')).to_contain_text('<script>window.annotationInjected=true</script>')
+    assert page.locator('.external-layer-content script').count() == 0
+    assert page.evaluate('window.annotationInjected') is None
+    toggle.uncheck()
+    expect(page.locator('.external-layer-content')).to_be_hidden()
+    toggle.check()
+    expect(page.locator('.external-layer-content')).to_be_visible()
+    assert store.frame(root, 1) == frame
+    assert store.summary(root)['predictions'] == before
+    with page.expect_download() as downloaded:
+        page.get_by_role('button', name='Export current decision with synthetic image').click()
+    assert downloaded.value.suggested_filename == 'research-export.json'
+    go(page, 2)
+    expect(page.locator('.external-layer-content')).to_have_count(0)
