@@ -93,6 +93,8 @@ class ClientIsolationTests(unittest.TestCase):
             methods = [method for method, _ in client.calls]
             self.assertEqual(methods.count("thread/start"), 1)
             self.assertFalse(set(methods) & {"thread/read", "thread/resume", "thread/fork"})
+            start = next(params for method, params in client.calls if method == "thread/start")
+            self.assertEqual(start["cwd"], namespace["WORKTREE"])
             turn = next(params for method, params in client.calls if method == "turn/start")
             self.assertEqual(turn["environments"], [{"environmentId": "local", "cwd": namespace["WORKTREE"]}])
             self.assertEqual(turn["sandboxPolicy"]["writableRoots"], [namespace["WORKTREE"]])
@@ -116,6 +118,8 @@ class ClientIsolationTests(unittest.TestCase):
         for forbidden in ("thread/resume", "thread/read", "thread/fork", "SKILLFORGE_ISSUE_WORKTREE"):
             self.assertNotIn(forbidden, source)
         self.assertIn("SKILLFORGE_REVIEW_WORKTREE", source)
+        self.assertNotIn('"cwd": REPO_ROOT', source)
+        self.assertIn('"cwd": WORKTREE', source)
 
     def test_incompatible_published_transport_fails_closed(self):
         for source in ("", EXECUTOR + EXECUTOR,
@@ -123,6 +127,14 @@ class ClientIsolationTests(unittest.TestCase):
                        EXECUTOR.replace("Execute GitHub issue #", "Changed executor prompt #")):
             with self.subTest(source=source[:40]), self.assertRaises(ValueError):
                 PREPARE.build_audit_client(source)
+
+
+class ExecutorBranchContextTests(unittest.TestCase):
+    def test_executor_thread_and_turn_are_anchored_to_issue_worktree(self):
+        self.assertNotIn('"cwd": REPO_ROOT', EXECUTOR)
+        self.assertGreaterEqual(EXECUTOR.count('"cwd": WORKTREE'), 3)
+        self.assertIn('log("thread_started", threadId=thread_id, name=display_name, cwd=WORKTREE)', EXECUTOR)
+        self.assertIn('"writableRoots": [WORKTREE]', EXECUTOR)
 
 
 class TargetResolutionTests(unittest.TestCase):
