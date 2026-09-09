@@ -439,6 +439,52 @@ class BranchTree:
             branch.finish()
         return branch
 
+    def intervene(self, snapshot, intervention_spec, *, recipe_start=None):
+        """Apply SIM-08 data patches and register an atomic, unexecuted branch.
+
+        Fork the returned snapshot to continue with an explicit SIM-06 chance
+        policy. Editing itself consumes no decision, chance or session budget.
+        """
+        from .interventions import apply_intervention, _spec
+
+        _check(not self.closed, 'Tree is closed')
+        spec = _spec(intervention_spec)
+        _check(type(snapshot) is BranchSnapshot, 'Expected a registered snapshot')
+        saved = self._snapshots.get(snapshot.snapshot_id)
+        _check(saved is not None and saved['ref'] is snapshot, 'Unknown or substituted parent snapshot')
+        _check(snapshot_hash(snapshot.engine) == saved['state_hash'], 'Parent snapshot was mutated')
+        _check(spec['branch_id'] not in self._nodes and spec['branch_id'] not in self._predictions,
+               'Duplicate branch ID or lineage cycle')
+        _check(spec['snapshot_id'] not in self._snapshots, 'Duplicate snapshot ID')
+        _check(len(self._nodes) + len(self._predictions) < self.max_nodes, 'Tree node budget exhausted')
+        depth = self._nodes[snapshot.branch_id]['depth'] + 1
+        _check(depth <= self.max_depth, 'Tree depth budget exhausted')
+        if recipe_start is not None:
+            witness = self._snapshots.get(recipe_start.snapshot_id)
+            _check(witness is not None and witness['ref'] is recipe_start,
+                   'Unknown recipe start snapshot')
+        result = apply_intervention(snapshot, spec, recipe_start=recipe_start)
+        provenance = result.provenance
+        node = dict(
+            branch_id=spec['branch_id'], parent=saved['context'],
+            origin_family_id=self.origin_family_id, kind='intervened', depth=depth,
+            parent_branch_id=snapshot.branch_id, parent_snapshot_id=snapshot.snapshot_id,
+            divergence=saved['context'], initial_action=None, policy=None, horizon=0,
+            intervention=provenance, assumptions=[], status='finished',
+            accepted_decisions=0, attempted_decisions=0, diagnostic=None,
+            result={'state_hash': provenance['post_hash']}, replay=None,
+            chance=None, chance_result=None,
+        )
+        self._nodes[spec['branch_id']] = node
+        try:
+            self._register(result.snapshot.engine, spec['snapshot_id'], spec['branch_id'])
+        except Exception:
+            del self._nodes[spec['branch_id']]
+            raise
+        # Return the tree-owned reference so it can be passed directly to fork.
+        from .interventions import InterventionResult
+        return InterventionResult(self._snapshots[spec['snapshot_id']]['ref'], result._provenance)
+
     def import_prediction(self, data):
         _check(not self.closed, 'Tree is closed')
         prediction = PredictionV1(data)

@@ -117,9 +117,11 @@ matching rules. Failed chance validation never consumes a sibling's randomness.
 
 Kinds are `observed`, `simulated_alternative`, `predicted`, and `intervened`.
 An intervened branch requires a nonempty `intervention` provenance object;
-`assumptions` is a separate list of text. This describes the experiment. Arbitrary
-state patches are not applied here: their validated editor belongs to SIM-07
-(#63). Applied forced chance can already be represented and remains fabricated
+`assumptions` is a separate list of text. This describes the experiment.
+`tree.intervene(point, spec)` applies the bounded [SIM-08 editor](interventions.md)
+and registers its independent snapshot, complete patch and provenance atomically.
+Continue by passing that snapshot to `fork` with a declared chance policy.
+Applied forced chance can also be represented and remains fabricated
 in `chance_result.natural`. A trajectory computed earlier is not thereby a
 causal counterfactual. Predictive output is also not an engine state.
 
