@@ -9,9 +9,9 @@ description: Independently review an exact published target against the controll
 
 Use this skill for declared checkpoints and final technical review when a separate review is required.
 
-The reviewer owns independent exact-target inspection, proportional validation, materiality, and the technical verdict. It does not implement fixes, redesign the issue, mutate workflow state, publish commits, continue execution, or authorize/perform merge.
+The reviewer owns independent exact-target inspection, proportional validation, materiality, and the technical verdict. It does not implement fixes, redesign the issue, mutate workflow state, publish commits, continue execution, or authorize/perform merge while acting as reviewer.
 
-A `PASS` or `PASS_WITH_NOTES` means the reviewed target is technically safe to progress according to the controlling workflow. It is not merge authorization; merge requires a separate explicit user-facing review decision.
+A `PASS` or `PASS_WITH_NOTES` means the reviewed target is technically safe to progress according to the controlling workflow. The verdict itself has no GitHub mutation authority. When this review is invoked by `codex-pr-audit`, a positive final-capable verdict may be consumed by that controller under its standing automatic-completion authority after the reviewer role has ended. Outside that controller path, the verdict alone never merges, labels, or closes anything.
 
 ## Trust the issue as the technical contract
 
@@ -86,7 +86,9 @@ Do not replay accepted earlier ranges without a concrete unresolved risk.
 
 ### 3. Test proportionally
 
-Run issue-defined validation when the environment supports it. Prefer checks capable of falsifying the claimed outcome.
+Prefer checks capable of falsifying the claimed outcome.
+
+Exact-head green CI, retained executor evidence, and deterministic artifacts are valid evidence when their target and environment are clear. Inspect and reuse them rather than mechanically rerunning the same broad suite. Run focused or additional tests when they materially increase independence, target a plausible risk, close an evidence gap, or are explicitly required by the controlling issue. Do not rerun the full repository suite merely to duplicate already trustworthy exact-head CI/evidence.
 
 Distinguish commands personally run from committed or external evidence inspected. Never claim an unrun check passed.
 
@@ -101,7 +103,7 @@ A checkpoint can serve as final technical review when the issue declares it fina
 
 A later change to code, tests, technical evidence, dependencies, configuration, or technical claims invalidates that verdict for the changed target. Changes only to issue/PR prose, labels, roadmap state, merge metadata, or other derived workflow state do not.
 
-Final technical review completion allows the executor to prepare a ready-for-review handoff. It does not allow the executor or reviewer to merge the PR.
+Final technical review completion returns control to the calling workflow. It does not allow the reviewer role itself to merge or mutate GitHub state. If the caller is `codex-pr-audit`, that controller may then apply its verdict mapping after leaving the reviewer role.
 
 ### 5. Report briefly
 
@@ -114,7 +116,7 @@ Record only:
 - validation run or evidence inspected;
 - smallest required delta or non-blocking notes.
 
-Do not state or imply that the PR is approved for merge on behalf of the user.
+Do not state or imply that the reviewer role itself performed or authorized a merge.
 
 ## Reviewer transport
 
@@ -163,6 +165,6 @@ misleading required evidence, unapproved scope, or unsafe progression. Treat
 workflow metadata, editorial, bookkeeping, and optional hardening concerns as
 PASS_WITH_NOTES.
 
-Do not implement fixes, mutate repository or GitHub state, or authorize merge.
+Do not implement fixes or mutate repository/GitHub state while acting as reviewer.
 Return exactly PASS, PASS_WITH_NOTES, FAIL, or BLOCKED.
 ```
