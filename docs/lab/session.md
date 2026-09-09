@@ -5,6 +5,10 @@ teams without reading a `Game` or starting the web service. It composes the
 public game factory, entity observation, semantic-action, channel, timeline,
 reproducibility and executable-snapshot contracts; it does not implement rules.
 
+For bounded synthetic mid-game exercises, use the versioned
+[scenario catalogue](scenarios.md), which composes this session and records
+exercise completion separately from natural match completion.
+
 ```python
 from botbowl.lab import SessionConfig, SimulationSession
 from botbowl.lab.randomness import SeedSpec
