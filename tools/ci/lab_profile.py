@@ -18,6 +18,7 @@ FAST = [
     'tests/lab/test_snapshot_io.py::test_process_a_to_b_five_sizes[False-fresh-3]',
     'tests/lab/test_snapshots.py::test_corrupt_snapshot_rejected_atomically',
     'tests/lab/test_windows.py',
+    'tests/lab/test_observers.py',
     'tests/lab/test_storage.py',
     'tests/lab/test_splits.py',
     'tests/lab/test_external_client.py',
