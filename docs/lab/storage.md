@@ -27,9 +27,8 @@ Repeat bounded batches until the plan is complete. `append_episode(reader)` is a
 one-episode batch. Sources implement `manifest` and `iter_channel(name)`; the
 existing `EpisodeReader` is the reference implementation. This is an explicit
 conversion/append API, not a change to DATA-01 generation or DATA-02 recording.
-The generator's own per-episode memory limits remain unchanged. A future pool
-coordinator (#36) must feed this single writer rather than opening concurrent
-writers on the same destination.
+The generator's own per-episode memory limits remain unchanged. The [CPU pool coordinator](parallel.md) feeds this single writer with bounded
+episode spools; workers never open concurrent dataset writers on the destination.
 
 Episodes must be an ordered prefix of the exact DATA-01 plan, including profile,
 family, scenario, rule/config descriptor, policy identity and seed provenance.
