@@ -15,7 +15,7 @@ concurrency:
   cancel-in-progress: true
 
 # Untrusted pull-request code is never scheduled on the local runner. Public PRs
-# receive the hosted lint gate only; functional core validation is triggered by
+# receive hosted lint and lab gates; functional core validation is triggered by
 # trusted pushes to repository-owned codex/** branches (and main).
 jobs:
   lint:
