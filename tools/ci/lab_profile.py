@@ -18,6 +18,7 @@ FAST = [
     'tests/lab/test_snapshot_io.py::test_process_a_to_b_five_sizes[False-fresh-3]',
     'tests/lab/test_snapshots.py::test_corrupt_snapshot_rejected_atomically',
     'tests/lab/test_windows.py',
+    'tests/lab/test_storage.py',
     'tests/lab/test_splits.py',
     'tests/lab/test_external_client.py',
     'tests/lab/test_replays.py',
@@ -51,6 +52,8 @@ def main():
     # Required imports precede collection: importorskip in optional owner tests
     # must never turn an incorrectly installed mandatory cell green.
     modules = ['botbowl.lab.dataset_client', 'botbowl.lab.replays', 'botbowl.lab.commands']
+    if args.profile == 'lab-fast':
+        modules += ['pyarrow', 'botbowl.lab.storage']
     if args.profile == 'lab-adapters':
         modules += ['gymnasium', 'pettingzoo']
     if args.profile == 'lab-http':
