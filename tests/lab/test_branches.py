@@ -51,7 +51,7 @@ def factual():
 
 @pytest.fixture
 def tree(factual):
-    value = BranchTree(factual.snapshot(), origin_family_id='family-46')
+    value = BranchTree(factual.snapshot(), kind='observed', origin_family_id='family-46')
     yield value
     value.close()
 
@@ -103,7 +103,7 @@ def test_actual_dice_fixture_independent_and_forced_provenance(tmp_path):
     factual = gfi_boundary()
     saved = capture_snapshot(factual.game)
     before = snapshot_hash(saved)
-    tree = BranchTree(saved, origin_family_id='gfi-family')
+    tree = BranchTree(saved, kind='observed', origin_family_id='gfi-family')
     try:
         left = tree.fork(tree.root_snapshot, spec(tree))
         right = tree.fork(tree.root_snapshot, spec(tree, 'right'))
@@ -148,7 +148,7 @@ def test_actual_dice_fixture_independent_and_forced_provenance(tmp_path):
 
 def test_replay_origin_inherits_family_without_remapping(tmp_path):
     _, source, _, _, _ = record(tmp_path, decisions=3)
-    tree = BranchTree.from_replay(ReplayReader(tmp_path, 'replay'), 1)
+    tree = BranchTree.from_replay(ReplayReader(tmp_path, 'replay'), 1, kind='observed')
     try:
         branch = tree.fork(tree.root_snapshot, spec(tree))
         branch.run(first, **POLICY)
@@ -179,7 +179,7 @@ def test_invalid_forks_do_not_mutate_tree(tree, change):
 
 
 def test_duplicate_cycle_depth_node_and_total_decision_budgets(factual):
-    tree = BranchTree(factual.snapshot(), origin_family_id='family', max_nodes=3,
+    tree = BranchTree(factual.snapshot(), kind='observed', origin_family_id='family', max_nodes=3,
                       max_depth=1, max_decisions=2)
     try:
         left = tree.fork(tree.root_snapshot, spec(tree))
@@ -285,7 +285,7 @@ def test_prediction_observation_and_metadata_revision_are_immutable(factual, tre
     assert revised.to_json()['revision_of'] == 'prediction-1'
     assert tree.export()['predictions'][0] == original
     with pytest.raises(BranchError):
-        BranchTree(imported, origin_family_id='family')
+        BranchTree(imported, kind='observed', origin_family_id='family')
     with pytest.raises(IncompatibleSnapshot):
         SimulationSession.from_snapshot(imported)
     with pytest.raises(BranchError):
@@ -328,7 +328,7 @@ def test_file_snapshot_can_start_independent_session_and_tree(factual, tmp_path)
         assert session.observe().primary == factual.observe().primary
         with pytest.raises(IncompatibleSnapshot):
             SimulationSession.from_snapshot(replace(source, accepted_decisions=999))
-        tree = BranchTree(restored, origin_family_id='family')
+        tree = BranchTree(restored, kind='observed', origin_family_id='family')
         branch = tree.fork(tree.root_snapshot, spec(tree, horizon=0))
         assert branch._node['status'] == 'finished'
         tree.close()
@@ -374,7 +374,7 @@ def test_exhausted_and_unused_chance_tapes_fail_only_the_branch():
     from botbowl.lab.chance import ChanceError
 
     factual = gfi_boundary()
-    tree = BranchTree(capture_snapshot(factual.game), origin_family_id='chance-family')
+    tree = BranchTree(capture_snapshot(factual.game), kind='observed', origin_family_id='chance-family')
     try:
         natural = tree.fork(tree.root_snapshot, spec(tree))
         move = next(a for a in natural.legal_actions().actions if a.type == 'MOVE')
@@ -405,3 +405,129 @@ def test_failed_replay_export_never_confirms_a_directory(tree, tmp_path):
     assert not (tmp_path / 'corrupt').exists()
     assert (tmp_path / 'corrupt.partial').exists()
     assert branch._node['replay'] is None
+
+
+@pytest.mark.parametrize('kind', ['simulated_alternative', 'intervened'])
+@pytest.mark.parametrize('transport', ['snapshot', 'session', 'file', 'replay'])
+def test_restored_future_requires_and_preserves_source_classification(tmp_path, kind, transport):
+    factual = gfi_boundary()
+    tree = BranchTree(capture_snapshot(factual.game), kind='observed', origin_family_id='future-family')
+    reopened = None
+    try:
+        natural = tree.fork(tree.root_snapshot, spec(tree, 'natural'))
+        move = next(a for a in natural.legal_actions().actions if a.type == 'MOVE')
+        natural.step(move, natural.state_revision)
+        if kind == 'intervened':
+            branch = tree.fork(tree.root_snapshot, spec(
+                tree, 'forced', kind=kind, initial_action=move,
+                chance=ChancePolicy('forced', tape=natural._session._game.dice.chance.tape()),
+                intervention={'operation': 'prescribe-die', 'applied_by': 'chance-policy'},
+                assumptions=('Fabricated GFI outcome.',)))
+        else:
+            branch = natural
+        source = next(node for node in tree.export()['nodes'] if node['branch_id'] == branch.branch_id)
+        expected_hash = snapshot_hash(branch._session.snapshot().engine)
+        if transport == 'replay':
+            manifest = branch.export_replay(tmp_path, 'future', replay_id='future')
+            reader = ReplayReader(tmp_path, 'future')
+
+            def restore(**classification):
+                return BranchTree.from_replay(reader, manifest['final_context']['decision_seq'],
+                                              **classification)
+        else:
+            saved = branch._session.snapshot()
+            if transport == 'session':
+                snapshot = saved
+            elif transport == 'file':
+                path = tmp_path / 'future.snapshot.json'
+                write_snapshot(path, saved.engine)
+                snapshot = read_snapshot(path)
+            else:
+                snapshot = saved.engine
+
+            def restore(**classification):
+                return BranchTree(snapshot, origin_family_id=tree.origin_family_id, **classification)
+
+        with pytest.raises(BranchError, match='kind explicitly'):
+            restore()
+        with pytest.raises(BranchError, match='cannot be declared observed'):
+            restore(kind='observed')
+        provenance = {key: deepcopy(source[key]) for key in ('kind', 'intervention', 'assumptions')}
+        reopened = restore(**provenance)
+        restored_root = reopened.export()['nodes'][0]
+        for key, value in provenance.items():
+            assert restored_root[key] == value
+        assert restored_root['chance_result'] == source['chance_result']
+        assert restored_root['origin_family_id'] == 'future-family'
+        assert snapshot_hash(reopened.root_snapshot.engine) == expected_hash
+        # Root provenance is copied, and later factual observations cannot be
+        # attached to an alternative/intervened root under an observed label.
+        provenance['assumptions'].append('mutated external annotation')
+        assert reopened.export()['nodes'][0] == restored_root
+        with pytest.raises(BranchError, match='observed root'):
+            reopened.observe(branch._session.snapshot(), snapshot_id='false-observation')
+        child = reopened.fork(reopened.root_snapshot, spec(reopened, 'descendant', horizon=0))
+        assert child.origin_family_id == 'future-family'
+    finally:
+        if reopened is not None:
+            reopened.close()
+        tree.close()
+        factual.close()
+
+
+def test_empty_alternative_has_no_implicit_observed_classification():
+    # Before any events, timeline history cannot establish a fork. Even this
+    # unidentifiable source must receive an explicit caller classification.
+    fresh = SimulationSession(SessionConfig(size=1), SeedSpec(17, 'empty-root'))
+    tree = BranchTree(fresh.snapshot(), kind='observed', origin_family_id='empty-family')
+    reopened = None
+    try:
+        branch = tree.fork(tree.root_snapshot, spec(tree, horizon=0))
+        assert branch._session._timeline.events == ()
+        with pytest.raises(BranchError, match='kind explicitly'):
+            BranchTree(branch._session.snapshot(), origin_family_id='empty-family')
+        reopened = BranchTree(branch._session.snapshot(), origin_family_id='empty-family',
+                              kind='simulated_alternative')
+        assert reopened.export()['nodes'][0]['kind'] == 'simulated_alternative'
+    finally:
+        if reopened is not None:
+            reopened.close()
+        tree.close()
+        fresh.close()
+
+
+def test_factual_entry_points_reject_fabrication_without_a_timeline_fork(factual, tree):
+    from botbowl.lab.chance import install_chance
+
+    install_chance(factual._game, ChancePolicy('forced', tape={'version': 1, 'rolls': []}))
+    saved = factual.snapshot()
+    before = tree.export()
+    with pytest.raises(BranchError, match='cannot be declared observed'):
+        BranchTree(saved, kind='observed', origin_family_id=tree.origin_family_id)
+    with pytest.raises(BranchError, match='cannot be declared observed'):
+        tree.observe(saved, snapshot_id='fabricated-observation')
+    assert tree.export() == before
+    with pytest.raises(BranchError, match='intervention provenance'):
+        BranchTree(saved, kind='intervened', origin_family_id=tree.origin_family_id)
+
+
+def test_empty_derived_replay_cannot_claim_observed_even_without_fork_events(tmp_path):
+    game, _, _, _, _ = record(tmp_path, decisions=0)
+    tree = BranchTree.from_replay(ReplayReader(tmp_path, 'replay'), 0, kind='observed')
+    reopened = None
+    try:
+        branch = tree.fork(tree.root_snapshot, spec(tree, horizon=0))
+        assert branch._session._timeline.events == ()
+        manifest = branch.export_replay(tmp_path, 'derived', replay_id='derived')
+        assert manifest['origin'] is not None
+        reader = ReplayReader(tmp_path, 'derived')
+        with pytest.raises(BranchError, match='derived replay'):
+            BranchTree.from_replay(reader, 0, kind='observed')
+        reopened = BranchTree.from_replay(reader, 0, kind='simulated_alternative')
+        assert reopened.export()['nodes'][0]['kind'] == 'simulated_alternative'
+        assert reopened.origin_family_id == tree.origin_family_id
+    finally:
+        if reopened is not None:
+            reopened.close()
+        tree.close()
+        game.close()

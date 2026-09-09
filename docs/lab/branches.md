@@ -1,7 +1,7 @@
 # Simulation branches and shadow futures (SIM-05)
 
 `botbowl.lab.branches` composes engine snapshots, `SimulationSession`, SIM-06
-chance policies and `ReplayV1`. A `BranchTree` owns one factual origin, a bounded
+chance policies and `ReplayV1`. A `BranchTree` owns one classified origin, a bounded
 tree of independent sessions, and separately stored external predictions.
 It does not execute learned models, parse natural language, edit arbitrary
 engine state, optimize policies, or infer causal effects.
@@ -10,7 +10,7 @@ engine state, optimize policies, or infer causal effects.
 from botbowl.lab.branches import BranchSpec, BranchTree
 
 # factual is an initialized SimulationSession at a settled decision boundary.
-tree = BranchTree(factual.snapshot(), origin_family_id='experiment-17',
+tree = BranchTree(factual.snapshot(), kind='observed', origin_family_id='experiment-17',
                   max_nodes=64, max_depth=8, max_decisions=100)
 point = tree.root_snapshot
 branch = tree.fork(point, BranchSpec(
@@ -34,19 +34,44 @@ in a fresh process.
 
 ## Ownership, lineage and budgets
 
-`BranchTree` accepts a trusted engine `Snapshot` or `SessionSnapshot`. The root
-has kind `observed`; its existing timeline branch ID is retained. Supply the
+`BranchTree` accepts a trusted engine `Snapshot` or `SessionSnapshot`. Declare
+the root's `kind` explicitly: `observed`, `simulated_alternative`, or `intervened`.
+Omitting the classification is an error, including for an empty trajectory.
+The existing timeline branch ID is retained. Supply the
 existing experiment/recording's canonical `origin_family_id` when starting from
 a raw snapshot, which carries no independent family claim. The controller is
-responsible for that initial identity. `BranchTree.from_replay(reader, decision)`
+responsible for that initial identity. `BranchTree.from_replay(reader, decision, kind=...)`
 performs a verified seek and inherits the replay's family automatically.
 Names, alternative actions, policies, seeds and views never create another family.
+
+Restoration does not establish factuality. Carry `kind`, `intervention` and
+`assumptions` from the source tree's exported node when reopening a branch:
+
+```python
+source_node = lineage['nodes'][1]
+restored = BranchTree.from_replay(
+    reader, decision_seq,
+    **{key: source_node[key] for key in ('kind', 'intervention', 'assumptions')},
+)
+```
+
+The root copies that classification and retains restored `chance_result`
+metadata (null if no chance policy is installed). Intervened roots require a
+nonempty intervention object. ReplayV1 and raw engine snapshots do not contain
+the full SIM-05 intervention/assumption declaration, so the caller must retain
+it alongside those artifacts; this API does not guess missing provenance.
+Known fabricated or matched chance, forked timeline history and derived replay
+origins are rejected when declared `observed`. These checks are conservative:
+an empty fork can have no distinguishing history, and an arbitrary intervention
+can leave no chance marker. The explicit declaration remains trusted controller
+input, not an attestation inferred from RNG state or a branch name.
 
 `fork(point, spec)` requires the actual registered `BranchSnapshot` reference,
 a matching parent branch/snapshot ID, a new branch ID and a declared policy
 identity/version. `branch.snapshot(new_id)` registers a descendant boundary;
 `tree.observe(factual.snapshot(), snapshot_id=...)` retains a later factual
-boundary. IDs are unique within their namespaces; prediction and branch IDs
+boundary only on an observed root and applies the same factuality checks.
+IDs are unique within their namespaces; prediction and branch IDs
 cannot collide. Parent references always point backward to known branches,
 so self-parenting, ancestor cycles, unknown parents and duplicate IDs fail.
 Snapshot references are privileged and never appear in policy inputs.
@@ -56,7 +81,7 @@ action. Zero means an empty prefix. Each branch gets a fresh session budget at
 its divergence boundary; the tree also limits total attempted engine decisions
 across siblings. Invalid actions and stale revisions consume no budget. Engine
 failures consume an attempt and are retained as failed nodes. Node limits count
-the factual root, simulated/intervened branches and prediction revisions. Depth
+the root, simulated/intervened branches and prediction revisions. Depth
 counts simulated edges from root depth zero. `max_steps` bounds automatic engine
 work per decision. A horizon beyond the remaining total budget is rejected;
 concurrent open branches share that total budget without reserving it at fork.
@@ -143,7 +168,8 @@ tree. Consumers must reject unknown versions. It contains:
   with a null root parent and API-02 parent contexts for children;
 - `nodes`: kinds, depths, divergence context, initial action, policy, horizon,
   intervention, assumptions, chance declaration/result, status, decision counts,
-  diagnostic, latest result and optional replay reference;
+  diagnostic, latest result and optional replay reference. The root retains its
+  declared kind/intervention/assumptions and restored chance metadata;
 - `snapshots`: IDs, owning branches/family, logical contexts, persistent semantic
   hashes and optional factual replay origin references;
 - `predictions`: complete immutable PredictionV1 records, separate from the

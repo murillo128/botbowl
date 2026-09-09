@@ -41,6 +41,27 @@ def _policy(value):
     identifier(value['version'])
 
 
+def _classification(kind, intervention, assumptions):
+    _check(kind in ('observed', 'simulated_alternative', 'intervened'),
+           'Declare the source trajectory kind explicitly')
+    _check((intervention is not None) == (kind == 'intervened'),
+           'Intervened trajectories require separate intervention provenance')
+    _check(intervention is None or type(intervention) is dict and bool(intervention),
+           'Expected nonempty intervention provenance')
+    _check(type(assumptions) in (tuple, list) and
+           all(type(value) is str for value in assumptions), 'Expected textual assumptions')
+
+
+def _check_observed(game):
+    """Reject known non-factual state; absence of evidence is not attestation."""
+    chance = game.dice.chance
+    _check(chance is None or (chance.metadata()['natural'] and chance.mode != 'matched'),
+           'Fabricated or matched chance cannot be declared observed')
+    branch_id = game.timeline.context.branch_id
+    _check(all(event.context.branch_id == branch_id for event in game.timeline.events),
+           'A forked timeline cannot be declared observed')
+
+
 @dataclass(frozen=True, init=False)
 class PredictionV1(_Record):
     """An imported prediction; nested data is stored as immutable JSON bytes."""
@@ -259,11 +280,15 @@ class BranchSession:
 
 
 class BranchTree:
-    """One factual origin and its bounded alternatives and shadow predictions."""
+    """One explicitly classified origin and its alternatives and predictions."""
 
     def __init__(self, snapshot, *, origin_family_id, snapshot_id='origin',
+                 kind=None, intervention=None, assumptions=(),
                  max_nodes=128, max_depth=16, max_decisions=1000, max_steps=100000):
         identifier(origin_family_id)
+        _classification(kind, intervention, assumptions)
+        provenance = _copy({'kind': kind, 'intervention': intervention,
+                            'assumptions': list(assumptions)})
         for value in (max_nodes, max_depth, max_decisions, max_steps):
             integer(value, 1)
         self._origin_family_id = origin_family_id
@@ -277,8 +302,10 @@ class BranchTree:
         try:
             _check(game.timeline is not None, 'A branch tree requires a logical timeline')
             root = game.timeline.context.branch_id
-            self._nodes[root] = {'branch_id': root, 'parent': None, 'kind': 'observed',
-                                 'origin_family_id': origin_family_id, 'depth': 0}
+            chance = game.dice.chance
+            self._nodes[root] = dict(provenance, branch_id=root, parent=None,
+                                    chance_result=None if chance is None else chance.metadata(),
+                                    origin_family_id=origin_family_id, depth=0)
         finally:
             game.close()
         self.root_snapshot = self._register(engine, snapshot_id, root)
@@ -306,6 +333,8 @@ class BranchTree:
         try:
             _check(game.timeline is not None and game.timeline.context.branch_id == branch_id,
                    'Snapshot branch does not match parent')
+            if self._nodes[branch_id]['kind'] == 'observed':
+                _check_observed(game)
             ctx = game.timeline.context.to_json()
             if self._snapshots:
                 root_ctx = next(iter(self._snapshots.values()))['context']
@@ -323,14 +352,22 @@ class BranchTree:
     def observe(self, snapshot, *, snapshot_id):
         """Retain a later factual boundary without rewriting predictions."""
         root = next(iter(self._nodes))
+        _check(self._nodes[root]['kind'] == 'observed',
+               'Factual observations require an observed root')
         return self._register(snapshot, snapshot_id, root)
 
     @classmethod
     def from_replay(cls, reader, decision_seq, **limits):
-        """Use a verified factual replay boundary and inherit its canonical family."""
+        """Restore a verified boundary with an explicit kind and inherited family.
+
+        ReplayV1 does not store SIM-05 kind/intervention/assumptions. Supply those
+        from the source tree's exported node; never infer observed from playback.
+        """
+        manifest = reader.manifest
+        _check(limits.get('kind') != 'observed' or manifest['origin'] is None,
+               'A derived replay cannot be declared observed')
         game = reader.seek_decision(decision_seq)
         try:
-            manifest = reader.manifest
             tree = cls(capture_snapshot(game), origin_family_id=manifest['origin_family_id'], **limits)
             ctx = game.timeline.context
             tree._snapshots[tree.root_snapshot.snapshot_id]['replay_origin'] = {
@@ -363,12 +400,7 @@ class BranchTree:
         _check(spec.horizon <= self.max_decisions - self._decisions, 'Decision budget exceeded')
         _policy(spec.policy)
         _check(spec.kind in ('simulated_alternative', 'intervened'), 'Invalid simulated branch kind')
-        _check((spec.intervention is not None) == (spec.kind == 'intervened'),
-               'Intervened branches require separate intervention provenance')
-        _check(spec.intervention is None or type(spec.intervention) is dict and bool(spec.intervention),
-               'Expected nonempty intervention provenance')
-        _check(type(spec.assumptions) in (tuple, list) and
-               all(type(value) is str for value in spec.assumptions), 'Expected textual assumptions')
+        _classification(spec.kind, spec.intervention, spec.assumptions)
         _check(spec.initial_action is None or spec.horizon > 0, 'Initial action exceeds zero horizon')
         # All data is copied before allocating resources or publishing a tree node.
         node = _copy({

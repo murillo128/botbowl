@@ -23,7 +23,7 @@ def main(destination):
     try:
         legal = factual.legal_actions()
         factual.step(legal.actions[0], legal.state_revision)
-        tree = BranchTree(factual.snapshot(), origin_family_id='demo-origin', max_decisions=4)
+        tree = BranchTree(factual.snapshot(), kind='observed', origin_family_id='demo-origin', max_decisions=4)
         boundary = tree.export()['snapshots'][0]['context']
         prediction = tree.import_prediction({
             'schema_version': 1, 'kind': 'predicted', 'prediction_id': 'forecast',
