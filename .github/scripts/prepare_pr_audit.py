@@ -16,7 +16,7 @@ FRESH_THREAD = '''    if os.path.exists(THREAD_FILE):
     started = client.request(
         "thread/start",
         {
-            "cwd": REPO_ROOT,
+            "cwd": WORKTREE,
             "approvalPolicy": "on-request",
             "approvalsReviewer": "auto_review",
             "sandbox": "workspace-write",
@@ -32,7 +32,7 @@ FRESH_THREAD = '''    if os.path.exists(THREAD_FILE):
         f" / {os.environ['REVIEW_HEAD_SHA'][:12]}"
     )
     client.request("thread/name/set", {"threadId": thread_id, "name": display_name})
-    log("thread_started", threadId=thread_id, name=display_name, cwd=REPO_ROOT)
+    log("thread_started", threadId=thread_id, name=display_name, cwd=WORKTREE)
 
 '''
 
