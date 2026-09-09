@@ -373,7 +373,7 @@ EPISODE = {
         ('scenario', 'engine', 'policy-home', 'policy-away', 'observation'), IDENTIFIER)),
     '_inputs': product(model('Configuration'), model('RuleSet'), model('TwoPlayerArena'), TEAM, TEAM),
     '_max_decisions': NAT, '_max_steps': POS, '_initial_teams': product(TEAM, TEAM),
-    '_manifest': mapping(TEXT, JSON), 'decisions': NAT,
+    '_manifest': mapping(TEXT, JSON), '_chance_spec': TEXT, 'decisions': NAT,
     '_streams': record(**dict.fromkeys(('scenario', 'policy-home', 'policy-away', 'observation'), 'rng')),
     '_control': 'ObservationControl',
 }

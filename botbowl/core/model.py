@@ -890,6 +890,7 @@ class DiceSourceState:
     queues: tuple
     strict: tuple
     _scopes: tuple = field(repr=False)
+    chance: object = None
 
 
 class ForcedRollExhausted(RuntimeError):
@@ -910,6 +911,7 @@ class DiceSource:
         self._queues = [self._empty_queues()]
         self._strict = [False]
         self._scopes = []
+        self.chance = None
 
     @staticmethod
     def _empty_queues():
@@ -947,6 +949,12 @@ class DiceSource:
             self._queues[-1][kind].clear()
 
     def roll(self, die):
+        self._validate(die, ())
+        if self.chance is not None:
+            return self.chance.roll(self, die)
+        return self._roll_unmanaged(die)
+
+    def _roll_unmanaged(self, die):
         self._validate(die, ())
         queue = self._queues[-1][die]
         if queue:
@@ -988,18 +996,28 @@ class DiceSource:
         return DiceSourceState(
             (name, tuple(int(key) for key in keys), pos, has_gauss, cached_gaussian),
             tuple(tuple(tuple(values) for values in queues.values()) for queues in self._queues),
-            tuple(self._strict), tuple(self._scopes))
+            tuple(self._strict), tuple(self._scopes),
+            None if self.chance is None else self.chance.to_json())
 
     def _validate_state(self, state):
         if not isinstance(state, DiceSourceState):
             raise TypeError("Expected a DiceSourceState from get_state()")
+        if state.chance is not None:
+            from botbowl.lab.chance import ChancePolicy
+            ChancePolicy.from_json(state.chance)
         if state._scopes != tuple(self._scopes):
             raise ValueError("Restore RNG state within the same active forced-roll contexts")
 
     def set_state(self, state):
         """Restore captured RNG and queues without reseeding or sharing queues."""
         self._validate_state(state)
+        chance = None
+        if state.chance is not None:
+            from botbowl.lab.chance import ChancePolicy
+            chance = ChancePolicy.from_json(state.chance)
+            chance._game = None if self.chance is None else self.chance._game
         self.rng.set_state(state.rng_state)
+        self.chance = chance
         self._queues = [dict(zip((D3, D6, D8, BBDie), (list(values) for values in queues)))
                         for queues in state.queues]
         self._strict = list(state.strict)

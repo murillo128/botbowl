@@ -35,7 +35,7 @@ _GAME_SPECIAL = ('home_agent', 'away_agent', 'dice', 'trajectory', 'timeline', '
                  'time_source', 'square_shortcut', 'ff_map', 'replay',
                  'finalization_errors', '_snapshot_busy', '_snapshot_ready')
 _EPISODE_DATA = ('_seed', '_ids', '_inputs', '_max_decisions', '_max_steps',
-                 '_initial_teams', '_manifest', 'decisions', '_streams', '_control')
+                 '_initial_teams', '_manifest', 'decisions', '_streams', '_control', '_chance_spec')
 _EPISODE_SPECIAL = ('game', '_policies', '_scenario', '_snapshot_busy')
 _MODEL_TYPES = tuple(getattr(model, name) for name in (
     'Configuration', 'TimeLimits', 'GameState', 'Pitch', 'Team', 'TeamState',
@@ -498,6 +498,8 @@ class _Graph:
         self.memo[id(source)] = result
         self.memo[id(source.trajectory)] = self.trajectory
         result.dice = _dice(source.capture_rng_state())
+        if result.dice.chance is not None:
+            result.dice.chance._game = result
         self.memo[id(source.dice)] = result.dice
         self.memo[id(source.rng)] = result.rng
         self.memo[id(source.time_source)] = self.time if source.time_source is not None else None
@@ -573,6 +575,9 @@ def _dice(state):
         raise SnapshotError('Malformed RNG or forced queues') from error
     result._queues, result._strict = queues, list(state.strict)
     result._scopes = [object() for _ in state._scopes]
+    if state.chance is not None:
+        from .chance import ChancePolicy
+        result.chance = ChancePolicy.from_json(state.chance)
     return result
 
 
@@ -582,8 +587,17 @@ def _boundary(game):
         raise SnapshotError('Capture requires a settled decision or terminal boundary')
     if type(game.dice) is not model.DiceSource or type(game.rng) is not np.random.RandomState:
         raise SnapshotError('Expected the owned engine MT19937 dice source')
-    if set(vars(game.dice)) != {'rng', '_queues', '_strict', '_scopes'}:
+    if set(vars(game.dice)) != {'rng', '_queues', '_strict', '_scopes', 'chance'}:
         raise SnapshotError('Uninventoried dice source fields')
+    if game.dice.chance is not None:
+        from .chance import ChancePolicy
+        if type(game.dice.chance) is not ChancePolicy or game.dice.chance._game is not game:
+            raise SnapshotError('Expected an owned chance policy')
+        if set(vars(game.dice.chance)) != {
+                'mode', '_input', '_matches', 'unmatched', 'seed', '_cursor',
+                '_used', '_counts', '_rolls', '_game', '_fabricated'}:
+            raise SnapshotError('Uninventoried chance policy fields')
+        ChancePolicy.from_json(game.dice.chance.to_json())
     if game.time_source is not None and type(game.time_source) is not LogicalTime:
         raise SnapshotError('Use the default clock or LogicalTime for lab snapshots')
     if game.finalization_errors:
@@ -719,7 +733,7 @@ def _fingerprint(root):
             data = visit(capture_stream(value))
         elif kind is model.DiceSource:
             state = value.get_state()
-            data = visit((state.rng_state, state.queues, state.strict))
+            data = visit((state.rng_state, state.queues, state.strict, state.chance))
         elif kind is np.ndarray:
             data = (str(value.dtype), value.shape,
                     [visit(item) for item in value.flat] if value.dtype.kind == 'O' else value.tobytes())
@@ -913,6 +927,8 @@ def _restore_snapshot(subject, snapshot, *, adapters=None):
         dice.__dict__ = dice_data
         replacement.dice = dice
     game.__dict__ = replacement.__dict__
+    if game.dice.chance is not None:
+        game.dice.chance._game = game
     if episode is not None:
         episode.__dict__ = prepared.__dict__
     return subject

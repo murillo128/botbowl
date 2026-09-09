@@ -359,7 +359,7 @@ def test_manifest_allowlist_and_privileged_state_never_enters_observations_or_fe
     resources[0].credentials = {"token": "do-not-export"}
     context = EpisodeContext(*resources, episode_key="public-label", master_seed=17)
     manifest = context.manifest()
-    assert set(manifest) == {"manifest_version", "rules", "derivation_algorithm", "generator", "sources",
+    assert set(manifest) == {"chance", "manifest_version", "rules", "derivation_algorithm", "generator", "sources",
                              "policies", "scenario_mode", "clock_mode", "max_decisions", "max_steps_per_decision"}
     assert "/secret" not in json.dumps(manifest) and "do-not-export" not in json.dumps(manifest)
     assert "rng_state" not in json.dumps(manifest) and "queues" not in json.dumps(manifest)
