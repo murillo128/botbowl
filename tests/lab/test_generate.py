@@ -238,3 +238,20 @@ def test_cancel_during_synthetic_construction_closes_candidate(tmp_path, monkeyp
     assert len(candidates) == 1 and candidates[0].closed
     assert not (tmp_path / 'data' / 'episode-000000').exists()
     assert (tmp_path / 'data' / 'episode-000000.failure.json').exists()
+
+
+def test_imported_snapshot_cannot_invent_recording_start(tmp_path):
+    from botbowl.lab.generate import _open_session
+    config = JobConfig(str(tmp_path / 'data'), scenario='match')
+    entry = build_plan(config)['episodes'][0]
+    original = _open_session(entry, config)
+    imported = SimulationSession.from_snapshot(original.snapshot())
+    try:
+        with pytest.raises(ValueError, match='original reset observation'):
+            imported.start_recording(tmp_path, 'imported', episode_id=entry['episode_id'],
+                source_family=entry['origin_family_id'], scenario_id=config.scenario,
+                policies=entry['policies'], seed_plan=entry['seed_plan'])
+        assert not (tmp_path / 'imported.partial').exists()
+    finally:
+        imported.close()
+        original.close()

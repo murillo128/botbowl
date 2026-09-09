@@ -90,7 +90,9 @@ the zero-coach-decision timeline to the recorder. The session retains its initia
 home observation; scenario attachment imports the validated uncaused synthetic
 phase prefix without resetting counters. Attachment after a coach decision or to
 an already recorded timeline is rejected. The caller owns recorder finish/close;
-reset during active recording is rejected, and recording cannot be rewound.
+sessions imported with `from_snapshot` lack the original reset observation and
+are also rejected before creating a writer.
+Reset during active recording is rejected, and recording cannot be rewound.
 Existing direct `EpisodeRecorder(Game, ...)` behavior remains supported.
 
 `dataset.json` contains the plan hash and each confirmed episode's manifest hash,

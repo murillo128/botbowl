@@ -161,6 +161,7 @@ class SimulationSession:
         self._revision = 0
         self._closed = False
         self._recorder = None
+        self._recording_initial = None
         if config is not None or seed_plan is not None:
             if config is None or seed_plan is None:
                 raise InvalidConfiguration("config and seed_plan must be supplied together")
@@ -277,6 +278,8 @@ class SimulationSession:
         restore is not supported during recording.
         """
         self._require_mutable()
+        if self._recording_initial is None:
+            raise InvalidConfiguration("Recording needs the original reset observation, not an imported snapshot")
         from .recording import EpisodeRecorder
 
         recorder = EpisodeRecorder(self._game, destination, relative_path,
