@@ -10,6 +10,7 @@ import gymnasium as gym
 import numpy as np
 
 from botbowl.api import create_game
+from botbowl.ai.action_codec import ActionIndexCodecV1
 from botbowl.ai.env_conf import EnvConf
 from botbowl.ai.layers import AvailablePositionLayer
 from botbowl.core import (Action, ActionType, GameTruncatedError, PlayerActionType,
@@ -50,12 +51,11 @@ class GymnasiumEnv(gym.Env):
         self.home_team = load_team_by_filename('human', rules, board_size=size)
         self.away_team = load_team_by_filename('human', rules, board_size=size)
         self.player_slots = max(len(self.home_team.players), len(self.away_team.players))
-        # Stable enum declaration order; aliases keep their engine identity.
-        self.action_types = tuple(t for t in ActionType if t is not ActionType.CONTINUE)
-        self.action_stride = 1 + self.board_squares + 2 * self.player_slots
-        self.placement_offset = len(self.action_types) * self.action_stride
-        self.action_space = gym.spaces.Discrete(
-            self.placement_offset + 2 * self.player_slots * (self.board_squares + 1))
+        self._action_codec = ActionIndexCodecV1(self.width, self.height, self.player_slots)
+        self.action_types = self._action_codec.action_types
+        self.action_stride = self._action_codec.action_stride
+        self.placement_offset = self._action_codec.placement_offset
+        self.action_space = gym.spaces.Discrete(self._action_codec.n)
         self.num_non_spatial_observables = 52 + len(self.env_conf.procedures) + len(self.action_types)
         # These are normalized features, not probabilities. Rerolls, movement,
         # attributes and extra resources can exceed 1. Never clip valid values.
@@ -117,14 +117,7 @@ class GymnasiumEnv(gym.Env):
                                  if p is not None and p.player_id == player.player_id), None)
             if player_index is None:
                 raise ValueError("player outside this game's roster")
-        if action.action_type is ActionType.PLACE_PLAYER:
-            if player_index is None:
-                raise ValueError("PLACE_PLAYER requires a player")
-            return self.placement_offset + player_index * (self.board_squares + 1) + square
-        if player is not None and position is not None:
-            raise ValueError("Only PLACE_PLAYER uses a player and square together")
-        target = square if player is None else 1 + self.board_squares + player_index
-        return self.action_types.index(action.action_type) * self.action_stride + target
+        return self._action_codec.encode(action.action_type, square, player_index)
 
     def decode_action(self, index, *, flip=None):
         """Decode a fixed index, without mutating the game or testing legality."""
@@ -132,19 +125,8 @@ class GymnasiumEnv(gym.Env):
             raise ValueError("action index outside Discrete space")
         index = int(index)
         flip = self._flip() if flip is None else flip
-        player = None
-        if index >= self.placement_offset:
-            player_index, square = divmod(index - self.placement_offset, self.board_squares + 1)
-            action_type = ActionType.PLACE_PLAYER
-            player = self._players(flip)[player_index]
-        else:
-            type_index, target = divmod(index, self.action_stride)
-            action_type = self.action_types[type_index]
-            if target > self.board_squares:
-                player = self._players(flip)[target - self.board_squares - 1]
-                square = 0
-            else:
-                square = target
+        action_type, square, player_index = self._action_codec.decode(index)
+        player = None if player_index is None else self._players(flip)[player_index]
         position = None
         if square:
             y, x = divmod(square - 1, self.width)

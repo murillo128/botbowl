@@ -46,6 +46,7 @@ python -m pip install '.[dev]'
 | `web` | Existing Flask HTTP routes | Flask and its dependencies |
 | `rl` | Legacy Gym environments and wrappers | Gym 0.26.2, NumPy <2; see compatibility below |
 | `gymnasium` | Versioned Gymnasium v5 adapter and explicit controllers | Gymnasium >=1.3,<2; CPython 3.11–3.14, NumPy 2 |
+| `multiagent` | Two-coach PettingZoo AEC adapter ([contract](lab/pettingzoo.md)) | PettingZoo 1.25.0, Gymnasium >=1.3,<2 |
 | `competition` | Competition helpers and socket/Docker agents | Docker Python client, tabulate; a daemon is needed only to run container agents |
 | `render` | Matplotlib plotting in examples | Matplotlib; the legacy `EnvRenderer` separately needs the interpreter's Tk installation and a display when constructed |
 | `dev` | Tests and package builds | pytest, build, more-itertools; install other extras for their tests |
