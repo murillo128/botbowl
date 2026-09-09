@@ -27,7 +27,7 @@ If a bot crashes and is unable to recover, the game will continue and the bot wi
 Bot Bowl IV had a prize pool of $1000 with the following two prizes:
 
 - $500 is awarded to the 1st place winner
-- $500 is awarded to the author(s) of the most innovative machine learning bot. This prize is sponsored by [modl.ai](modl.ai) and the winner will be selected by a jury consisting of Julian Togelius and Sebastian Risi.
+- $500 is awarded to the author(s) of the most innovative machine learning bot. This prize is sponsored by [modl.ai](https://modl.ai) and the winner will be selected by a jury consisting of Julian Togelius and Sebastian Risi.
 
 # New Features
 

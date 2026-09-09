@@ -1,4 +1,3 @@
-import tkinter as tk
 import math
 
 from botbowl.core.model import Tile, TwoPlayerArena, Skill
@@ -21,6 +20,8 @@ class EnvRenderer:
     scrimmage = '#338833'
 
     def __init__(self, env, feature_layers=False):
+        import tkinter as tk
+
         self.env = env
         self.layers = env.env_conf.layers
         self.root = tk.Tk()

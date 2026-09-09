@@ -1,8 +1,79 @@
 # Botbowl :heart: docker
 [Docker](http://docker.com) is a platform designed to help developers build, share, and run modern applications. 
 
+## Verified application image
+
+The root `Dockerfile` installs only a wheel that has passed the release verifier.
+It does not copy or install the checkout, use `requirements.txt`, run as root, or
+need a compiler, display, GPU, host data file or Docker socket.
+
+```bash
+python -m pip install '.[dev]'
+python tools/release/verify_artifacts.py --output dist/release --install-smoke
+docker build --target headless -t botbowl-headless .
+docker run --rm --read-only --tmpfs /tmp botbowl-headless
+```
+
+The default/final target is `headless`; it advances three decisions and exits
+successfully. Verify the runtime identity with:
+
+```bash
+docker run --rm --entrypoint python botbowl-headless -c \
+  'import os; assert os.getuid() == 10001; import botbowl; print(botbowl.__version__)'
+```
+
+The optional web image is a separate explicit target. The container binding is
+explicitly `0.0.0.0` so Docker can publish it; keep the host publication on
+loopback unless a separately authenticated deployment is designed:
+
+```bash
+docker build --target web -t botbowl-web .
+docker run --rm --read-only --tmpfs /tmp -p 127.0.0.1:5000:5000 botbowl-web
+```
+
+Debug and reload are disabled. Neither image mounts `/var/run/docker.sock`.
+The competition-bot mechanism below is a different trusted-local facility and
+must not be inferred from the application image.
+
+## Trust and resource boundary
+
+The legacy socket protocol uses Python pickle and is only for mutually trusted
+processes on the same host. Receiving a pickle may execute arbitrary code.
+Loopback is an exposure restriction, not authentication of local users. Tokens
+and request IDs are checked after deserialization and only detect protocol
+mixups. Do not use untrusted images, remote daemons, public bindings, proxies,
+or port tunnels. DockerAgent accepts only a Unix-socket `DOCKER_HOST`, defaulting
+to `unix:///var/run/docker.sock`; Docker contexts cannot redirect this endpoint.
+Remote configuration is rejected before SDK version negotiation. Remote untrusted use requires the replacement authenticated
+data protocol tracked by #2 API-08/09.
+
+`PythonSocketClient` and `PythonSocketServer` default to `127.0.0.1` and reject
+non-loopback addresses; `localhost` is pinned to `127.0.0.1`. There is no remote
+opt-in. Raw `send_data` / `receive_data` helpers accept Unix sockets or connected TCP
+loopback peers; they still require a trusted peer.
+The configurable `max_frame_size` defaults to 64 MiB of serialized payload and
+must be a positive integer fitting the ten-byte header. Zero-length messages
+are invalid. The configurable `timeout` defaults to 30 seconds (`None` uses
+that default, zero expires immediately). One monotonic deadline covers each
+frame or the entire client connect/send/receive exchange, also capped by the
+game clock. The server uses one deadline for request and response. These are
+I/O deadlines: they cannot preempt Python pickle code or an agent callback.
+The frame limit does not bound decoded object memory or CPU; peer trust is
+still required.
+
+Use `close()` or context managers for clients, servers, and `DockerAgent`.
+Each client command closes its connection on success or failure. Invalid
+frames/connections are discarded by the server. `SocketProtocolError` subclasses
+distinguish malformed frames (`InvalidFrameError`), excessive length
+(`FrameTooLargeError`), premature EOF (`UnexpectedEOFError`), expired deadlines
+(`ProtocolTimeoutError`), and invalid envelopes (`InvalidMessageError`). After
+a protocol error, raw-helper callers must discard their connection. `MultiAgentCompetition`
+closes agents created by its factories, including temporary name probes and
+failed matchups. Direct `Competition` callers retain ownership of their
+supplied agents. There is no destructor-based normal cleanup.
+
 ## Submitting a docker image to the Bot Bowl competition
-Your image will be started with `docker run -p <host_port>:5100 -t <bot_image>`. Below follows detailed instructions to build and submit your bot in a docker image. In the example, we'll build a bot called "nuffle". 
+`DockerAgent` starts a trusted local image with host networking and a loopback-only server. It requires a local Unix-socket Docker daemon and host networking support (normally Linux). It passes a free port in `BOTBOWL_SOCKET_PORT`; `PythonSocketServer` reads it by default. No bridge ports are published. Images must use this server or honor the port setting and bind only to loopback. Host networking is not a sandbox for untrusted images. Below follows detailed instructions to build and submit your bot in a docker image. In the example, we'll build a bot called "nuffle".
 
 
 Modify (../examples/containerized_bot.py) so it starts your bot instead of the scripted bot. 
@@ -16,10 +87,9 @@ docker build . -t nuffle_bot_image --file docker/Dockerfile.comptetition_bot
 
 Confirm that it's working: 
 ```shell
-docker run -p 5100:5100 -it nuffle_bot_image 
+docker run --network host -e BOTBOWL_SOCKET_PORT=5100 -it nuffle_bot_image
 ```
-You should see it saying something like: `Agent listening on 4924d7d0fa7d:5100 using token 32`. 
-`
+You should see: `Agent listening on 127.0.0.1:5100 (trusted local pickle)`.
 
 Create the image file to be uploaded: 
 ```shell
