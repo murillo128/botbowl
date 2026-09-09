@@ -503,6 +503,48 @@ class SimulationSession:
         self._revision += 1
         return result
 
+    @classmethod
+    def from_snapshot(cls, snapshot: SessionSnapshot) -> "SimulationSession":
+        """Create an owned session from a trusted snapshot, without a reset game.
+
+        Engine persistence remains the SnapshotFileV1 boundary. Prediction and
+        observation records are deliberately not accepted here.
+        """
+        if (
+            type(snapshot) is not SessionSnapshot
+            or type(snapshot.schema_version) is not int or snapshot.schema_version != 1
+            or snapshot.scope != "engine"
+            or type(snapshot.accepted_decisions) is not int
+            or type(snapshot.max_decisions) is not int
+            or not 0 <= snapshot.accepted_decisions <= snapshot.max_decisions
+            or type(snapshot.max_steps) is not int or snapshot.max_steps < 1
+            or snapshot.truncation_reason
+            not in (None, "execution_budget", "no_progress", "execution_failure")
+        ):
+            raise IncompatibleSnapshot("Expected a compatible session snapshot")
+        candidate = cls()
+        try:
+            game = clone_from_snapshot(snapshot.engine)
+            candidate._game = game
+            if (type(game) is not Game or not game.external_control
+                    or type(game.timeline) is not Timeline
+                    or game.timeline.context.decision_seq != snapshot.accepted_decisions):
+                raise SnapshotError("Snapshot has no compatible session timeline")
+            candidate._timeline = game.timeline
+            candidate._actions = ActionControl(game, game.timeline._entities)
+            candidate._config = SessionConfig(
+                max_decisions=snapshot.max_decisions, max_steps=snapshot.max_steps)
+            candidate._accepted_decisions = snapshot.accepted_decisions
+            candidate._truncation_reason = snapshot.truncation_reason
+            candidate._revision = 1
+            candidate._result()
+        except Exception as error:
+            candidate.close()
+            raise IncompatibleSnapshot(
+                "Snapshot is incompatible with this session", _diagnostic(error)
+            ) from error
+        return candidate
+
     def close(self) -> None:
         """Administratively close once; never invoke a policy or finish the match."""
         if self._closed:
