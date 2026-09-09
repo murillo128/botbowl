@@ -130,7 +130,7 @@
           });
           content.append(table);
           if(item.kind === 'projection_2d') {
-            const plot=node('canvas'), points=item.data.values;plot.width=300;plot.height=200;
+            const plot=node('canvas',undefined,'projection'), points=item.data.values;plot.width=300;plot.height=200;
             plot.setAttribute('role','img');plot.setAttribute('aria-label','External two-dimensional projection; coordinates in the entity table');
             const ctx=plot.getContext('2d');ctx.fillStyle='#ffffff';ctx.fillRect(0,0,300,200);
             // Normalize before subtracting to avoid overflow for finite float64 extremes.
@@ -138,7 +138,7 @@
             const normalized=points.map(p=>p.map(v=>v/scale));
             const xs=normalized.map(p=>p[0]),ys=normalized.map(p=>p[1]);
             const minX=Math.min(...xs),minY=Math.min(...ys),dx=Math.max(...xs)-minX||1,dy=Math.max(...ys)-minY||1;
-            normalized.forEach((p,i)=>{const x=20+240*(p[0]-minX)/dx,y=170-140*(p[1]-minY)/dy;
+            normalized.forEach((p,i)=>{const x=20+200*(p[0]-minX)/dx,y=170-140*(p[1]-minY)/dy;
               ctx.fillStyle='#62389c';ctx.fillRect(x-3,y-3,6,6);ctx.fillText(item.entity_ids[i],x+5,y);});
             content.append(plot);
           }

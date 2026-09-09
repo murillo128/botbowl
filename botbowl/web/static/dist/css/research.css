@@ -10,3 +10,6 @@ textarea {display:block;width:40rem} .entities {max-height:12rem;overflow:auto}.
 #status {font-weight:bold} @media(prefers-reduced-motion:reduce) {* {animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 .panel-heading {min-height:2.5em;overflow-wrap:anywhere}.alignment {min-height:3em}.availability {min-height:4.5em}.time {white-space:pre-line;min-height:4.5em}
 summary {cursor:pointer;font-weight:600;margin-top:1rem} details pre {font-size:.85rem}
+.external-layers canvas.projection {width:300px;max-width:100%;image-rendering:auto}
+.external-layers table {border-collapse:collapse;max-width:100%;overflow-wrap:anywhere}
+.external-layers th,.external-layers td {text-align:left;padding:.2rem .6rem;border-bottom:1px solid #dbe4e0}
