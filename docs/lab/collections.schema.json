@@ -1,0 +1,381 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CollectionSpecV1",
+  "description": "DATA-09 data-only spec. Python additionally checks generator, chance and editor semantics.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "after",
+    "before",
+    "chance",
+    "generation",
+    "max_decisions",
+    "max_episodes",
+    "mode",
+    "patch",
+    "predicate",
+    "schema_version",
+    "target"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "generation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "master_seed": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 115792089237316195423570985008687907853269984665640564039457584007913129639935
+        },
+        "scenario": {
+          "enum": [
+            "match",
+            "movement",
+            "pickup",
+            "pass_receive",
+            "block",
+            "possession_recovery",
+            "touchdown"
+          ]
+        },
+        "size": {
+          "enum": [
+            1,
+            3,
+            5,
+            7,
+            11
+          ]
+        },
+        "side": {
+          "enum": [
+            "home",
+            "away"
+          ]
+        },
+        "home_policy": {
+          "enum": [
+            "random",
+            "scripted",
+            "possession",
+            "cautious",
+            "risk_taking"
+          ]
+        },
+        "away_policy": {
+          "enum": [
+            "random",
+            "scripted",
+            "possession",
+            "cautious",
+            "risk_taking"
+          ]
+        },
+        "input_profile": {
+          "const": "primary"
+        },
+        "max_decisions": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000
+        },
+        "max_steps": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10000
+        },
+        "horizon": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 10000
+        },
+        "distance": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3
+        },
+        "rerolls": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3
+        },
+        "episode_prefix": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,89}$"
+        },
+        "home_policy_config": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "away_policy_config": {
+          "type": [
+            "object",
+            "null"
+          ]
+        }
+      }
+    },
+    "mode": {
+      "enum": [
+        "natural",
+        "selected",
+        "forced",
+        "intervened"
+      ]
+    },
+    "target": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1000
+    },
+    "max_episodes": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1000
+    },
+    "max_decisions": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1000000
+    },
+    "predicate": {
+      "enum": [
+        null,
+        "possession_gain-v1",
+        "injury-v1",
+        "knockdown_injury-v1"
+      ]
+    },
+    "before": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 256
+    },
+    "after": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 256
+    },
+    "chance": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "Unused SIM-06 ChancePolicy.to_json declaration; Python validates the complete tape and state."
+    },
+    "patch": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "interventions.schema.json"
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "mode": {
+            "const": "selected"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "predicate": {
+            "type": "string"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "predicate": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "mode": {
+            "enum": [
+              "natural",
+              "selected"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "chance": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "mode": {
+            "const": "forced"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "chance": {
+            "type": "object",
+            "required": [
+              "mode"
+            ],
+            "properties": {
+              "mode": {
+                "const": "forced"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "mode": {
+            "const": "intervened"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "patch": {
+            "type": "object",
+            "properties": {
+              "reachability": {
+                "enum": [
+                  "synthetic",
+                  "unknown"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "patch": {
+            "type": "null"
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "CollectionReportV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "mode",
+        "selection_unit",
+        "status",
+        "attempted",
+        "accepted",
+        "failed",
+        "rejected",
+        "pending",
+        "attempted_decisions",
+        "decision_accounting",
+        "limits",
+        "warning"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "mode": {
+          "enum": [
+            "natural",
+            "selected",
+            "forced",
+            "intervened"
+          ]
+        },
+        "selection_unit": {
+          "const": "episode"
+        },
+        "status": {
+          "enum": [
+            "complete",
+            "in_progress",
+            "insufficient_matches"
+          ]
+        },
+        "attempted": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "accepted": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "failed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "rejected": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "pending": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "attempted_decisions": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "decision_accounting": {
+          "const": "actual_on_success_upper_bound_on_failure"
+        },
+        "limits": {
+          "type": "object",
+          "required": [
+            "target",
+            "max_episodes",
+            "max_decisions"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "target": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "max_episodes": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "max_decisions": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        "warning": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}
