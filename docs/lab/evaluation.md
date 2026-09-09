@@ -1,5 +1,8 @@
 # Evaluation oracle V1
 
+For separate outcome surprise, observed impact and expected decision quality,
+see the opt-in [DecisionAssessmentV1 protocol](decision-axes.md).
+
 `botbowl.lab.evaluation` provides explicit evaluation over a detached
 `EvaluationContext`, a closed `LABEL_SPECS` catalogue, and validated
 `EvaluationRecord` sidecars. Import and invoke it explicitly in trusted control
