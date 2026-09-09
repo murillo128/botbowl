@@ -187,6 +187,10 @@ class HTTPClient:
         for attempt in range(self.retries + 1):
             if time.monotonic() >= deadline:
                 raise UncertainResult()
+            was_uncertain = self._pending_uncertain
+            # Cancellation can escape the transport too. Keep the send pending
+            # until a receipt or an unambiguous first-send rejection resolves it.
+            self._pending_uncertain = True
             try:
                 result = self._once("POST", path, raw)
                 if not self._matching_receipt(command, result) or not result["ok"]:
@@ -197,18 +201,16 @@ class HTTPClient:
                 if self._matching_receipt(command, error.response) and not error.response["ok"]:
                     self._finish_pending(command, error.response)
                     raise
-                if (not self._pending_uncertain and error.status < 500
+                if (not was_uncertain and error.status < 500
                         and set(error.response) == {"ok", "error"}
                         and error.response["ok"] is False and type(error.response["error"]) is str):
                     # The first send was explicitly rejected. After any lost or
                     # ambiguous response, this same guard cannot resolve it.
                     self._clear_pending()
                     raise
-                self._pending_uncertain = True
                 if attempt == self.retries:
                     raise UncertainResult() from error
             except (OSError, http.client.HTTPException, ValueError):
-                self._pending_uncertain = True
                 if attempt == self.retries:
                     raise UncertainResult() from None
         raise UncertainResult()

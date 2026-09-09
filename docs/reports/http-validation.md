@@ -4,14 +4,14 @@ Validation used CPython 3.11.16, the Python pathfinding backend, Flask 3.1.3 and
 NumPy 2.4.6. No external service or production credential was provisioned.
 
 * `python -m pytest tests/lab/test_http_api.py tests/lab/test_http_client.py
-  tests/lab/test_commands.py -q`: **64 passed**. Includes two remote and two
+  tests/lab/test_commands.py -q`: **65 passed**. Includes two remote and two
   local controllers with identical standard/pickup/block configurations, seeds,
   observations, public notifications and episode outcomes; authenticated random
   continuation after snapshot restore; pause/clock purity; schema/role failures;
   duplicate, expired and lost receipts; post-commit timeout; disconnection;
   pagination/cursor loss; bounded waits, rate and concurrent admission; socket
   and session teardown. Recovery regressions include a lost committed creation
-  followed by the actual HTTP rate limiter's 429, server-side receipt expiry,
+  followed by the actual HTTP rate limiter's 429 (after timeout or interruption), server-side receipt expiry,
   mismatched/incomplete receipts, and ownership/cleanup of creations whose initial
   responses were lost. Both explicit recovery and exception unwinding release
   recoverable allocations. Expired cleanup does not resend; a failed creation

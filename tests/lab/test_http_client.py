@@ -239,7 +239,8 @@ def test_duplicate_creation_handle_and_explicit_close_are_idempotent():
 
 
 
-def test_lost_commit_then_real_rate_limit_keeps_pending_identity(monkeypatch):
+@pytest.mark.parametrize("interrupted", [False, True])
+def test_lost_commit_then_real_rate_limit_keeps_pending_identity(monkeypatch, interrupted):
     from types import SimpleNamespace
     import botbowl.lab.http as transport
     now = [0.0]
@@ -254,17 +255,23 @@ def test_lost_commit_then_real_rate_limit_keeps_pending_identity(monkeypatch):
                     sent.append(raw)
                 result = original(method, path, raw)
                 if method == "POST" and len(sent) == 1:
+                    if interrupted:
+                        raise KeyboardInterrupt()
                     raise TimeoutError()
                 return result
             monkeypatch.setattr(admin, "_once", lose_once)
             # Capabilities and committed creation exhaust the real HTTP limiter.
+            if interrupted:
+                with pytest.raises(KeyboardInterrupt):
+                    admin.execute(creation())
             with pytest.raises(UncertainResult) as error:
-                admin.execute(creation())
+                admin.retry_pending() if interrupted else admin.execute(creation())
             assert isinstance(error.value.__cause__, HTTPError)
             assert error.value.__cause__.status == 429
             assert len(registry._entries) == 1
             pending = admin._pending
-            assert sent == [pending[1], pending[1]]
+            assert len(sent) == (3 if interrupted else 2)
+            assert all(raw == pending[1] for raw in sent)
             with pytest.raises(UncertainResult):
                 admin.execute(creation(2))
             assert admin._pending == pending
