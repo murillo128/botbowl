@@ -437,17 +437,17 @@ class CollectionReader:
 
     def _load(self, destination):
         self.root = Path(destination).resolve()
-        self.spec = CollectionSpecV1(_read(self.root, 'spec.json')).to_json()
+        self._spec = CollectionSpecV1(_read(self.root, 'spec.json')).to_json()
         self._state = _read(self.root, 'collection.json')
         keys(self._state, ('schema_version', 'spec_sha256', 'attempts'))
         require(type(self._state['schema_version']) is int and self._state['schema_version'] == 1 and
-                self._state['spec_sha256'] == _hash(self.spec), 'Collection identity mismatch')
+                self._state['spec_sha256'] == _hash(self._spec), 'Collection identity mismatch')
         require(type(self._state['attempts']) is list and
-                len(self._state['attempts']) <= self.spec['max_episodes'], 'Attempt limit')
+                len(self._state['attempts']) <= self._spec['max_episodes'], 'Attempt limit')
         self._results = []
         for index, entry in enumerate(self._state['attempts']):
             keys(entry, ('status', 'reserved_decisions', 'result_sha256'))
-            require(entry['reserved_decisions'] == _reservation(self.spec), 'Decision reservation mismatch')
+            require(entry['reserved_decisions'] == _reservation(self._spec), 'Decision reservation mismatch')
             if entry['status'] == 'started':
                 require(index == len(self._state['attempts']) - 1 and entry['result_sha256'] is None,
                         'Invalid pending attempt')
@@ -466,19 +466,19 @@ class CollectionReader:
             require(type(result['schema_version']) is int and result['schema_version'] == 1,
                     'Unknown attempt schema')
             require(result['status'] == 'failed' or 'manifest_sha256' in result, 'Missing factual episode')
-            plan = _plan(self.spec, index)
+            plan = _plan(self._spec, index)
             require(result['generation_plan_sha256'] == _hash(plan) and result['attempt_index'] == index and
-                    result['mode'] == self.spec['mode'] and
+                    result['mode'] == self._spec['mode'] and
                     result['episode_id'] == plan['episodes'][0]['episode_id'] and
                     result['origin_family_id'] == plan['episodes'][0]['origin_family_id'],
                     'Attempt generation identity mismatch')
             integer(result['attempted_decisions'])
             require(result['attempted_decisions'] <= entry['reserved_decisions'], 'Decision cap exceeded')
             if 'manifest_sha256' in result:
-                require(result['mode'] == self.spec['mode'] and result['factual_mode'] == 'natural',
+                require(result['mode'] == self._spec['mode'] and result['factual_mode'] == 'natural',
                         'Cannot relabel collection provenance')
                 source = self.factual(index)
-                planned = _plan(self.spec, index)['episodes'][0]
+                planned = _plan(self._spec, index)['episodes'][0]
                 require(_hash(source.manifest) == result['manifest_sha256'] and
                         source.manifest['episode_id'] == result['episode_id'] == planned['episode_id'] and
                         source.manifest['source_family'] == result['origin_family_id'] == planned['origin_family_id'],
@@ -486,17 +486,17 @@ class CollectionReader:
                 selection = result['selection']
                 keys(selection, ('predicate', 'unit', 'event_ids', 'anchors', 'inclusion_probability',
                                  'sampling_weight', 'missing_weight_reason'))
-                require(selection['predicate'] == self.spec['predicate'] and selection['unit'] == 'episode' and
+                require(selection['predicate'] == self._spec['predicate'] and selection['unit'] == 'episode' and
                         selection['inclusion_probability'] is None and selection['sampling_weight'] is None and
                         selection['missing_weight_reason'] == 'inclusion_probability_unknown_for_generation_and_stopping',
                         'Invalid generated inclusion claim')
                 require(type(selection['event_ids']) is list and type(selection['anchors']) is list and
                         len(selection['event_ids']) == len(selection['anchors']), 'Invalid selection anchors')
                 if result['status'] != 'failed':
-                    require((result['status'] == 'accepted') == (self.spec['mode'] != 'selected' or
+                    require((result['status'] == 'accepted') == (self._spec['mode'] != 'selected' or
                             bool(selection['event_ids'])), 'Selection status mismatch')
                 if result['alternative'] is not None:
-                    require(self.spec['mode'] in ('forced', 'intervened'), 'Cannot relabel an alternative')
+                    require(self._spec['mode'] in ('forced', 'intervened'), 'Cannot relabel an alternative')
                     alternative = result['alternative']
                     folder = _path(self.root, 'attempt-%04d' % index)
                     lineage = _read(folder, 'lineage.json')
@@ -504,18 +504,22 @@ class CollectionReader:
                     require(_hash(lineage) == alternative['lineage_sha256'] and
                             _hash(replay) == alternative['replay_sha256'] and
                             lineage['origin_family_id'] == replay['origin_family_id'] == result['origin_family_id'] and
-                            alternative['mode'] == self.spec['mode'], 'Alternative provenance mismatch')
+                            alternative['mode'] == self._spec['mode'], 'Alternative provenance mismatch')
                     node = lineage['nodes'][-1]
                     require(alternative['chance'] == node['chance_result'] and
-                            (self.spec['mode'] != 'forced' or node['chance']['mode'] == 'forced' and
+                            (self._spec['mode'] != 'forced' or node['chance']['mode'] == 'forced' and
                              alternative['chance']['natural'] is False) and
-                            (self.spec['mode'] != 'intervened' or node['kind'] == 'intervened' and
+                            (self._spec['mode'] != 'intervened' or node['kind'] == 'intervened' and
                              node['intervention'] is not None), 'Experiment classification mismatch')
                 else:
-                    require(self.spec['mode'] in ('natural', 'selected') or result['status'] == 'failed',
+                    require(self._spec['mode'] in ('natural', 'selected') or result['status'] == 'failed',
                             'Missing experimental continuation')
             self._results.append(result)
-        require(self.report()['attempted_decisions'] <= self.spec['max_decisions'], 'Search decision limit')
+        require(self.report()['attempted_decisions'] <= self._spec['max_decisions'], 'Search decision limit')
+
+    @property
+    def spec(self):
+        return deepcopy(self._spec)
 
     def factual(self, index):
         integer(index)
@@ -526,23 +530,23 @@ class CollectionReader:
         """Materialize the exact plan, including for a failed admitted attempt."""
         integer(index)
         require(index < len(self._state['attempts']), 'Unknown attempt')
-        return _plan(self.spec, index)
+        return _plan(self._spec, index)
 
     def report(self):
         statuses = [entry['status'] for entry in self._state['attempts']]
         decisions = sum(entry['reserved_decisions'] if result is None else result['attempted_decisions']
                         for entry, result in zip(self._state['attempts'], self._results))
         accepted = statuses.count('accepted')
-        complete = accepted >= self.spec['target']
-        exhausted = len(statuses) >= self.spec['max_episodes'] or decisions + _reservation(self.spec) > self.spec['max_decisions']
-        return {'schema_version': 1, 'mode': self.spec['mode'], 'selection_unit': 'episode',
+        complete = accepted >= self._spec['target']
+        exhausted = len(statuses) >= self._spec['max_episodes'] or decisions + _reservation(self._spec) > self._spec['max_decisions']
+        return {'schema_version': 1, 'mode': self._spec['mode'], 'selection_unit': 'episode',
                 'status': ('in_progress' if 'started' in statuses else 'complete' if complete else
                            'insufficient_matches' if exhausted else 'in_progress'),
                 'attempted': len(statuses), 'accepted': accepted, 'failed': statuses.count('failed'),
                 'rejected': statuses.count('rejected'), 'pending': statuses.count('started'),
                 'attempted_decisions': decisions,
                 'decision_accounting': 'actual_on_success_upper_bound_on_failure',
-                'limits': {k: self.spec[k] for k in ('target', 'max_episodes', 'max_decisions')},
+                'limits': {k: self._spec[k] for k in ('target', 'max_episodes', 'max_decisions')},
                 'warning': BIAS_WARNING}
 
     def records(self):
@@ -555,8 +559,8 @@ class CollectionReader:
                 continue
             folder = _path(self.root, 'attempt-%04d' % index)
             DatasetReader(folder / 'factual').verify()
-            matches = (select_events(self.factual(index).iter_channel('events'), self.spec['predicate'])
-                       if self.spec['predicate'] else [])
+            matches = (select_events(self.factual(index).iter_channel('events'), self._spec['predicate'])
+                       if self._spec['predicate'] else [])
             require(result['selection']['event_ids'] == [e['event_id'] for e in matches] and
                     result['selection']['anchors'] == [e['context'] for e in matches],
                     'Selection differs from recorded events')
@@ -593,8 +597,8 @@ class CollectionReader:
         anchors but have no invented decision window. Alternative trajectories
         stay in ReplayV1, outside this factual DATA-03 projection.
         """
-        require(self.spec['mode'] in ('natural', 'selected'), 'Use ReplayV1 for experimental continuations')
-        window = WindowSpecV1(self.spec['before'] + 1, self.spec['after'] + 1)
+        require(self._spec['mode'] in ('natural', 'selected'), 'Use ReplayV1 for experimental continuations')
+        window = WindowSpecV1(self._spec['before'] + 1, self._spec['after'] + 1)
         for index, result in enumerate(self._results):
             if result is None or result['status'] != 'accepted':
                 continue
@@ -602,9 +606,9 @@ class CollectionReader:
                        for ctx in result['selection']['anchors'] if ctx['decision_seq'] > 0}
             for sample in iter_windows(self.factual(index), window, split_manifest=split_manifest):
                 cutoff = sample['metadata']['cutoff']
-                if self.spec['mode'] == 'natural' or (cutoff['branch_id'], cutoff['decision_seq']) in anchors:
+                if self._spec['mode'] == 'natural' or (cutoff['branch_id'], cutoff['decision_seq']) in anchors:
                     sample['metadata']['collection'] = {
-                        'mode': self.spec['mode'], 'selection': deepcopy(result['selection']),
+                        'mode': self._spec['mode'], 'selection': deepcopy(result['selection']),
                         'warning': BIAS_WARNING}
                     yield sample
 

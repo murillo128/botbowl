@@ -200,6 +200,10 @@ def test_engine_alternatives_retain_factual_family_split_and_labels(tmp_path, mo
     reader = CollectionReader(tmp_path / 'a')
     reader.verify()
     record = reader.records()[0]
+    exported_spec = reader.spec
+    exported_spec['mode'] = 'natural'
+    exported_spec['generation']['master_seed'] = 999
+    assert reader.report()['mode'] == mode and reader.spec == design.to_json()
     assert record['mode'] == record['alternative']['mode'] == mode
     assert record['factual_mode'] == 'natural'
     assert record['alternative']['chance']['natural'] == (mode != 'forced')
