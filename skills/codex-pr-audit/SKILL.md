@@ -25,7 +25,7 @@ If the current context is not demonstrably fresh and isolated from the executor,
 
 Use `../codex-github-operations/SKILL.md` for Git/GitHub mechanics after the verdict is fixed. This skill grants standing workflow authority for the positive audit path described below; no separate user-facing merge decision is required for that automatic audit completion path.
 
-The audit controller must never implement a technical fix. A failed review returns the work to the normal executor.
+The audit controller must never implement a technical fix. A failed review or stale integration target returns the work to the normal executor.
 
 ## Inputs
 
@@ -60,13 +60,18 @@ A fresh audit always targets the pull request's **current head at audit start**.
 
 The technical review covers the complete PR diff `audit_base..audit_head`, not merely the last commit.
 
-Immediately before recording a verdict and again immediately before any verdict-derived mutation, re-read the PR and require:
+Immediately before recording a verdict and again immediately before any verdict-derived mutation, re-read the PR and require the current head SHA to equal `audit_head`, the base ref to remain the expected base ref, and the PR to still belong to the expected repository and controlling issue.
 
-- current head SHA == `audit_head`;
-- current base SHA == `audit_base`;
-- the PR still belongs to the expected repository and controlling issue.
+If the **head** moved, the verdict is stale. Record at most one concise stale-attempt note, perform no verdict-derived mutation, and require a fresh audit of the new head.
 
-If either SHA moved, the verdict is stale. Record at most one concise stale-attempt note, perform no verdict-derived mutation, and require a new audit of the new pair.
+If the head is unchanged but the **base branch tip** moved from `audit_base`, do not review or merge against the historical base. Fetch the current base tip and distinguish:
+
+- forward integration drift: the current base tip is a descendant of `audit_base` on the same base ref;
+- rewritten/ambiguous base: ancestry cannot establish a normal forward advance, the base ref changed, or repository ownership changed.
+
+Forward integration drift is normal executable reconciliation work, not a technical `FAIL` and not `BLOCKED`. End any reviewer role, mark the PR draft if it is currently ready, replace the controlling issue's `review-ready` state with `execution-ready`, leave the issue open, and stop. That label transition intentionally relaunches the executor so it can rebase onto the new integration tip, republish, and obtain fresh CI before another audit.
+
+For a rewritten or ambiguous base, fail closed and preserve a concise control-plane finding instead of guessing or rewriting the implementation branch.
 
 ## Review phase
 
@@ -112,6 +117,8 @@ Do not submit a formal GitHub `APPROVE` review. If the exact marker already exis
 
 A different head always requires a new audit. A genuinely different verdict for the same head is a new audit record and must preserve the changed evidence rather than overwrite history.
 
+Integration drift detected before a valid verdict is fixed does not invent a reviewer verdict or canonical audit record. If a positive record was already written and the base advances before merge, preserve that record as historical evidence, return the issue to execution as described above, and require a fresh audit after the executor publishes a new head/base pair.
+
 ## Verdict mapping
 
 Re-fetch the exact PR and controlling issue before applying any row.
@@ -122,6 +129,8 @@ Re-fetch the exact PR and controlling issue before applying any row.
 | `PASS_WITH_NOTES` | Same automatic merge; preserve notes in the audit record | After merge is observed, replace `review-ready` with `completed`, then close the issue | Integrated and complete with non-blocking notes |
 | `FAIL` | Mark PR draft if currently ready | Replace `review-ready` with `execution-ready`; leave issue open | Returned to executor |
 | `BLOCKED` | Do not change PR readiness | Replace `review-ready` with `blocked` only for a genuine unavailable capability/evidence condition | Blocked with exact cause |
+
+Integration-base drift and a `dirty`/conflicting PR that requires base reconciliation are **control-plane returns**, not extra reviewer verdicts. When the implementation head is still owned by the controlling issue, mark the PR draft, replace `review-ready` with `execution-ready`, and leave the issue open so the normal executor can reconcile it.
 
 ### Positive automatic merge path
 
@@ -138,4 +147,10 @@ For `PASS` or `PASS_WITH_NOTES`:
 
 The independent reviewer did not merge anything: the review ended before step 3. Automatic integration is a separate controller action authorized by this audit workflow.
 
-If the exact-head merge cannot be completed because required GitHub checks or mergeability are temporarily unresolved, leave the issue `review-ready` and the PR open. Do not falsely mark `completed`; retry the audit/controller reconciliation later. Use `BLOCKED` only for a genuine unavailable required capability with no safe alternative, not ordinary pending checks.
+If the exact-head merge cannot be completed, classify the reason before choosing state:
+
+- if the PR/base/head moved or GitHub reports the PR `dirty`/conflicting because the integration target advanced, use the integration-drift/control-plane return above (`draft` + `execution-ready`);
+- if required checks or mergeability are merely pending/temporarily unresolved while head and base remain exact, leave the issue `review-ready` and the PR open for later controller reconciliation;
+- use `BLOCKED` only for a genuine unavailable required capability with no safe alternative, not ordinary pending checks or integration drift.
+
+Never falsely mark `completed` until GitHub reports the exact PR actually merged.
