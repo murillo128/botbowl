@@ -2,6 +2,8 @@
 
 `botbowl.lab.evaluation.temporal` evaluates external predictions as inert data.
 It never loads an encoder, decoder, plugin or checkpoint and never fits a model.
+For probabilistic payloads and matched simulator samples, see
+[calibration evaluation](calibration.md).
 Run the CPU example with `python -m examples.lab.temporal`; run the focused tests
 with `python -m pytest -q tests/lab/test_temporal_evaluation.py`.
 
