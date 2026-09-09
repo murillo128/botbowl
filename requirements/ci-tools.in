@@ -1,0 +1,7 @@
+# CI-only tools; these are not Bot Bowl runtime dependencies.
+pip==26.2.1
+setuptools==84.0.0
+wheel==0.48.0
+Cython==3.3.0
+ruff==0.16.6
+pip-audit==2.10.1

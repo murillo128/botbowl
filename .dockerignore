@@ -1,0 +1,16 @@
+.git
+.github
+.venv
+build
+dist/*
+!dist/release/
+!dist/release/artifacts/
+!dist/release/artifacts/*.whl
+docs
+examples
+tests
+wiki
+*.egg-info
+**/__pycache__
+**/*.pyc
+botbowl/web/static/img

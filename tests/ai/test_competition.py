@@ -33,7 +33,7 @@ def test_illegal_actions(capsys):
 
     out, err = capsys.readouterr()
     assert err == ""
-    assert out.find("Action not allowed {'action_type': 'USE_APOTHECARY'") >= 0
+    assert "Action type is not currently available." in out
 
 
 def test_hide_agent_and_rng():

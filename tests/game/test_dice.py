@@ -1,5 +1,5 @@
 import pytest
-from botbowl.core.model import D3, D6, D8, BBDie
+from botbowl.core.model import D3, D6, D8, BBDie, DiceSource
 from botbowl.core.table import BBDieResult
 import numpy as np
 
@@ -33,28 +33,28 @@ def test_d_die(die):
 
 def test_d3_fixation():
     for seed in range(10):
-        rnd = np.random.RandomState(seed)
-        D3.fix(1)
-        D3.fix(2)
-        D3.fix(3)
+        rnd = DiceSource(seed)
+        rnd.fix(D3, 1)
+        rnd.fix(D3, 2)
+        rnd.fix(D3, 3)
         assert D3(rnd).value == 1
         assert D3(rnd).value == 2
         assert D3(rnd).value == 3
     with pytest.raises(ValueError):
-        D3.fix(0)
+        rnd.fix(D3, 0)
     with pytest.raises(ValueError):
-        D3.fix(4)
+        rnd.fix(D3, 4)
 
 
 def test_d6_fixation():
     for seed in range(10):
-        rnd = np.random.RandomState(seed)
-        D6.fix(1)
-        D6.fix(2)
-        D6.fix(3)
-        D6.fix(4)
-        D6.fix(5)
-        D6.fix(6)
+        rnd = DiceSource(seed)
+        rnd.fix(D6, 1)
+        rnd.fix(D6, 2)
+        rnd.fix(D6, 3)
+        rnd.fix(D6, 4)
+        rnd.fix(D6, 5)
+        rnd.fix(D6, 6)
         assert D6(rnd).value == 1
         assert D6(rnd).value == 2
         assert D6(rnd).value == 3
@@ -62,22 +62,22 @@ def test_d6_fixation():
         assert D6(rnd).value == 5
         assert D6(rnd).value == 6
     with pytest.raises(ValueError):
-        D6.fix(0)
+        rnd.fix(D6, 0)
     with pytest.raises(ValueError):
-        D6.fix(7)
+        rnd.fix(D6, 7)
 
 
 def test_d8_fixation():
     for seed in range(10):
-        rnd = np.random.RandomState(seed)
-        D8.fix(1)
-        D8.fix(2)
-        D8.fix(3)
-        D8.fix(4)
-        D8.fix(5)
-        D8.fix(6)
-        D8.fix(7)
-        D8.fix(8)
+        rnd = DiceSource(seed)
+        rnd.fix(D8, 1)
+        rnd.fix(D8, 2)
+        rnd.fix(D8, 3)
+        rnd.fix(D8, 4)
+        rnd.fix(D8, 5)
+        rnd.fix(D8, 6)
+        rnd.fix(D8, 7)
+        rnd.fix(D8, 8)
         assert D8(rnd).value == 1
         assert D8(rnd).value == 2
         assert D8(rnd).value == 3
@@ -87,24 +87,23 @@ def test_d8_fixation():
         assert D8(rnd).value == 7
         assert D8(rnd).value == 8
     with pytest.raises(ValueError):
-        D8.fix(0)
+        rnd.fix(D8, 0)
     with pytest.raises(ValueError):
-        D8.fix(9)
+        rnd.fix(D8, 9)
 
 
 def test_bb_fixation():
-    BBDie.clear_fixes()
     for seed in range(10):
-        rnd = np.random.RandomState(seed)
-        BBDie.fix(BBDieResult.ATTACKER_DOWN)
-        BBDie.fix(BBDieResult.BOTH_DOWN)
-        BBDie.fix(BBDieResult.PUSH)
-        BBDie.fix(BBDieResult.DEFENDER_STUMBLES)
-        BBDie.fix(BBDieResult.DEFENDER_DOWN)
+        rnd = DiceSource(seed)
+        rnd.fix(BBDie, BBDieResult.ATTACKER_DOWN)
+        rnd.fix(BBDie, BBDieResult.BOTH_DOWN)
+        rnd.fix(BBDie, BBDieResult.PUSH)
+        rnd.fix(BBDie, BBDieResult.DEFENDER_STUMBLES)
+        rnd.fix(BBDie, BBDieResult.DEFENDER_DOWN)
         assert BBDie(rnd).value == BBDieResult.ATTACKER_DOWN
         assert BBDie(rnd).value == BBDieResult.BOTH_DOWN
         assert BBDie(rnd).value == BBDieResult.PUSH
         assert BBDie(rnd).value == BBDieResult.DEFENDER_STUMBLES
         assert BBDie(rnd).value == BBDieResult.DEFENDER_DOWN
     with pytest.raises(ValueError):
-        BBDie.fix(1)
+        rnd.fix(BBDie, 1)

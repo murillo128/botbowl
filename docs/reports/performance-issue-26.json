@@ -1,0 +1,2309 @@
+{
+  "source_base": "81957843b03142c3913e93a5a1b2841b63b3d141",
+  "environment": {
+    "python": "3.11.16 (main, Sep  1 2026, 14:18:37) [Clang 22.1.3 ]",
+    "platform": "Linux-6.8.0-139-generic-x86_64-with-glibc2.39",
+    "cpu": "11th Gen Intel(R) Core(TM) i7-11700K @ 3.60GHz",
+    "logical_cpus": 16,
+    "affinity": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ],
+    "versions": {
+      "botbowl": "1.1.0",
+      "numpy": "1.26.4",
+      "Cython": "3.3.0",
+      "pytest": "9.1.1",
+      "Flask": "3.1.3",
+      "playwright": "1.62.0"
+    },
+    "gc": "enabled; explicit collection between decisions outside timers",
+    "clock": "perf_counter_ns",
+    "memory": "separate tracemalloc pass; Python allocations only",
+    "write": "buffered write+close; no fsync; temporary directory on local filesystem",
+    "input_sha256": {
+      "benchmarks/web.py": "0d7710f4320d75df3dac853e3d93b3fbf3dea879e1ab39becf11931e50ca80dc",
+      "benchmarks/__init__.py": "70f2bc7a1e58819365ef9ce5ae2b89610c1ea77e01af05802cfe98b81f002c23",
+      "benchmarks/prototypes.py": "b792dfcfdf3664f00baba8230ef684ec598d638640ecff9d6e3d249902c6f7b7",
+      "benchmarks/headless.py": "1f23eec93510c6dd242a318d78ad5427b7c22187989a36f6efca935ca61c7631",
+      "data/config/gym-11.json": "0e225fdf6311db9b6b4deb07d563575b37b5b45a2cef6f4c5e03b202f52f6993",
+      "data/arenas/ff-pitch-11.txt": "5ce2899b9cdc0077704982141e92f4be86d2e69264787c4ddc28518d48a96d20",
+      "data/teams/11/elven-union.json": "7b0d5085782f2259d8972dc8d9c83d3e552285090430faa09c753e7a6cc44bcd",
+      "data/teams/11/orc.json": "b654dc652378a0f860f3b25e6ccff1f1e73960a191d9d07efa834c35634a6b6b",
+      "data/teams/11/wood-elf.json": "9fd733670fa9dcb14670b27e52bd01f7770fe3fa8337b72225999fb762859a90",
+      "data/teams/11/undead.json": "2011566b949895923efdb479d6e75c674bcd2176e44ff838609c294455017204",
+      "data/teams/11/human.json": "6bb9f087c20749e0120924b6caff24f6c5d68086466db0f7e4f23b3db9a090d8",
+      "data/teams/11/vampire.json": "daac36a23351eb4585881af63447f5423bfe9ca1d77e40f333d3220c5fcfe9d8",
+      "data/teams/11/skaven.json": "5a8a1d4368fdbf8a557a06c167c421c18129e42449dead80513994f92ac73b13",
+      "data/teams/11/chaos-dwarf.json": "b94321fdd84b386a08cd9cf911e1e802df25466f8ebbdb50e124dd2fd472f334",
+      "data/teams/11/lizardmen.json": "e46515ed6fbd99ab73625bf3ac6d6be8288d3252fc2ca269f52aa72b8c1df5e2",
+      "data/teams/11/amazon.json": "3f84995bbc85389829ed6aad98616971014c544132e844570ef11e215a4a8888",
+      "data/teams/11/high-elf.json": "aa728dbd4a1bd9878420cc8dc53f2d26b9951ade944439c50afce52f282a1c88",
+      "data/teams/11/chaos.json": "7d4651df075e83437fb7efe1b5995c9c7491afa3b603d14a08e6f364e890ac85",
+      "data/teams/11/dark-elf.json": "8d409e8c85127bba565026ae30239eed64f08a89ad4573676046c96b24474ff4",
+      "data/rules/BB2016.xml": "c1de2e6b6ba60289b28927ee30b424c7cc22d08b5866e8ae000570b95be2df8a",
+      "data/rules/LRB5-Experimental.xml": "8f65e3fde6b0c5e79c5bfa8401bd5069a7f08927d27c52d61e8e007824708f0e"
+    }
+  },
+  "main": {
+    "schema_version": 1,
+    "corpus": {
+      "fixture": "gym-11-human-orc-zone-wedge-v1",
+      "seeds": [
+        7,
+        17,
+        27
+      ],
+      "policy": "ordered-legal-uniform-v1",
+      "policy_seeds": [
+        10007,
+        10017,
+        10027
+      ],
+      "decisions_per_seed": 48,
+      "config": "gym-11",
+      "ruleset_counts": {
+        "races": 24,
+        "star_players": 71,
+        "inducements": 8,
+        "spp_actions": 5,
+        "spp_levels": 7,
+        "improvements": 6
+      },
+      "overrides": {
+        "kick_off_table": false,
+        "pathfinding_enabled": true,
+        "fast_mode": true
+      },
+      "sha256": "3c463a1cd550d855896d880ec49652b204626a569c747dd7bbd26b0c82308b37",
+      "driver_backend": "python"
+    },
+    "repetitions": 5,
+    "warmup": 1,
+    "semantic_identity": true,
+    "backend_outputs_identical": false,
+    "backends": {
+      "python": {
+        "module": "python_pathfinding.py",
+        "counts": {
+          "policy": 144,
+          "decision_step_uninstrumented": 144,
+          "legal_actions_read": 144,
+          "pathfinding_query": 144,
+          "observation": 144,
+          "observation_to_json": 144,
+          "deepcopy": 144,
+          "checkpoint_capture": 144,
+          "checkpoint_restore": 144,
+          "state_to_json": 144,
+          "json_encode": 144,
+          "replay_record_step": 144,
+          "procedure_step": 574,
+          "legal_actions": 497,
+          "internal_one_step": 497,
+          "decision_step": 144,
+          "replay_pickle": 3,
+          "replay_write": 3
+        },
+        "times_ns": {
+          "policy": {
+            "samples": [
+              5740334,
+              5903154,
+              5940356,
+              5928424,
+              5991127
+            ],
+            "median": 5928424,
+            "min": 5740334,
+            "max": 5991127,
+            "stdev": 95186.04770133068
+          },
+          "decision_step_uninstrumented": {
+            "samples": [
+              461884355,
+              466809342,
+              456576709,
+              456373429,
+              460342112
+            ],
+            "median": 460342112,
+            "min": 456373429,
+            "max": 466809342,
+            "stdev": 4304564.851726978
+          },
+          "legal_actions_read": {
+            "samples": [
+              70483,
+              92459,
+              69187,
+              75160,
+              73082
+            ],
+            "median": 73082,
+            "min": 69187,
+            "max": 92459,
+            "stdev": 9446.5037818232
+          },
+          "pathfinding_query": {
+            "samples": [
+              959827364,
+              980141830,
+              953266178,
+              953520758,
+              958687122
+            ],
+            "median": 958687122,
+            "min": 953266178,
+            "max": 980141830,
+            "stdev": 11054929.949296685
+          },
+          "observation": {
+            "samples": [
+              63060052,
+              67382223,
+              62695329,
+              63048804,
+              63418494
+            ],
+            "median": 63060052,
+            "min": 62695329,
+            "max": 67382223,
+            "stdev": 1951717.42672993
+          },
+          "observation_to_json": {
+            "samples": [
+              177405653,
+              182753571,
+              177527093,
+              178026839,
+              178321240
+            ],
+            "median": 178026839,
+            "min": 177405653,
+            "max": 182753571,
+            "stdev": 2237295.9064268186
+          },
+          "deepcopy": {
+            "samples": [
+              964785719,
+              1033290775,
+              968453985,
+              973760925,
+              980267025
+            ],
+            "median": 973760925,
+            "min": 964785719,
+            "max": 1033290775,
+            "stdev": 28103198.516558807
+          },
+          "checkpoint_capture": {
+            "samples": [
+              12150145,
+              14048936,
+              11991001,
+              12036742,
+              12240815
+            ],
+            "median": 12150145,
+            "min": 11991001,
+            "max": 14048936,
+            "stdev": 874965.2317444963
+          },
+          "checkpoint_restore": {
+            "samples": [
+              3163450,
+              3618887,
+              3097567,
+              3126358,
+              3171331
+            ],
+            "median": 3163450,
+            "min": 3097567,
+            "max": 3618887,
+            "stdev": 216351.53209140906
+          },
+          "state_to_json": {
+            "samples": [
+              54865088,
+              60728812,
+              55093740,
+              55360672,
+              56126966
+            ],
+            "median": 55360672,
+            "min": 54865088,
+            "max": 60728812,
+            "stdev": 2446910.764002807
+          },
+          "json_encode": {
+            "samples": [
+              80112151,
+              85143544,
+              84320963,
+              84450550,
+              85177333
+            ],
+            "median": 84450550,
+            "min": 80112151,
+            "max": 85177333,
+            "stdev": 2120650.6823000577
+          },
+          "replay_record_step": {
+            "samples": [
+              43139528,
+              46701733,
+              43665484,
+              43957774,
+              44303802
+            ],
+            "median": 43957774,
+            "min": 43139528,
+            "max": 46701733,
+            "stdev": 1380250.0750589366
+          },
+          "procedure_step": {
+            "samples": [
+              7929391,
+              9528264,
+              8174863,
+              8287058,
+              8381110
+            ],
+            "median": 8287058,
+            "min": 7929391,
+            "max": 9528264,
+            "stdev": 620517.8213981448
+          },
+          "legal_actions": {
+            "samples": [
+              416181767,
+              425416280,
+              415245357,
+              415148418,
+              415777884
+            ],
+            "median": 415777884,
+            "min": 415148418,
+            "max": 425416280,
+            "stdev": 4415023.088643785
+          },
+          "internal_one_step": {
+            "samples": [
+              427387245,
+              438626895,
+              426843901,
+              426932771,
+              427842140
+            ],
+            "median": 427387245,
+            "min": 426843901,
+            "max": 438626895,
+            "stdev": 5102804.062474651
+          },
+          "decision_step": {
+            "samples": [
+              429316482,
+              441039422,
+              428835767,
+              428938609,
+              429918763
+            ],
+            "median": 429316482,
+            "min": 428835767,
+            "max": 441039422,
+            "stdev": 5288364.706848829
+          },
+          "replay_pickle": {
+            "samples": [
+              15410753,
+              16042363,
+              16171498,
+              16347570,
+              16610481
+            ],
+            "median": 16171498,
+            "min": 15410753,
+            "max": 16610481,
+            "stdev": 448333.1547515753
+          },
+          "replay_write": {
+            "samples": [
+              928427,
+              785611,
+              813849,
+              794378,
+              747694
+            ],
+            "median": 794378,
+            "min": 747694,
+            "max": 928427,
+            "stdev": 68339.2358656431
+          }
+        },
+        "peak_python_bytes": 7830272,
+        "traces": [
+          "ede5e1fc8c8c92cea067dd86d769a795c33e2e310faed9debbad0ab2c1980acb",
+          "f9d78183dd9cafbfc2bdeda15dab527a68695b76dedd304c4028a0159e33cea7",
+          "1c63d898dd492616f4fe9ba3ad63ffc8e10a4b0d5969f9f05d01df91add53390"
+        ],
+        "memory_sample": {
+          "seed": 7,
+          "decisions": 8
+        },
+        "replay_bytes": [
+          493588,
+          661422,
+          605297
+        ]
+      },
+      "native": {
+        "module": "cython_pathfinding.cpython-311-x86_64-linux-gnu.so",
+        "counts": {
+          "policy": 144,
+          "decision_step_uninstrumented": 144,
+          "legal_actions_read": 144,
+          "pathfinding_query": 144,
+          "observation": 144,
+          "observation_to_json": 144,
+          "deepcopy": 144,
+          "checkpoint_capture": 144,
+          "checkpoint_restore": 144,
+          "state_to_json": 144,
+          "json_encode": 144,
+          "replay_record_step": 144,
+          "procedure_step": 574,
+          "legal_actions": 497,
+          "internal_one_step": 497,
+          "decision_step": 144,
+          "replay_pickle": 3,
+          "replay_write": 3
+        },
+        "times_ns": {
+          "policy": {
+            "samples": [
+              6199150,
+              6357408,
+              6450018,
+              6398371,
+              6387008
+            ],
+            "median": 6387008,
+            "min": 6199150,
+            "max": 6450018,
+            "stdev": 95094.03581192672
+          },
+          "decision_step_uninstrumented": {
+            "samples": [
+              59783862,
+              60660337,
+              60106994,
+              60389900,
+              60388991
+            ],
+            "median": 60388991,
+            "min": 59783862,
+            "max": 60660337,
+            "stdev": 333061.41450143995
+          },
+          "legal_actions_read": {
+            "samples": [
+              69474,
+              74509,
+              75440,
+              74511,
+              76544
+            ],
+            "median": 74511,
+            "min": 69474,
+            "max": 76544,
+            "stdev": 2715.9122408502085
+          },
+          "pathfinding_query": {
+            "samples": [
+              41461143,
+              41705287,
+              41505573,
+              41765625,
+              41457103
+            ],
+            "median": 41505573,
+            "min": 41457103,
+            "max": 41765625,
+            "stdev": 145703.42987452284
+          },
+          "observation": {
+            "samples": [
+              63820158,
+              64349808,
+              64011197,
+              64421025,
+              64450991
+            ],
+            "median": 64349808,
+            "min": 63820158,
+            "max": 64450991,
+            "stdev": 280023.1624949979
+          },
+          "observation_to_json": {
+            "samples": [
+              177616148,
+              178064015,
+              177539302,
+              178088759,
+              177693965
+            ],
+            "median": 177693965,
+            "min": 177539302,
+            "max": 178088759,
+            "stdev": 257921.08691167537
+          },
+          "deepcopy": {
+            "samples": [
+              963891637,
+              983201534,
+              978628539,
+              984378973,
+              987387590
+            ],
+            "median": 983201534,
+            "min": 963891637,
+            "max": 987387590,
+            "stdev": 9274969.269568622
+          },
+          "checkpoint_capture": {
+            "samples": [
+              12292691,
+              12400419,
+              12309046,
+              12321311,
+              12456562
+            ],
+            "median": 12321311,
+            "min": 12292691,
+            "max": 12456562,
+            "stdev": 69824.4182840072
+          },
+          "checkpoint_restore": {
+            "samples": [
+              3110805,
+              3190445,
+              3200214,
+              3213512,
+              3191642
+            ],
+            "median": 3191642,
+            "min": 3110805,
+            "max": 3213512,
+            "stdev": 40482.96731095684
+          },
+          "state_to_json": {
+            "samples": [
+              55496097,
+              56790240,
+              56809764,
+              57076894,
+              57471385
+            ],
+            "median": 56809764,
+            "min": 55496097,
+            "max": 57471385,
+            "stdev": 742039.1861765118
+          },
+          "json_encode": {
+            "samples": [
+              90129192,
+              95065481,
+              94536277,
+              94602027,
+              94715942
+            ],
+            "median": 94602027,
+            "min": 90129192,
+            "max": 95065481,
+            "stdev": 2067613.1043630238
+          },
+          "replay_record_step": {
+            "samples": [
+              45313117,
+              47150181,
+              46440061,
+              46619529,
+              46699168
+            ],
+            "median": 46619529,
+            "min": 45313117,
+            "max": 47150181,
+            "stdev": 684383.6228331301
+          },
+          "procedure_step": {
+            "samples": [
+              8290699,
+              8700946,
+              8771926,
+              8787107,
+              8826564
+            ],
+            "median": 8771926,
+            "min": 8290699,
+            "max": 8826564,
+            "stdev": 219825.91022511426
+          },
+          "legal_actions": {
+            "samples": [
+              45765328,
+              46723858,
+              46650225,
+              47070164,
+              47330109
+            ],
+            "median": 46723858,
+            "min": 45765328,
+            "max": 47330109,
+            "stdev": 593801.7929365825
+          },
+          "internal_one_step": {
+            "samples": [
+              57573796,
+              59225837,
+              59149153,
+              59678366,
+              59986291
+            ],
+            "median": 59225837,
+            "min": 57573796,
+            "max": 59986291,
+            "stdev": 930724.8145103364
+          },
+          "decision_step": {
+            "samples": [
+              59586922,
+              61355710,
+              61258571,
+              61817473,
+              62135428
+            ],
+            "median": 61355710,
+            "min": 59586922,
+            "max": 62135428,
+            "stdev": 985043.8620405184
+          },
+          "replay_pickle": {
+            "samples": [
+              17283505,
+              18556139,
+              18139395,
+              17971936,
+              18218248
+            ],
+            "median": 18139395,
+            "min": 17283505,
+            "max": 18556139,
+            "stdev": 470313.4941784044
+          },
+          "replay_write": {
+            "samples": [
+              772301,
+              768393,
+              759283,
+              771602,
+              743932
+            ],
+            "median": 768393,
+            "min": 743932,
+            "max": 772301,
+            "stdev": 11905.250341760982
+          }
+        },
+        "peak_python_bytes": 8044340,
+        "traces": [
+          "97d9e762ac806b6c6957ad2d61a423aa3d2335f6cb86290c2a894cc310b3176a",
+          "121728fa289ec9d544922f4624fe7e86852f15a69979c132788d0f37ee1d564b",
+          "928e448fdbebd82c72084c601c8691d0f24c1c5506496a23852abe065ee73288"
+        ],
+        "memory_sample": {
+          "seed": 7,
+          "decisions": 8
+        },
+        "replay_bytes": [
+          493588,
+          661422,
+          605297
+        ]
+      }
+    }
+  },
+  "engine_probes": {
+    "baseline": {
+      "corpus": {
+        "fixture": "gym-11-human-orc-zone-wedge-v1",
+        "seeds": [
+          7
+        ],
+        "policy": "ordered-legal-uniform-v1",
+        "policy_seeds": [
+          10007
+        ],
+        "decisions_per_seed": 8,
+        "config": "gym-11",
+        "ruleset_counts": {
+          "races": 24,
+          "star_players": 71,
+          "inducements": 8,
+          "spp_actions": 5,
+          "spp_levels": 7,
+          "improvements": 6
+        },
+        "overrides": {
+          "kick_off_table": false,
+          "pathfinding_enabled": true,
+          "fast_mode": true
+        },
+        "sha256": "48c0a1f6eda363c4d02fcb1b4fc526ee1c51411044ae00acfc160a34fd3e41ce",
+        "driver_backend": "python"
+      },
+      "backends": {
+        "python": {
+          "traces": [
+            "259ce635fa9366b0c6049a9e6fa4a675743776210dfa954a2abf317992f1d9d8"
+          ],
+          "peak_python_bytes": 7830883,
+          "times_ns": {
+            "deepcopy": {
+              "samples": [
+                47564842,
+                47337460,
+                47345301,
+                47438402,
+                47389453
+              ],
+              "median": 47389453,
+              "min": 47337460,
+              "max": 47564842,
+              "stdev": 92902.21744554862
+            },
+            "decision_step_uninstrumented": {
+              "samples": [
+                18657688,
+                18534333,
+                18590552,
+                18509360,
+                18621943
+              ],
+              "median": 18590552,
+              "min": 18509360,
+              "max": 18657688,
+              "stdev": 61120.70252950305
+            },
+            "checkpoint_capture": {
+              "samples": [
+                649745,
+                646651,
+                648114,
+                645400,
+                642319
+              ],
+              "median": 646651,
+              "min": 642319,
+              "max": 649745,
+              "stdev": 2821.0766916197085
+            },
+            "checkpoint_restore": {
+              "samples": [
+                151007,
+                151312,
+                152342,
+                152459,
+                151786
+              ],
+              "median": 151786,
+              "min": 151007,
+              "max": 152459,
+              "stdev": 631.1629741992158
+            }
+          }
+        },
+        "native": {
+          "traces": [
+            "f89e124707de5c604ea45c5c116cfa596969f4be2c718a6c00d5b3ad58f135fc"
+          ],
+          "peak_python_bytes": 8044707,
+          "times_ns": {
+            "deepcopy": {
+              "samples": [
+                47654160,
+                47585941,
+                51086202,
+                48584158,
+                48242124
+              ],
+              "median": 48242124,
+              "min": 47585941,
+              "max": 51086202,
+              "stdev": 1434207.0204280133
+            },
+            "decision_step_uninstrumented": {
+              "samples": [
+                3717221,
+                3756741,
+                3820191,
+                3904787,
+                3801635
+              ],
+              "median": 3801635,
+              "min": 3717221,
+              "max": 3904787,
+              "stdev": 70912.45107877742
+            },
+            "checkpoint_capture": {
+              "samples": [
+                658327,
+                659995,
+                739127,
+                682062,
+                699383
+              ],
+              "median": 682062,
+              "min": 658327,
+              "max": 739127,
+              "stdev": 33329.13503528107
+            },
+            "checkpoint_restore": {
+              "samples": [
+                154690,
+                161114,
+                166218,
+                161518,
+                164758
+              ],
+              "median": 161518,
+              "min": 154690,
+              "max": 166218,
+              "stdev": 4451.745365584155
+            }
+          }
+        }
+      }
+    },
+    "slots": {
+      "corpus": {
+        "fixture": "gym-11-human-orc-zone-wedge-v1",
+        "seeds": [
+          7
+        ],
+        "policy": "ordered-legal-uniform-v1",
+        "policy_seeds": [
+          10007
+        ],
+        "decisions_per_seed": 8,
+        "config": "gym-11",
+        "ruleset_counts": {
+          "races": 24,
+          "star_players": 71,
+          "inducements": 8,
+          "spp_actions": 5,
+          "spp_levels": 7,
+          "improvements": 6
+        },
+        "overrides": {
+          "kick_off_table": false,
+          "pathfinding_enabled": true,
+          "fast_mode": true
+        },
+        "sha256": "48c0a1f6eda363c4d02fcb1b4fc526ee1c51411044ae00acfc160a34fd3e41ce",
+        "driver_backend": "python"
+      },
+      "backends": {
+        "python": {
+          "traces": [
+            "259ce635fa9366b0c6049a9e6fa4a675743776210dfa954a2abf317992f1d9d8"
+          ],
+          "peak_python_bytes": 7689374,
+          "times_ns": {
+            "deepcopy": {
+              "samples": [
+                43184137,
+                43395702,
+                43493355,
+                43483986,
+                43780554
+              ],
+              "median": 43483986,
+              "min": 43184137,
+              "max": 43780554,
+              "stdev": 214704.80185524496
+            },
+            "decision_step_uninstrumented": {
+              "samples": [
+                18553951,
+                18597322,
+                18665452,
+                18606565,
+                18652227
+              ],
+              "median": 18606565,
+              "min": 18553951,
+              "max": 18665452,
+              "stdev": 44838.15809441775
+            },
+            "checkpoint_capture": {
+              "samples": [
+                670675,
+                666883,
+                670898,
+                666022,
+                665288
+              ],
+              "median": 666883,
+              "min": 665288,
+              "max": 670898,
+              "stdev": 2648.4993298092413
+            },
+            "checkpoint_restore": {
+              "samples": [
+                151908,
+                158338,
+                151952,
+                153749,
+                151720
+              ],
+              "median": 151952,
+              "min": 151720,
+              "max": 158338,
+              "stdev": 2808.996048413027
+            }
+          }
+        },
+        "native": {
+          "traces": [
+            "f89e124707de5c604ea45c5c116cfa596969f4be2c718a6c00d5b3ad58f135fc"
+          ],
+          "peak_python_bytes": 7723786,
+          "times_ns": {
+            "deepcopy": {
+              "samples": [
+                43512525,
+                43691569,
+                43690271,
+                43959622,
+                43637497
+              ],
+              "median": 43690271,
+              "min": 43512525,
+              "max": 43959622,
+              "stdev": 163254.64332508278
+            },
+            "decision_step_uninstrumented": {
+              "samples": [
+                3662702,
+                3692461,
+                3713907,
+                3718200,
+                3728131
+              ],
+              "median": 3713907,
+              "min": 3662702,
+              "max": 3728131,
+              "stdev": 26060.204214472302
+            },
+            "checkpoint_capture": {
+              "samples": [
+                670791,
+                667924,
+                667561,
+                669390,
+                666336
+              ],
+              "median": 667924,
+              "min": 666336,
+              "max": 670791,
+              "stdev": 1723.9180084911231
+            },
+            "checkpoint_restore": {
+              "samples": [
+                157558,
+                156891,
+                162777,
+                154450,
+                158685
+              ],
+              "median": 157558,
+              "min": 154450,
+              "max": 162777,
+              "stdev": 3053.302916515163
+            }
+          }
+        }
+      }
+    },
+    "dataclass": {
+      "corpus": {
+        "fixture": "gym-11-human-orc-zone-wedge-v1",
+        "seeds": [
+          7
+        ],
+        "policy": "ordered-legal-uniform-v1",
+        "policy_seeds": [
+          10007
+        ],
+        "decisions_per_seed": 8,
+        "config": "gym-11",
+        "ruleset_counts": {
+          "races": 24,
+          "star_players": 71,
+          "inducements": 8,
+          "spp_actions": 5,
+          "spp_levels": 7,
+          "improvements": 6
+        },
+        "overrides": {
+          "kick_off_table": false,
+          "pathfinding_enabled": true,
+          "fast_mode": true
+        },
+        "sha256": "48c0a1f6eda363c4d02fcb1b4fc526ee1c51411044ae00acfc160a34fd3e41ce",
+        "driver_backend": "python"
+      },
+      "backends": {
+        "python": {
+          "traces": [
+            "259ce635fa9366b0c6049a9e6fa4a675743776210dfa954a2abf317992f1d9d8"
+          ],
+          "peak_python_bytes": 7826807,
+          "times_ns": {
+            "deepcopy": {
+              "samples": [
+                46406677,
+                49382265,
+                47035052,
+                46523675,
+                47793578
+              ],
+              "median": 47035052,
+              "min": 46406677,
+              "max": 49382265,
+              "stdev": 1221485.8943071344
+            },
+            "decision_step_uninstrumented": {
+              "samples": [
+                18542614,
+                18908770,
+                18720132,
+                18586561,
+                20371217
+              ],
+              "median": 18720132,
+              "min": 18542614,
+              "max": 20371217,
+              "stdev": 765453.3694881094
+            },
+            "checkpoint_capture": {
+              "samples": [
+                664037,
+                716154,
+                672737,
+                664315,
+                678948
+              ],
+              "median": 672737,
+              "min": 664037,
+              "max": 716154,
+              "stdev": 21557.507316477942
+            },
+            "checkpoint_restore": {
+              "samples": [
+                150536,
+                176258,
+                154047,
+                153553,
+                152277
+              ],
+              "median": 153553,
+              "min": 150536,
+              "max": 176258,
+              "stdev": 10665.413245627195
+            }
+          }
+        },
+        "native": {
+          "traces": [
+            "f89e124707de5c604ea45c5c116cfa596969f4be2c718a6c00d5b3ad58f135fc"
+          ],
+          "peak_python_bytes": 8022223,
+          "times_ns": {
+            "deepcopy": {
+              "samples": [
+                46410992,
+                46676047,
+                46883128,
+                46891578,
+                47167065
+              ],
+              "median": 46883128,
+              "min": 46410992,
+              "max": 47167065,
+              "stdev": 281317.9143540276
+            },
+            "decision_step_uninstrumented": {
+              "samples": [
+                3532884,
+                3565198,
+                3558955,
+                3585506,
+                3580650
+              ],
+              "median": 3565198,
+              "min": 3532884,
+              "max": 3585506,
+              "stdev": 20813.362121483402
+            },
+            "checkpoint_capture": {
+              "samples": [
+                667245,
+                668968,
+                668442,
+                665026,
+                668635
+              ],
+              "median": 668442,
+              "min": 665026,
+              "max": 668968,
+              "stdev": 1611.1442207325824
+            },
+            "checkpoint_restore": {
+              "samples": [
+                155613,
+                158038,
+                156973,
+                156158,
+                157249
+              ],
+              "median": 156973,
+              "min": 155613,
+              "max": 158038,
+              "stdev": 946.7199691566667
+            }
+          }
+        }
+      }
+    }
+  },
+  "isolated_game_copy": {
+    "baseline": {
+      "time_ns": {
+        "samples": [
+          9552060,
+          9788656,
+          9583858,
+          9601930,
+          9514334
+        ],
+        "median": 9583858,
+        "min": 9514334,
+        "max": 9788656,
+        "stdev": 106252.92243886754
+      },
+      "peak_python_bytes": 1647189
+    },
+    "slots": {
+      "time_ns": {
+        "samples": [
+          8861724,
+          8951830,
+          8862951,
+          8911079,
+          8878378
+        ],
+        "median": 8878378,
+        "min": 8861724,
+        "max": 8951830,
+        "stdev": 38348.94885521636
+      },
+      "peak_python_bytes": 1457397
+    },
+    "dataclass": {
+      "time_ns": {
+        "samples": [
+          9407389,
+          9569382,
+          9683128,
+          9465796,
+          9417209
+        ],
+        "median": 9465796,
+        "min": 9407389,
+        "max": 9683128,
+        "stdev": 116814.63551584621
+      },
+      "peak_python_bytes": 1647013
+    }
+  },
+  "prototypes": {
+    "schema_version": 1,
+    "repetitions": 5,
+    "warmup": 1,
+    "representation": {
+      "Square": {
+        "count": 10000,
+        "construction": {
+          "time_ns": {
+            "samples": [
+              7834210,
+              7982762,
+              7658350,
+              7669531,
+              7546915
+            ],
+            "median": 7669531,
+            "min": 7546915,
+            "max": 7982762,
+            "stdev": 170814.0650423729
+          },
+          "peak_python_bytes": 1126024
+        },
+        "deepcopy": {
+          "time_ns": {
+            "samples": [
+              32866706,
+              33872049,
+              33658950,
+              34050445,
+              34019844
+            ],
+            "median": 33872049,
+            "min": 32866706,
+            "max": 34050445,
+            "stdev": 487486.37337129744
+          },
+          "peak_python_bytes": 5825128
+        },
+        "pickle": {
+          "time_ns": {
+            "samples": [
+              3911964,
+              3907636,
+              3902126,
+              3970814,
+              3974417
+            ],
+            "median": 3911964,
+            "min": 3902126,
+            "max": 3974417,
+            "stdev": 35998.43810222882
+          },
+          "peak_python_bytes": 879306
+        },
+        "pickle_bytes": 240122,
+        "instance_bytes": 56,
+        "dictionary_bytes": 104,
+        "json": "7c7da637fa02df7ff892ca3272f92c912afbf9c3b6e3746cd1ed2bb45dd38dc8",
+        "pickle_class": "botbowl.core.model.Square"
+      },
+      "SlotSquare": {
+        "count": 10000,
+        "construction": {
+          "time_ns": {
+            "samples": [
+              3451091,
+              3599362,
+              3541513,
+              3603303,
+              3535821
+            ],
+            "median": 3541513,
+            "min": 3451091,
+            "max": 3603303,
+            "stdev": 61770.46770909218
+          },
+          "peak_python_bytes": 645640
+        },
+        "deepcopy": {
+          "time_ns": {
+            "samples": [
+              18238388,
+              18509151,
+              18365514,
+              18559675,
+              18621257
+            ],
+            "median": 18509151,
+            "min": 18238388,
+            "max": 18621257,
+            "stdev": 155231.27356463968
+          },
+          "peak_python_bytes": 1474536
+        },
+        "pickle": {
+          "time_ns": {
+            "samples": [
+              3360777,
+              3334296,
+              3347663,
+              3340262,
+              3362314
+            ],
+            "median": 3347663,
+            "min": 3334296,
+            "max": 3362314,
+            "stdev": 12352.010820105364
+          },
+          "peak_python_bytes": 1322459
+        },
+        "pickle_bytes": 110067,
+        "instance_bytes": 56,
+        "dictionary_bytes": 0,
+        "json": "7c7da637fa02df7ff892ca3272f92c912afbf9c3b6e3746cd1ed2bb45dd38dc8",
+        "pickle_class": "__main__.SlotSquare"
+      },
+      "DataSquare": {
+        "count": 10000,
+        "construction": {
+          "time_ns": {
+            "samples": [
+              3375828,
+              3532704,
+              3562820,
+              3466884,
+              3526936
+            ],
+            "median": 3526936,
+            "min": 3375828,
+            "max": 3562820,
+            "stdev": 74185.93066613103
+          },
+          "peak_python_bytes": 1045640
+        },
+        "deepcopy": {
+          "time_ns": {
+            "samples": [
+              30661748,
+              31290146,
+              31551187,
+              31407271,
+              31838498
+            ],
+            "median": 31407271,
+            "min": 30661748,
+            "max": 31838498,
+            "stdev": 435792.2454375479
+          },
+          "peak_python_bytes": 5825120
+        },
+        "pickle": {
+          "time_ns": {
+            "samples": [
+              4128696,
+              4067038,
+              4048624,
+              4024450,
+              4058621
+            ],
+            "median": 4058621,
+            "min": 4024450,
+            "max": 4128696,
+            "stdev": 38772.8041570377
+          },
+          "peak_python_bytes": 761265
+        },
+        "pickle_bytes": 210104,
+        "instance_bytes": 56,
+        "dictionary_bytes": 96,
+        "json": "7c7da637fa02df7ff892ca3272f92c912afbf9c3b6e3746cd1ed2bb45dd38dc8",
+        "pickle_class": "__main__.DataSquare"
+      },
+      "naive_slots_error": "'NaiveSlots' object attribute '__setattr__' is read-only",
+      "naive_dataclass": {
+        "cross_type_equal": true,
+        "bounds_ignored": false,
+        "hash_compatible": false
+      }
+    },
+    "replay": {
+      "frame_count": 144,
+      "corpus_sha256": "3c463a1cd550d855896d880ec49652b204626a569c747dd7bbd26b0c82308b37",
+      "formats": {
+        "1": {
+          "encode": {
+            "time_ns": {
+              "samples": [
+                23861,
+                25331,
+                24348,
+                23139,
+                23335
+              ],
+              "median": 23861,
+              "min": 23139,
+              "max": 25331,
+              "stdev": 879.7006308966704
+            },
+            "peak_python_bytes": 28200
+          },
+          "decode": {
+            "time_ns": {
+              "samples": [
+                243672227,
+                264121392,
+                261824016,
+                267247775,
+                260873556
+              ],
+              "median": 261824016,
+              "min": 243672227,
+              "max": 267247775,
+              "stdev": 9208419.586326674
+            },
+            "peak_python_bytes": 27378968
+          },
+          "seek_sample": {
+            "time_ns": {
+              "samples": [
+                13253941,
+                13440900,
+                13533099,
+                13605131,
+                13501711
+              ],
+              "median": 13501711,
+              "min": 13253941,
+              "max": 13605131,
+              "stdev": 132975.03756269446
+            },
+            "peak_python_bytes": 1909688
+          },
+          "seek_indices": [
+            0,
+            18,
+            36,
+            54,
+            72,
+            90,
+            108,
+            126,
+            143
+          ],
+          "pickle": {
+            "time_ns": {
+              "samples": [
+                27266680,
+                23590835,
+                23585017,
+                23630786,
+                23117997
+              ],
+              "median": 23590835,
+              "min": 23117997,
+              "max": 27266680,
+              "stdev": 1705962.125449595
+            },
+            "peak_python_bytes": 15284042
+          },
+          "write": {
+            "time_ns": {
+              "samples": [
+                1736145,
+                1634148,
+                1637584,
+                1643500,
+                1657678
+              ],
+              "median": 1643500,
+              "min": 1634148,
+              "max": 1736145,
+              "stdev": 42515.01812301154
+            },
+            "peak_python_bytes": 5743
+          },
+          "pickle_bytes": 3892586,
+          "json_bytes": 7109096
+        },
+        "4": {
+          "encode": {
+            "time_ns": {
+              "samples": [
+                4271045,
+                4296081,
+                4268995,
+                4286486,
+                4313853
+              ],
+              "median": 4286486,
+              "min": 4268995,
+              "max": 4313853,
+              "stdev": 18588.491708581416
+            },
+            "peak_python_bytes": 372360
+          },
+          "decode": {
+            "time_ns": {
+              "samples": [
+                573091032,
+                540950411,
+                537236486,
+                538147872,
+                538285905
+              ],
+              "median": 538285905,
+              "min": 537236486,
+              "max": 573091032,
+              "stdev": 15462353.147511723
+            },
+            "peak_python_bytes": 28120392
+          },
+          "seek_sample": {
+            "time_ns": {
+              "samples": [
+                59155181,
+                59304457,
+                59742187,
+                59499067,
+                59483288
+              ],
+              "median": 59483288,
+              "min": 59155181,
+              "max": 59742187,
+              "stdev": 221429.14077194085
+            },
+            "peak_python_bytes": 3452120
+          },
+          "seek_indices": [
+            0,
+            18,
+            36,
+            54,
+            72,
+            90,
+            108,
+            126,
+            143
+          ],
+          "pickle": {
+            "time_ns": {
+              "samples": [
+                17405947,
+                17669190,
+                17212717,
+                17042045,
+                19108367
+              ],
+              "median": 17405947,
+              "min": 17042045,
+              "max": 19108367,
+              "stdev": 827722.9784717831
+            },
+            "peak_python_bytes": 15284456
+          },
+          "write": {
+            "time_ns": {
+              "samples": [
+                1110475,
+                1110518,
+                1104316,
+                1113992,
+                1120976
+              ],
+              "median": 1110518,
+              "min": 1104316,
+              "max": 1120976,
+              "stdev": 6084.552144570708
+            },
+            "peak_python_bytes": 5743
+          },
+          "pickle_bytes": 2485753,
+          "json_bytes": 4304766
+        },
+        "16": {
+          "encode": {
+            "time_ns": {
+              "samples": [
+                6320026,
+                5241857,
+                5254573,
+                5883134,
+                5747839
+              ],
+              "median": 5747839,
+              "min": 5241857,
+              "max": 6320026,
+              "stdev": 454974.27161401114
+            },
+            "peak_python_bytes": 461744
+          },
+          "decode": {
+            "time_ns": {
+              "samples": [
+                646148206,
+                610176049,
+                607835990,
+                605704412,
+                607342887
+              ],
+              "median": 607835990,
+              "min": 605704412,
+              "max": 646148206,
+              "stdev": 17239989.59691582
+            },
+            "peak_python_bytes": 28120392
+          },
+          "seek_sample": {
+            "time_ns": {
+              "samples": [
+                345213215,
+                347464347,
+                344023211,
+                347782912,
+                343875385
+              ],
+              "median": 345213215,
+              "min": 343875385,
+              "max": 347782912,
+              "stdev": 1859117.490110832
+            },
+            "peak_python_bytes": 6227952
+          },
+          "seek_indices": [
+            0,
+            18,
+            36,
+            54,
+            72,
+            90,
+            108,
+            126,
+            143
+          ],
+          "pickle": {
+            "time_ns": {
+              "samples": [
+                12398948,
+                12589186,
+                12836019,
+                12390339,
+                12424969
+              ],
+              "median": 12424969,
+              "min": 12390339,
+              "max": 12836019,
+              "stdev": 190289.07577604134
+            },
+            "peak_python_bytes": 7492226
+          },
+          "write": {
+            "time_ns": {
+              "samples": [
+                1033743,
+                986322,
+                936791,
+                1017794,
+                976783
+              ],
+              "median": 986322,
+              "min": 936791,
+              "max": 1033743,
+              "stdev": 37765.59360449667
+            },
+            "peak_python_bytes": 5743
+          },
+          "pickle_bytes": 2144900,
+          "json_bytes": 3625020
+        },
+        "64": {
+          "encode": {
+            "time_ns": {
+              "samples": [
+                5452871,
+                5576220,
+                5556029,
+                6830813,
+                5579270
+              ],
+              "median": 5576220,
+              "min": 5452871,
+              "max": 6830813,
+              "stdev": 579092.059069454
+            },
+            "peak_python_bytes": 526744
+          },
+          "decode": {
+            "time_ns": {
+              "samples": [
+                651609847,
+                624069150,
+                617107560,
+                614895900,
+                618094289
+              ],
+              "median": 618094289,
+              "min": 614895900,
+              "max": 651609847,
+              "stdev": 15173184.097243126
+            },
+            "peak_python_bytes": 28120392
+          },
+          "seek_sample": {
+            "time_ns": {
+              "samples": [
+                1212867594,
+                1217360315,
+                1221648490,
+                1236608771,
+                1226252616
+              ],
+              "median": 1221648490,
+              "min": 1212867594,
+              "max": 1236608771,
+              "stdev": 9111293.613775417
+            },
+            "peak_python_bytes": 13509176
+          },
+          "seek_indices": [
+            0,
+            18,
+            36,
+            54,
+            72,
+            90,
+            108,
+            126,
+            143
+          ],
+          "pickle": {
+            "time_ns": {
+              "samples": [
+                12281026,
+                12128405,
+                12148538,
+                12206203,
+                12455418
+              ],
+              "median": 12206203,
+              "min": 12128405,
+              "max": 12455418,
+              "stdev": 132261.36289370377
+            },
+            "peak_python_bytes": 7492271
+          },
+          "write": {
+            "time_ns": {
+              "samples": [
+                954453,
+                950279,
+                951796,
+                969890,
+                955025
+              ],
+              "median": 954453,
+              "min": 950279,
+              "max": 969890,
+              "stdev": 7846.383580988123
+            },
+            "peak_python_bytes": 5743
+          },
+          "pickle_bytes": 2078844,
+          "json_bytes": 3492905
+        }
+      },
+      "legacy_frame_container": {
+        "pickle": {
+          "time_ns": {
+            "samples": [
+              23394456,
+              23489327,
+              26869080,
+              23387026,
+              23407917
+            ],
+            "median": 23407917,
+            "min": 23387026,
+            "max": 26869080,
+            "stdev": 1543160.0383711664
+          },
+          "peak_python_bytes": 15281580
+        },
+        "pickle_bytes": 3895450
+      },
+      "semantic_identity": true
+    },
+    "legacy_replays": {
+      "legacy": {
+        "bytes": 1788750,
+        "pickle": {
+          "time_ns": {
+            "samples": [
+              10601236,
+              10534539,
+              10481348,
+              10712578,
+              10582621
+            ],
+            "median": 10582621,
+            "min": 10481348,
+            "max": 10712578,
+            "stdev": 86318.18566964901
+          },
+          "peak_python_bytes": 4332432
+        },
+        "write": {
+          "time_ns": {
+            "samples": [
+              964674,
+              943531,
+              921674,
+              942022,
+              936741
+            ],
+            "median": 942022,
+            "min": 921674,
+            "max": 964674,
+            "stdev": 15466.813223802763
+          },
+          "peak_python_bytes": 6465
+        },
+        "load": {
+          "time_ns": {
+            "samples": [
+              33215098,
+              46126995,
+              46881906,
+              46472301,
+              46791088
+            ],
+            "median": 46472301,
+            "min": 33215098,
+            "max": 46881906,
+            "stdev": 5978994.299175682
+          },
+          "peak_python_bytes": 18989734
+        }
+      },
+      "4": {
+        "bytes": 1296288,
+        "encode": {
+          "time_ns": {
+            "samples": [
+              3186203,
+              3209702,
+              3270153,
+              3770162,
+              4033069
+            ],
+            "median": 3270153,
+            "min": 3186203,
+            "max": 4033069,
+            "stdev": 384880.68323923455
+          },
+          "peak_python_bytes": 363464
+        },
+        "pickle": {
+          "time_ns": {
+            "samples": [
+              8314917,
+              8230639,
+              8385325,
+              8272485,
+              8026091
+            ],
+            "median": 8272485,
+            "min": 8026091,
+            "max": 8385325,
+            "stdev": 135515.98925145328
+          },
+          "peak_python_bytes": 3827212
+        },
+        "write": {
+          "time_ns": {
+            "samples": [
+              764491,
+              963554,
+              738195,
+              750513,
+              729708
+            ],
+            "median": 750513,
+            "min": 729708,
+            "max": 963554,
+            "stdev": 98294.58473232388
+          },
+          "peak_python_bytes": 6465
+        },
+        "load_expand": {
+          "time_ns": {
+            "samples": [
+              419456727,
+              391433561,
+              391827682,
+              403344174,
+              392742014
+            ],
+            "median": 392742014,
+            "min": 391433561,
+            "max": 419456727,
+            "stdev": 12065557.76877983
+          },
+          "peak_python_bytes": 24613637
+        }
+      },
+      "16": {
+        "bytes": 1175131,
+        "encode": {
+          "time_ns": {
+            "samples": [
+              4777725,
+              3999017,
+              3994822,
+              3989716,
+              4084059
+            ],
+            "median": 3999017,
+            "min": 3989716,
+            "max": 4777725,
+            "stdev": 342467.5257417848
+          },
+          "peak_python_bytes": 448992
+        },
+        "pickle": {
+          "time_ns": {
+            "samples": [
+              7419935,
+              7447157,
+              7473607,
+              7386585,
+              7425173
+            ],
+            "median": 7425173,
+            "min": 7386585,
+            "max": 7473607,
+            "stdev": 32419.870863407214
+          },
+          "peak_python_bytes": 3748178
+        },
+        "write": {
+          "time_ns": {
+            "samples": [
+              715478,
+              687873,
+              705293,
+              698631,
+              709544
+            ],
+            "median": 705293,
+            "min": 687873,
+            "max": 715478,
+            "stdev": 10618.790029942205
+          },
+          "peak_python_bytes": 6465
+        },
+        "load_expand": {
+          "time_ns": {
+            "samples": [
+              456607098,
+              437322381,
+              444157791,
+              442398227,
+              441901069
+            ],
+            "median": 442398227,
+            "min": 437322381,
+            "max": 456607098,
+            "stdev": 7235096.096843925
+          },
+          "peak_python_bytes": 24241273
+        }
+      },
+      "64": {
+        "bytes": 1148379,
+        "encode": {
+          "time_ns": {
+            "samples": [
+              4169168,
+              4386546,
+              4592306,
+              4356294,
+              5157552
+            ],
+            "median": 4386546,
+            "min": 4169168,
+            "max": 5157552,
+            "stdev": 380337.9900577906
+          },
+          "peak_python_bytes": 466384
+        },
+        "pickle": {
+          "time_ns": {
+            "samples": [
+              7271899,
+              7503384,
+              7270290,
+              7390659,
+              7607877
+            ],
+            "median": 7390659,
+            "min": 7270290,
+            "max": 7607877,
+            "stdev": 147337.8620643723
+          },
+          "peak_python_bytes": 3730193
+        },
+        "write": {
+          "time_ns": {
+            "samples": [
+              725614,
+              714936,
+              701418,
+              690375,
+              688066
+            ],
+            "median": 701418,
+            "min": 688066,
+            "max": 725614,
+            "stdev": 16069.593498281156
+          },
+          "peak_python_bytes": 6465
+        },
+        "load_expand": {
+          "time_ns": {
+            "samples": [
+              472216747,
+              454174470,
+              450253817,
+              450227723,
+              449300947
+            ],
+            "median": 450253817,
+            "min": 449300947,
+            "max": 472216747,
+            "stdev": 9677324.614246605
+          },
+          "peak_python_bytes": 24162326
+        }
+      }
+    }
+  },
+  "web": {
+    "schema_version": 1,
+    "repetitions": 5,
+    "warmup": 1,
+    "frame_count": 144,
+    "corpus_sha256": "3c463a1cd550d855896d880ec49652b204626a569c747dd7bbd26b0c82308b37",
+    "polling_window_seconds": 5.6,
+    "browser_errors": [],
+    "failed_requests": [],
+    "http": {
+      "state_to_json": {
+        "time_ns": {
+          "samples": [
+            284174,
+            311951,
+            302665,
+            300248,
+            289118
+          ],
+          "median": 300248,
+          "min": 284174,
+          "max": 311951,
+          "stdev": 11077.164154240922
+        },
+        "peak_python_bytes": 102264
+      },
+      "flask_json_encode": {
+        "time_ns": {
+          "samples": [
+            352654,
+            347513,
+            343608,
+            339439,
+            350835
+          ],
+          "median": 347513,
+          "min": 339439,
+          "max": 352654,
+          "stdev": 5371.955295793144
+        },
+        "peak_python_bytes": 313090
+      },
+      "GET": {
+        "response_bytes": 32943,
+        "time_ns": {
+          "samples": [
+            1171840,
+            1216733,
+            1169062,
+            1217498,
+            1130482
+          ],
+          "median": 1171840,
+          "min": 1130482,
+          "max": 1217498,
+          "stdev": 36699.3372419721
+        },
+        "peak_python_bytes": 418811
+      },
+      "POST": {
+        "response_bytes": 32943,
+        "time_ns": {
+          "samples": [
+            1163096,
+            1221762,
+            1147772,
+            1152452,
+            1140789
+          ],
+          "median": 1152452,
+          "min": 1140789,
+          "max": 1221762,
+          "stdev": 32656.649172871366
+        },
+        "peak_python_bytes": 419561
+      }
+    },
+    "browser": "143.0.7499.4",
+    "observed_poll_requests": [
+      {
+        "method": "GET",
+        "path": "/games/benchmark-7",
+        "seconds": -0.1544163660000777
+      },
+      {
+        "method": "POST",
+        "path": "/games/benchmark-7/update",
+        "seconds": 2.3699310399970273
+      },
+      {
+        "method": "POST",
+        "path": "/games/benchmark-7/update",
+        "seconds": 4.878593830995669
+      }
+    ],
+    "browser_http_resources": [
+      {
+        "path": "/games/benchmark-7",
+        "duration_ms": 9.399999998509884,
+        "transfer_bytes": 33242,
+        "encoded_bytes": 32942,
+        "decoded_bytes": 32942
+      },
+      {
+        "path": "/games/benchmark-7/update",
+        "duration_ms": 7.799999997019768,
+        "transfer_bytes": 33243,
+        "encoded_bytes": 32943,
+        "decoded_bytes": 32943
+      },
+      {
+        "path": "/games/benchmark-7/update",
+        "duration_ms": 7.200000002980232,
+        "transfer_bytes": 33241,
+        "encoded_bytes": 32941,
+        "decoded_bytes": 32941
+      }
+    ],
+    "render": {
+      "parse_ms": {
+        "samples": [
+          24.500000037252903,
+          25.799999959766865,
+          26.299999982118607,
+          24.299999982118607,
+          25.599999979138374
+        ],
+        "median": 25.599999979138374,
+        "min": 24.299999982118607,
+        "max": 26.299999982118607,
+        "stdev": 0.8631338088102632
+      },
+      "update_digest_layout_ms": {
+        "samples": [
+          1850.7999999374151,
+          1806.0000000819564,
+          1802.5000000149012,
+          1828.300000011921,
+          1813.1999999806285
+        ],
+        "median": 1813.1999999806285,
+        "min": 1802.5000000149012,
+        "max": 1850.7999999374151,
+        "stdev": 19.785676598117696
+      },
+      "next_frame_ms": {
+        "samples": [
+          523.9000000357628,
+          570.8999999538064,
+          566.8000000044703,
+          546.7000000104308,
+          560.5000000447035
+        ],
+        "median": 560.5000000447035,
+        "min": 523.9000000357628,
+        "max": 570.8999999538064,
+        "stdev": 19.044106679315757
+      },
+      "cells": [
+        476,
+        476,
+        476,
+        476,
+        476
+      ],
+      "cdp_seconds_including_warmup": {
+        "LayoutDuration": 0.296121,
+        "RecalcStyleDuration": 0.198358,
+        "ScriptDuration": 0.08797
+      },
+      "js_heap_used_bytes": 58049908
+    },
+    "semantic_identity": true
+  },
+  "backend_differences": {
+    "inputs_identical": true,
+    "differing_decisions": [
+      {
+        "index": 3,
+        "seed": 7,
+        "decision": 3,
+        "state_rng_action_equal_excluding_available_actions": true,
+        "destination_sets_equal": true,
+        "max_probability_difference": 0.0,
+        "differing_routes": 20,
+        "differing_roll_sequences": 0
+      },
+      {
+        "index": 9,
+        "seed": 7,
+        "decision": 9,
+        "state_rng_action_equal_excluding_available_actions": true,
+        "destination_sets_equal": true,
+        "max_probability_difference": 0.0,
+        "differing_routes": 28,
+        "differing_roll_sequences": 0
+      },
+      {
+        "index": 47,
+        "seed": 7,
+        "decision": 47,
+        "state_rng_action_equal_excluding_available_actions": true,
+        "destination_sets_equal": true,
+        "max_probability_difference": 0.0,
+        "differing_routes": 20,
+        "differing_roll_sequences": 0
+      },
+      {
+        "index": 86,
+        "seed": 17,
+        "decision": 38,
+        "state_rng_action_equal_excluding_available_actions": true,
+        "destination_sets_equal": true,
+        "max_probability_difference": 0.0,
+        "differing_routes": 11,
+        "differing_roll_sequences": 0
+      },
+      {
+        "index": 103,
+        "seed": 27,
+        "decision": 7,
+        "state_rng_action_equal_excluding_available_actions": true,
+        "destination_sets_equal": true,
+        "max_probability_difference": 0.0,
+        "differing_routes": 1,
+        "differing_roll_sequences": 1
+      },
+      {
+        "index": 143,
+        "seed": 27,
+        "decision": 47,
+        "state_rng_action_equal_excluding_available_actions": true,
+        "destination_sets_equal": true,
+        "max_probability_difference": 0.0,
+        "differing_routes": 11,
+        "differing_roll_sequences": 0
+      }
+    ]
+  },
+  "stock_loader_growth": [
+    {
+      "load": 1,
+      "races": 24,
+      "stars": 71,
+      "inducements": 8,
+      "shares_races_with_previous": false
+    },
+    {
+      "load": 2,
+      "races": 48,
+      "stars": 142,
+      "inducements": 16,
+      "shares_races_with_previous": true
+    },
+    {
+      "load": 3,
+      "races": 72,
+      "stars": 213,
+      "inducements": 24,
+      "shares_races_with_previous": true
+    }
+  ],
+  "validation": {
+    "full-native": {
+      "passed": 2094,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xfailed": 1
+    },
+    "regressions-native": {
+      "passed": 800,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xfailed": 0
+    },
+    "regressions-slots": {
+      "passed": 778,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xfailed": 0
+    },
+    "regressions-dataclass": {
+      "passed": 778,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xfailed": 0
+    },
+    "harness": {
+      "passed": 25,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xfailed": 0
+    }
+  },
+  "validation_scope": "Full suite and engine regressions preceded final harness fixture isolation; final harness tests cover that change.",
+  "raw_sha256": {
+    "baseline/headless.json": "7c0fd3368ff69e8c6905549ad0bec66bec4de39eea92e51cd58dff24974bb0fb",
+    "baseline/frames.json": "7c1c9e26a241a9b703158d3e7113edaa0d209326f47537d4150d23d489aa9a12",
+    "baseline/legacy-replays.pkl": "44c98da3530b100137450e4190a1ac972671bf7ca990a45349e7c64dfb0e6ea4",
+    "engine-baseline.json": "0e460d9f1f02898f359b1f62562ef76952ad4876d5eb8a0102eb6477c44d86a8",
+    "engine-slots.json": "775783e2386c05d0bdd819ecb9f080a876990ea30f03dec19a1c7c5019cacb6e",
+    "engine-dataclass.json": "af9fb01ba889428f4203110de159738344139870c7f6534b695b55a2cd946933",
+    "copy-probes.json": "af3d0fbf8395efc330d15dad84bae5d25fe9adb6960daab63e80e13e11857eb4",
+    "prototypes.json": "dc9cad0da49fd8c7cd323652cc0609385655c39f560c0d094420dbbcefbe4e6e",
+    "web.json": "b35131e582e4d3aeea0fd9f932e34561f5f8d4aed17a25a052dde32f3d7acea7",
+    "fixture-path-differences.json": "0cfb601d5a2155954298ebb7a5e6b74dd24a10962db4ec795efb839cb2df27ed",
+    "stock-loader-growth.json": "299b53425e39f5fd7b203a02e075a9c22429c59854c75edcacd720bd1387d3a3"
+  }
+}
