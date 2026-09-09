@@ -292,3 +292,110 @@ def test_streaming_episode_hash_preserves_existing_canonical_bytes():
     episode = {'manifest': {'title': 'Bowl é 🏈', 'number': 1.25},
                'channels': {'empty': [], 'rows': [{'z': None, 'a': [True, 0, -3]}]}}
     assert _episode_hash(episode) == _hash(episode)
+
+
+@pytest.mark.parametrize('legacy', [False, True])
+def test_maximum_batch_plan_roundtrip_and_hash(tmp_path, legacy):
+    import hashlib
+    from botbowl.lab.generate import (_atomic_json, _encode_job_json, _job_hash,
+                                      _read_job_json, _validate_plan)
+    from botbowl.lab.records import RecordError, encode_json
+
+    config = JobConfig(str(tmp_path / 'data'), episodes=1000)
+    plan = build_plan(config, _legacy=legacy)
+    canonical = json.dumps(plan, ensure_ascii=False, allow_nan=False,
+                           sort_keys=True, separators=(',', ':')).encode('utf-8')
+    assert _encode_job_json(plan) == canonical
+    assert _job_hash(plan) == hashlib.sha256(canonical).hexdigest()
+    if legacy:
+        assert encode_json(plan) == canonical
+    else:
+        # The old whole-record codec rejects this aggregate's node count.
+        with pytest.raises(RecordError, match='JSON depth/node limit'):
+            encode_json(plan)
+    path = tmp_path / 'plan.json'
+    _atomic_json(path, plan, job=True)
+    assert path.read_bytes() == canonical
+    loaded = _read_job_json(path)
+    assert loaded == plan
+    assert _validate_plan(loaded).episodes == 1000
+
+
+def test_large_batch_generates_validates_and_replays(tmp_path):
+    import hashlib
+    from botbowl.lab.generate import _encode_job_json, _job_hash
+    from botbowl.lab.records import MAX_RECORD_BYTES, RecordError, decode_json, encode_json
+
+    # Exercise real recording and both aggregate files beyond the old 4 MiB
+    # boundary, without running hundreds of full matches. Budget zero is a
+    # supported fragment, not a mocked episode or a fabricated summary.
+    destination = tmp_path / 'data'
+    config = JobConfig(str(destination), episodes=300, max_decisions=0)
+    plan = build_plan(config)
+    assert len(_encode_job_json(plan)) > MAX_RECORD_BYTES
+    with pytest.raises(RecordError, match='JSON record byte limit'):
+        encode_json(plan)
+    dataset = generate(config)
+    assert len(dataset['episodes']) == 300
+    assert all(row['end']['decisions'] == 0 for row in dataset['episodes'])
+    for name in ('plan.json', 'dataset.json'):
+        payload = (destination / name).read_bytes()
+        assert len(payload) > MAX_RECORD_BYTES
+        with pytest.raises(RecordError, match='JSON record byte limit'):
+            decode_json(payload)
+    assert dataset['plan_sha256'] == hashlib.sha256((destination / 'plan.json').read_bytes()).hexdigest()
+    assert dataset['plan_sha256'] == _job_hash(plan)
+    assert validate_dataset(destination) == dataset
+    replayed = replay_episode(destination, 'episode-000299', str(tmp_path / 'replay'))
+    assert replayed['episodes'] == [dataset['episodes'][-1]]
+    assert replayed['plan_sha256'] == dataset['plan_sha256']
+    assert validate_dataset(tmp_path / 'replay') == replayed
+    assert not list(destination.glob('*.failure.json'))
+    assert not list(destination.glob('*.partial'))
+
+
+def test_job_codec_keeps_small_file_bytes_and_per_entry_limits(tmp_path, monkeypatch):
+    from copy import deepcopy
+    import botbowl.lab.generate as generator
+    from botbowl.lab.records import MAX_RECORD_BYTES, RecordError, encode_json
+
+    plan = build_plan(JobConfig(str(tmp_path / 'data')))
+    assert generator._encode_job_json(plan) == encode_json(plan)
+    assert generator._job_hash(plan) == generator._hash(plan)
+    oversized = deepcopy(plan)
+    oversized['episodes'][0]['padding'] = 'x' * MAX_RECORD_BYTES
+    with pytest.raises(RecordError, match='JSON record byte limit'):
+        generator._encode_job_json(oversized)
+    nested = {}
+    for _ in range(41):
+        nested = {'nested': nested}
+    oversized['episodes'][0] = nested
+    with pytest.raises(RecordError, match='JSON depth/node limit'):
+        generator._encode_job_json(oversized)
+    oversized['episodes'] = [{}] * 1001
+    with pytest.raises(RecordError, match='Job episode count limit'):
+        generator._encode_job_json(oversized)
+    monkeypatch.setattr(generator, 'MAX_JOB_BYTES', 100)
+    with pytest.raises(RecordError, match='JSON job byte limit'):
+        generator._encode_job_json(plan)
+    path = tmp_path / 'oversized.json'
+    path.write_bytes(b' ' * 101)
+    with pytest.raises(RecordError, match='JSON job byte limit'):
+        generator._read_job_json(path)
+
+
+@pytest.mark.parametrize('payload', [
+    b'{"schema_version":1,"schema_version":2}',
+    b'{"schema_version":2,"plan_sha256":"x","replay_episode_id":null,"episodes":[{"x":1,"x":2}]}',
+    b'{"schema_version":2,"plan_sha256":"x","replay_episode_id":null,"episodes":[{"x":NaN}]}',
+    b'{"schema_version":2,"plan_sha256":"x","replay_episode_id":null,"episodes":[{"x":1e999}]}',
+    b'{"schema_version":2,"plan_sha256":"x","replay_episode_id":null,"episodes":[{"x":' + b'9' * 80 + b'}]}',
+    b'{"schema_version":2,"plan_sha256":"x","replay_episode_id":null,"episodes":[{"x":"\xff"}]}',
+    b'[]',
+])
+def test_job_decoder_rejects_invalid_json(payload):
+    from botbowl.lab.generate import _decode_job_json
+    from botbowl.lab.records import RecordError
+
+    with pytest.raises(RecordError):
+        _decode_job_json(payload)

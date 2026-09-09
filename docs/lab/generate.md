@@ -60,6 +60,15 @@ seeds, the other policy stream, or the origin family. Origin families identify
 the same initial recipe and engine source across policy interventions; they are
 not policy features.
 
+`plan.json` and `dataset.json` are job aggregates, bounded at 128 MiB and 1,000
+episode entries each. Their headers and each individual episode entry retain
+the DATA-02 record codec's byte, depth, node and plain-JSON checks; the entries
+do not share one 4 MiB record budget. Job reads are bounded before parsing and
+reject duplicate keys and invalid numbers. This supports the documented batch
+range despite repeated policy profiles. Canonical JSON bytes and plan hashes
+are unchanged for existing v1/v2 files. Recording-channel rows still have their
+original 4 MiB limit, with a separate 128 MiB aggregate limit per episode.
+
 All streams use [SIM-01](randomness.md). Scenario, engine, home policy, away policy
 and observer have separate purpose/component recipes. For registered scenarios,
 the plan also retains the exact second-level layout seed recipe used by that

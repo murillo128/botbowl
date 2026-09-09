@@ -17,12 +17,88 @@ from .policies import POLICIES, PolicySpecV1, ReferencePolicy, create_policy, po
 from .coverage import option_counts, episode_coverage
 from .randomness import DERIVATION_ALGORITHM, SeedSpec
 from .recording import EpisodeReader
-from .records import decode_json, encode_json
+from .records import RecordError, decode_json, encode_json, require
 from .scenarios import SCENARIO_RECIPES, ScenarioSpecV1, create_scenario, scenario_spec
 from .session import NoProgress, SessionConfig, SimulationSession
 
 
 VERSION = 2
+MAX_JOB_EPISODES = 1000
+MAX_JOB_BYTES = 128 * 1024 * 1024
+
+
+def _encode_job_json(data):
+    """Canonical aggregate JSON with bounded headers and per-episode records.
+
+    A job is not one DATA-02 record. Validate each episode separately so the
+    documented 1,000-episode range does not share a single record's node/byte
+    budget. Keep the historical canonical bytes and impose a total job bound.
+    """
+    shapes = ({'schema_version', 'generator', 'job', 'profile', 'episodes'},
+              {'schema_version', 'plan_sha256', 'replay_episode_id', 'episodes'})
+    require(type(data) is dict and set(data) in shapes, 'Invalid job envelope')
+    episodes = data['episodes']
+    require(type(episodes) is list and 1 <= len(episodes) <= MAX_JOB_EPISODES,
+            'Job episode count limit')
+    encode_json({key: value for key, value in data.items() if key != 'episodes'})
+    chunks, size = [], 0
+
+    def append(chunk):
+        nonlocal size
+        size += len(chunk)
+        require(size <= MAX_JOB_BYTES, 'JSON job byte limit')
+        chunks.append(chunk)
+
+    append(b'{')
+    for index, key in enumerate(sorted(data)):
+        append((b',' if index else b'') + encode_json(key) + b':')
+        if key == 'episodes':
+            append(b'[')
+            for position, episode in enumerate(episodes):
+                require(type(episode) is dict, 'Expected job episode object')
+                if position:
+                    append(b',')
+                append(encode_json(episode))
+            append(b']')
+        else:
+            append(encode_json(data[key]))
+    append(b'}')
+    return b''.join(chunks)
+
+
+def _decode_job_json(payload):
+    require(type(payload) is bytes and len(payload) <= MAX_JOB_BYTES, 'JSON job byte limit')
+
+    def unique(pairs):
+        result = {}
+        for key, value in pairs:
+            require(key not in result, 'Duplicate JSON key')
+            result[key] = value
+        return result
+
+    def integer(token):
+        require(len(token) <= 79, 'JSON integer limit')
+        return int(token)
+
+    def nonfinite(token):
+        raise RecordError('Non-finite JSON number')
+
+    try:
+        data = json.loads(payload.decode('utf-8'), object_pairs_hook=unique,
+                          parse_int=integer, parse_constant=nonfinite)
+        _encode_job_json(data)
+        return data
+    except (ValueError, UnicodeError, RecursionError) as error:
+        raise RecordError('Invalid bounded job JSON') from error
+
+
+def _read_job_json(path):
+    with path.open('rb') as stream:
+        return _decode_job_json(stream.read(MAX_JOB_BYTES + 1))
+
+
+def _job_hash(data):
+    return hashlib.sha256(_encode_job_json(data)).hexdigest()
 
 
 def _hash(data):
@@ -73,7 +149,7 @@ class JobConfig:
     def __post_init__(self):
         if type(self.episode_prefix) is not str or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.:-]{0,99}', self.episode_prefix):
             raise ValueError('Invalid episode prefix')
-        _integer(self.episodes, 1, 1000, 'episodes')
+        _integer(self.episodes, 1, MAX_JOB_EPISODES, 'episodes')
         _integer(self.master_seed, 0, 2**256 - 1, 'master_seed')
         _integer(self.max_decisions, 0, 10000 if self.scenario == 'match' else 256, 'max_decisions')
         _integer(self.max_steps, 1, 10000, 'max_steps')
@@ -170,7 +246,7 @@ def _validate_plan(plan):
         expected = build_plan(config, _legacy=plan.get('schema_version') == 1)
     except (TypeError, ValueError) as error:
         raise ValueError('Invalid generation plan') from error
-    if encode_json(plan) != encode_json(expected):
+    if _encode_job_json(plan) != _encode_job_json(expected):
         raise ValueError('Plan does not match the supported recipe, policy, seeds or loaded rules/backend')
     return config
 
@@ -204,10 +280,10 @@ def _end(result, count, entry):
             'scenario_success': getattr(result, 'scenario_success', None), 'decisions': count}
 
 
-def _atomic_json(path, data):
+def _atomic_json(path, data, *, job=False):
     temporary = path.with_name(path.name + '.partial')
     with temporary.open('xb') as stream:
-        stream.write(encode_json(data))
+        stream.write(_encode_job_json(data) if job else encode_json(data))
         stream.flush()
         import os
         os.fsync(stream.fileno())
@@ -292,7 +368,7 @@ def execute_plan(plan, output, *, _replay=None):
     if destination == package or package in destination.parents:
         raise ValueError('Datasets cannot be written inside the installed package')
     destination.mkdir(parents=True, exist_ok=False)
-    _atomic_json(destination / 'plan.json', plan)
+    _atomic_json(destination / 'plan.json', plan, job=True)
     results = []
     for entry in plan['episodes']:
         if _replay is not None and entry['episode_id'] != _replay[0]:
@@ -310,9 +386,9 @@ def execute_plan(plan, output, *, _replay=None):
             except OSError:
                 pass  # Preserve the original failure and visible partial writer.
             raise
-    dataset = {'schema_version': plan['schema_version'], 'plan_sha256': _hash(plan),
+    dataset = {'schema_version': plan['schema_version'], 'plan_sha256': _job_hash(plan),
                'replay_episode_id': None if _replay is None else _replay[0], 'episodes': results}
-    _atomic_json(destination / 'dataset.json', dataset)
+    _atomic_json(destination / 'dataset.json', dataset, job=True)
     return dataset
 
 
@@ -330,12 +406,12 @@ def validate_dataset(destination):
 
 def _validate_dataset(destination):
     root = Path(destination)
-    plan = decode_json((root / 'plan.json').read_bytes())
+    plan = _read_job_json(root / 'plan.json')
     config = _validate_plan(plan)
-    dataset = decode_json((root / 'dataset.json').read_bytes())
+    dataset = _read_job_json(root / 'dataset.json')
     if (set(dataset) != {'schema_version', 'plan_sha256', 'replay_episode_id', 'episodes'} or
             type(dataset['schema_version']) is not int or dataset['schema_version'] != plan['schema_version'] or
-            type(dataset['episodes']) is not list or dataset['plan_sha256'] != _hash(plan)):
+            type(dataset['episodes']) is not list or dataset['plan_sha256'] != _job_hash(plan)):
         raise ValueError('Dataset plan identity mismatch')
     entries = {entry['episode_id']: entry for entry in plan['episodes']}
     seen = set()
@@ -391,7 +467,7 @@ def replay_episode(destination, episode_id, output, actions=None):
     if episode_id not in {row['episode_id'] for row in dataset['episodes']}:
         raise ValueError('Episode is not confirmed in this dataset')
     root = Path(destination)
-    plan = decode_json((root / 'plan.json').read_bytes())
+    plan = _read_job_json(root / 'plan.json')
     if actions is None:
         rows = EpisodeReader(root, episode_id).read_channels(['transitions'])['transitions']
         actions = [row['action'] for row in rows]
