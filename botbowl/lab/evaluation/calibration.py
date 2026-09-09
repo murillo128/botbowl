@@ -330,6 +330,7 @@ def evaluate_calibration(cases, forecasts, targets, *, models, continuations,
     expected = {(c['case_id'], h) for c in cases for h in c['request']['horizons']}
     require(set(continuations) == expected, 'Missing/foreign continuation pair')
     seen_streams, seen_origins = [set(), set()], [set(), set()]
+    stream_families = [{}, {}]
     sampling = []
     for c in cases:
         request = forecast_request(c)
@@ -348,6 +349,9 @@ def evaluate_calibration(cases, forecasts, targets, *, models, continuations,
             for i in (0, 1):
                 require(streams[i].isdisjoint(seen_streams[1 - i]) and
                         origins[i].isdisjoint(seen_origins[1 - i]), 'Cross-case reference/evaluation leakage')
+                for stream in streams[i]:
+                    owner = stream_families[i].setdefault(stream, request['family_id'])
+                    require(owner == request['family_id'], 'Shared streams require the same origin family')
                 seen_streams[i].update(streams[i])
                 seen_origins[i].update(origins[i])
     predictions = {}

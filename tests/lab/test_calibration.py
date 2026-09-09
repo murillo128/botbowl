@@ -301,3 +301,16 @@ def test_provenance_retained_and_invalid_targets_not_negative_events(inputs):
     assert metric['attempted_samples'] == 4 and metric['valid_samples'] == 3
     assert metric['causes'] == {'failed:engine_failure': 1}
     assert metric['reliability'][0]['bins'][0]['n'] == 3
+
+
+def test_reused_streams_cannot_claim_independent_families(inputs, tmp_path):
+    other = demo_inputs(tmp_path, name='other', n=4)
+    for role in ('reference', 'evaluation'):
+        other[3][role]['sample_plan'] = deepcopy(inputs[3][role]['sample_plan'])
+        for row, original in zip(other[3][role]['records'], inputs[3][role]['records']):
+            row['seed'] = deepcopy(original['seed'])
+            row['policy_seeds'] = deepcopy(original['policy_seeds'])
+    with pytest.raises(ValueError, match='same origin family'):
+        evaluate_calibration([inputs[0], other[0]], [inputs[1], other[1]], [inputs[2]],
+            models=[('artificial', 'v1')], continuations={
+                (i[0]['case_id'], 1): i[3] for i in (inputs, other)})

@@ -63,7 +63,8 @@ or sampled origins, including across cases/horizons. The **parent snapshot and
 origin family are intentionally shared** to estimate the same conditional
 future; the sampled suffix origins and seeds must differ. Disjoint sample IDs
 are the simplest way to avoid both stream and branch reuse. Within one role,
-reusing a stream across correlated windows does not make it independent evidence.
+reusing a stream across correlated windows does not make it independent evidence;
+the validator rejects assigning those shared streams to different families.
 Keep every related episode/branch/window in its original family. Families used
 for training or tuning must be disjoint from all these held-out families.
 
