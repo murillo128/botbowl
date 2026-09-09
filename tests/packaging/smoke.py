@@ -11,7 +11,7 @@ def core_smoke(backend, minimal=False):
     if minimal:
         assert "DISPLAY" not in os.environ
         for distribution in (
-            "Flask", "gym", "gymnasium", "docker", "matplotlib", "pytest", "torch"
+            "Flask", "gym", "gymnasium", "pettingzoo", "docker", "matplotlib", "pytest", "torch"
         ):
             try:
                 metadata.version(distribution)
@@ -25,7 +25,7 @@ def core_smoke(backend, minimal=False):
     from botbowl.lab.rules import describe_rules
 
     for module in (
-        "flask", "gym", "gymnasium", "docker", "matplotlib", "tkinter", "torch"
+        "flask", "gym", "gymnasium", "pettingzoo", "docker", "matplotlib", "tkinter", "torch"
     ):
         assert module not in sys.modules, module
     assert pf.get_safest_path.__module__.endswith(
@@ -99,6 +99,22 @@ def extra_smoke(extra):
             env.close()
             env.close()
         assert "gym" not in sys.modules and "tkinter" not in sys.modules
+    elif extra == "multiagent":
+        import numpy as np
+        from botbowl.lab import SessionConfig
+        from botbowl.lab.adapters.pettingzoo_aec import BotBowlAECEnv
+
+        env = BotBowlAECEnv(SessionConfig(size=1, max_decisions=3))
+        try:
+            env.reset(seed=17)
+            for side in env.agent_iter():
+                obs, reward, terminated, truncated, info = env.last()
+                assert env.observation_space(side).contains(obs)
+                env.step(None if terminated or truncated else int(np.flatnonzero(obs['action_mask'])[0]))
+            assert not env.agents
+        finally:
+            env.close()
+        assert "gym" not in sys.modules and "tkinter" not in sys.modules
     elif extra == "competition":
         import botbowl as bb
         from botbowl.ai.competition.python_socket import AgentCommand, Request
@@ -129,7 +145,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--backend", choices=("python", "native"), default="python")
     parser.add_argument("--minimal", action="store_true")
-    parser.add_argument("--extra", choices=("web", "rl", "gymnasium", "competition", "dev", "render"))
+    parser.add_argument("--extra", choices=("web", "rl", "gymnasium", "multiagent", "competition", "dev", "render"))
     args = parser.parse_args()
     result = core_smoke(args.backend, args.minimal)
     if args.extra:

@@ -13,13 +13,11 @@ WORKFLOW = (ROOT / ".github/workflows/codex-review-ready.yml").read_text(encodin
 
 
 class DirectAuditReviewTests(unittest.TestCase):
-    def test_prompt_only_supplies_dynamic_identity_and_trusted_policy_location(self):
-        expected = (
-            'task_prompt="Audit PR #${PR_NUMBER} for issue #${ISSUE_NUMBER} as the isolated audit controller. '
-            'Use trusted instructions at ${state_dir}/control/AGENTS.md and '
-            '${state_dir}/control/skills/codex-pr-audit/SKILL.md."'
-        )
+    def test_prompt_only_supplies_dynamic_identity_and_branch_policy_entrypoint(self):
+        expected = 'task_prompt="Audit PR #${PR_NUMBER} for issue #${ISSUE_NUMBER} according to AGENTS.md."'
         self.assertIn(expected, WORKFLOW)
+        self.assertNotIn("${state_dir}/control/AGENTS.md", WORKFLOW)
+        self.assertNotIn("${state_dir}/control/skills/", WORKFLOW)
         for duplicated_policy in (
             "Apply codex-independent-review directly yourself",
             "do not spawn, delegate to, or wait for another reviewer or subagent",
@@ -28,6 +26,13 @@ class DirectAuditReviewTests(unittest.TestCase):
             "Recheck BOTH head and base before recording",
         ):
             self.assertNotIn(duplicated_policy, WORKFLOW)
+
+    def test_audited_head_owns_required_agent_policy(self):
+        self.assertIn('for path in AGENTS.md skills/codex-pr-audit/SKILL.md', WORKFLOW)
+        self.assertIn('[ ! -f "${worktree}/${path}" ]', WORKFLOW)
+        self.assertIn("Audited PR head lacks required workflow instruction", WORKFLOW)
+        self.assertNotIn('show "${GITHUB_SHA}:AGENTS.md"', WORKFLOW)
+        self.assertNotIn('show "${GITHUB_SHA}:skills/codex-pr-audit/SKILL.md"', WORKFLOW)
 
     def test_prelaunch_guard_rechecks_current_control_plane_before_model_turn(self):
         self.assertIn("Pre-launch guard: issue is no longer solely review-ready", WORKFLOW)
