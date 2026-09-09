@@ -200,7 +200,7 @@ As with DATA-07, this requires local POSIX filesystem semantics and trusted
 immutable publication; checksums detect corruption, not producer authenticity.
 
 ```sh
-python -m examples.lab.collections /tmp/collection-demo
+python -m examples.lab.event_collections /tmp/collection-demo
 python -m botbowl.lab.collections /tmp/collection-demo/spec.json /tmp/new-collection
 ```
 

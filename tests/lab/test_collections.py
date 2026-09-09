@@ -1,5 +1,7 @@
 """Selection denominators, experimental provenance and durable causal views."""
 import json
+import os
+from pathlib import Path
 import subprocess
 import sys
 
@@ -339,3 +341,11 @@ def test_cli_reopen_and_unknown_schema(tmp_path):
     bad['schema_version'] = 2
     plan.write_bytes(encode_json(bad))
     assert subprocess.run(command, capture_output=True).returncode == 2
+    # Direct scripts prepend examples/lab to sys.path. A collections.py there
+    # would shadow stdlib collections and break unrelated sibling examples too.
+    repository = Path(__file__).resolve().parents[2]
+    example = repository / 'examples/lab/event_collections.py'
+    result = subprocess.run([sys.executable, str(example), '--help'], cwd=tmp_path,
+                            env=dict(os.environ, PYTHONPATH=str(repository)),
+                            capture_output=True, text=True, timeout=30)
+    assert result.returncode == 0, result.stderr
