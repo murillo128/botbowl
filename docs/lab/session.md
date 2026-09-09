@@ -69,6 +69,12 @@ restore. Retain the session envelope's budget fields alongside it; an engine
 file alone is not a complete session envelope. The #39 version, integrity and
 compatibility gates apply unchanged. Neither object belongs in player channels.
 
+`SimulationSession.from_snapshot(saved)` creates an independent session directly
+from a `SessionSnapshot`, preserving its budget and truncation state. It does not
+initialize a new match or invoke a policy. For named alternatives with separate
+continuation budgets, chance provenance and immutable external predictions, use
+the [branch tree API](branches.md).
+
 Natural completion reports `terminated=True`, `truncated=False` and
 `end_reason="game_over"`. Decision limits, engine-step exhaustion, no-progress,
 execution failure and explicit close never manufacture a sporting result.
