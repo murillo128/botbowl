@@ -10,7 +10,8 @@ import sys
 INVESTIGATION = 'tests/framework/test_quick_snap_forward_model.py'
 LEGACY_RL = 'tests/ai/test_env.py'
 INTEGRATION = ('tests/ai/', 'tests/framework/test_forward_model.py',
-               'tests/framework/test_server.py', 'tests/game/test_full_game.py')
+               'tests/framework/test_server.py', 'tests/game/test_full_game.py',
+               'tests/lab/test_generate.py')
 PARTS = tuple(f'{portion}-{shard}' for shard in range(2)
               for portion in ('unit', 'integration'))
 
