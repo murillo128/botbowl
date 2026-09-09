@@ -1,0 +1,429 @@
+{
+  "environment": {
+    "affinity": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ],
+    "cpu": "11th Gen Intel(R) Core(TM) i7-11700K @ 3.60GHz",
+    "load_average": [
+      18.58154296875,
+      13.900390625,
+      11.83349609375
+    ],
+    "logical_cpus": 16,
+    "memory_total_kib": 65739692,
+    "platform": "Linux-6.8.0-139-generic-x86_64-with-glibc2.39",
+    "python": "3.11.16 (main, Sep  1 2026, 14:18:37) [Clang 22.1.3 ]",
+    "versions": {
+      "Cython": null,
+      "Flask": "3.1.3",
+      "botbowl": "2.0.0a1",
+      "numpy": "1.26.4",
+      "playwright": null,
+      "pytest": "9.1.1"
+    }
+  },
+  "fixture": {
+    "decisions": 4,
+    "episodes": 8,
+    "scenario": "match",
+    "seed": 17,
+    "size": 3
+  },
+  "implementation_sha256": "23a91c17ba4b7d20462edfdda6f5e6b2f2adbaea2bf244ef38fb547fa2564ace",
+  "method": "Fresh subprocess per repetition; sequential and pool use the same generator and per-episode JSONL atomic writer. Timing includes worker startup, generation, spooling, writer verification/fsync and shutdown; final comparison excluded. Linux ru_maxrss includes imports/native allocations. Pool RSS estimate adds parent maximum to workers times maximum observed worker RSS, not a simultaneous measurement. Warm OS caches, shared host, no timing CI threshold.",
+  "results": {
+    "0": {
+      "parent_peak_rss_bytes": {
+        "max": 59023360,
+        "median": 58896384,
+        "min": 58888192,
+        "samples": [
+          59023360,
+          58888192,
+          58896384
+        ],
+        "stdev": 75785.2246637386
+      },
+      "rss_peak_upper_estimate_bytes": {
+        "max": 59023360,
+        "median": 58896384,
+        "min": 58888192,
+        "samples": [
+          59023360,
+          58888192,
+          58896384
+        ],
+        "stdev": 75785.2246637386
+      },
+      "samples": [
+        {
+          "parent_peak_rss_bytes": 59023360,
+          "rss_peak_upper_estimate_bytes": 59023360,
+          "seconds": 4.885429398011183,
+          "semantic": {
+            "rows": 180,
+            "sha256": "68a9c1c0c051a3a5ec6257fb29826456565a391263421a083e38d4849373bee5"
+          },
+          "stats": null,
+          "worker_peak_rss_bytes": 0
+        },
+        {
+          "parent_peak_rss_bytes": 58888192,
+          "rss_peak_upper_estimate_bytes": 58888192,
+          "seconds": 5.338716174999718,
+          "semantic": {
+            "rows": 180,
+            "sha256": "68a9c1c0c051a3a5ec6257fb29826456565a391263421a083e38d4849373bee5"
+          },
+          "stats": null,
+          "worker_peak_rss_bytes": 0
+        },
+        {
+          "parent_peak_rss_bytes": 58896384,
+          "rss_peak_upper_estimate_bytes": 58896384,
+          "seconds": 4.650520258001052,
+          "semantic": {
+            "rows": 180,
+            "sha256": "68a9c1c0c051a3a5ec6257fb29826456565a391263421a083e38d4849373bee5"
+          },
+          "stats": null,
+          "worker_peak_rss_bytes": 0
+        }
+      ],
+      "seconds": {
+        "max": 5.338716174999718,
+        "median": 4.885429398011183,
+        "min": 4.650520258001052,
+        "samples": [
+          4.885429398011183,
+          5.338716174999718,
+          4.650520258001052
+        ],
+        "stdev": 0.34982491488042683
+      },
+      "worker_peak_rss_bytes": {
+        "max": 0,
+        "median": 0,
+        "min": 0,
+        "samples": [
+          0,
+          0,
+          0
+        ],
+        "stdev": 0.0
+      }
+    },
+    "1": {
+      "parent_peak_rss_bytes": {
+        "max": 57319424,
+        "median": 57061376,
+        "min": 56930304,
+        "samples": [
+          56930304,
+          57061376,
+          57319424
+        ],
+        "stdev": 197982.74920137192
+      },
+      "rss_peak_upper_estimate_bytes": {
+        "max": 114425856,
+        "median": 113729536,
+        "min": 113467392,
+        "samples": [
+          113467392,
+          113729536,
+          114425856
+        ],
+        "stdev": 495350.7609818858
+      },
+      "samples": [
+        {
+          "parent_peak_rss_bytes": 56930304,
+          "rss_peak_upper_estimate_bytes": 113467392,
+          "seconds": 6.223215481004445,
+          "semantic": {
+            "rows": 180,
+            "sha256": "68a9c1c0c051a3a5ec6257fb29826456565a391263421a083e38d4849373bee5"
+          },
+          "stats": {
+            "dispatched": 8,
+            "peak_buffered": 1,
+            "peak_in_flight": 1,
+            "worker_peak_rss_bytes": 56537088
+          },
+          "worker_peak_rss_bytes": 56537088
+        },
+        {
+          "parent_peak_rss_bytes": 57061376,
+          "rss_peak_upper_estimate_bytes": 113729536,
+          "seconds": 6.287098400003742,
+          "semantic": {
+            "rows": 180,
+            "sha256": "68a9c1c0c051a3a5ec6257fb29826456565a391263421a083e38d4849373bee5"
+          },
+          "stats": {
+            "dispatched": 8,
+            "peak_buffered": 1,
+            "peak_in_flight": 1,
+            "worker_peak_rss_bytes": 56668160
+          },
+          "worker_peak_rss_bytes": 56668160
+        },
+        {
+          "parent_peak_rss_bytes": 57319424,
+          "rss_peak_upper_estimate_bytes": 114425856,
+          "seconds": 5.978000479983166,
+          "semantic": {
+            "rows": 180,
+            "sha256": "68a9c1c0c051a3a5ec6257fb29826456565a391263421a083e38d4849373bee5"
+          },
+          "stats": {
+            "dispatched": 8,
+            "peak_buffered": 1,
+            "peak_in_flight": 1,
+            "worker_peak_rss_bytes": 57106432
+          },
+          "worker_peak_rss_bytes": 57106432
+        }
+      ],
+      "seconds": {
+        "max": 6.287098400003742,
+        "median": 6.223215481004445,
+        "min": 5.978000479983166,
+        "samples": [
+          6.223215481004445,
+          6.287098400003742,
+          5.978000479983166
+        ],
+        "stdev": 0.16317319440131878
+      },
+      "worker_peak_rss_bytes": {
+        "max": 57106432,
+        "median": 56668160,
+        "min": 56537088,
+        "samples": [
+          56537088,
+          56668160,
+          57106432
+        ],
+        "stdev": 298165.16829435324
+      }
+    },
+    "2": {
+      "parent_peak_rss_bytes": {
+        "max": 57323520,
+        "median": 57188352,
+        "min": 57184256,
+        "samples": [
+          57323520,
+          57184256,
+          57188352
+        ],
+        "stdev": 79248.1620565003
+      },
+      "rss_peak_upper_estimate_bytes": {
+        "max": 171184128,
+        "median": 170778624,
+        "min": 170766336,
+        "samples": [
+          171184128,
+          170766336,
+          170778624
+        ],
+        "stdev": 237744.4861695009
+      },
+      "samples": [
+        {
+          "parent_peak_rss_bytes": 57323520,
+          "rss_peak_upper_estimate_bytes": 171184128,
+          "seconds": 4.0458235460100695,
+          "semantic": {
+            "rows": 180,
+            "sha256": "68a9c1c0c051a3a5ec6257fb29826456565a391263421a083e38d4849373bee5"
+          },
+          "stats": {
+            "dispatched": 8,
+            "peak_buffered": 2,
+            "peak_in_flight": 3,
+            "worker_peak_rss_bytes": 56930304
+          },
+          "worker_peak_rss_bytes": 56930304
+        },
+        {
+          "parent_peak_rss_bytes": 57184256,
+          "rss_peak_upper_estimate_bytes": 170766336,
+          "seconds": 4.579980273992987,
+          "semantic": {
+            "rows": 180,
+            "sha256": "68a9c1c0c051a3a5ec6257fb29826456565a391263421a083e38d4849373bee5"
+          },
+          "stats": {
+            "dispatched": 8,
+            "peak_buffered": 2,
+            "peak_in_flight": 3,
+            "worker_peak_rss_bytes": 56791040
+          },
+          "worker_peak_rss_bytes": 56791040
+        },
+        {
+          "parent_peak_rss_bytes": 57188352,
+          "rss_peak_upper_estimate_bytes": 170778624,
+          "seconds": 4.6002026359783486,
+          "semantic": {
+            "rows": 180,
+            "sha256": "68a9c1c0c051a3a5ec6257fb29826456565a391263421a083e38d4849373bee5"
+          },
+          "stats": {
+            "dispatched": 8,
+            "peak_buffered": 2,
+            "peak_in_flight": 2,
+            "worker_peak_rss_bytes": 56795136
+          },
+          "worker_peak_rss_bytes": 56795136
+        }
+      ],
+      "seconds": {
+        "max": 4.6002026359783486,
+        "median": 4.579980273992987,
+        "min": 4.0458235460100695,
+        "samples": [
+          4.0458235460100695,
+          4.579980273992987,
+          4.6002026359783486
+        ],
+        "stdev": 0.31439585699341444
+      },
+      "worker_peak_rss_bytes": {
+        "max": 56930304,
+        "median": 56795136,
+        "min": 56791040,
+        "samples": [
+          56930304,
+          56791040,
+          56795136
+        ],
+        "stdev": 79248.1620565003
+      }
+    },
+    "4": {
+      "parent_peak_rss_bytes": {
+        "max": 57319424,
+        "median": 57196544,
+        "min": 57192448,
+        "samples": [
+          57192448,
+          57196544,
+          57319424
+        ],
+        "stdev": 72156.28430936098
+      },
+      "rss_peak_upper_estimate_bytes": {
+        "max": 285548544,
+        "median": 284409856,
+        "min": 284389376,
+        "samples": [
+          284389376,
+          284409856,
+          285548544
+        ],
+        "stdev": 663412.9236968481
+      },
+      "samples": [
+        {
+          "parent_peak_rss_bytes": 57192448,
+          "rss_peak_upper_estimate_bytes": 284389376,
+          "seconds": 3.609863719000714,
+          "semantic": {
+            "rows": 180,
+            "sha256": "68a9c1c0c051a3a5ec6257fb29826456565a391263421a083e38d4849373bee5"
+          },
+          "stats": {
+            "dispatched": 8,
+            "peak_buffered": 4,
+            "peak_in_flight": 6,
+            "worker_peak_rss_bytes": 56799232
+          },
+          "worker_peak_rss_bytes": 56799232
+        },
+        {
+          "parent_peak_rss_bytes": 57196544,
+          "rss_peak_upper_estimate_bytes": 284409856,
+          "seconds": 3.3950406090007164,
+          "semantic": {
+            "rows": 180,
+            "sha256": "68a9c1c0c051a3a5ec6257fb29826456565a391263421a083e38d4849373bee5"
+          },
+          "stats": {
+            "dispatched": 8,
+            "peak_buffered": 4,
+            "peak_in_flight": 7,
+            "worker_peak_rss_bytes": 56803328
+          },
+          "worker_peak_rss_bytes": 56803328
+        },
+        {
+          "parent_peak_rss_bytes": 57319424,
+          "rss_peak_upper_estimate_bytes": 285548544,
+          "seconds": 3.0586120430089068,
+          "semantic": {
+            "rows": 180,
+            "sha256": "68a9c1c0c051a3a5ec6257fb29826456565a391263421a083e38d4849373bee5"
+          },
+          "stats": {
+            "dispatched": 8,
+            "peak_buffered": 3,
+            "peak_in_flight": 4,
+            "worker_peak_rss_bytes": 57057280
+          },
+          "worker_peak_rss_bytes": 57057280
+        }
+      ],
+      "seconds": {
+        "max": 3.609863719000714,
+        "median": 3.3950406090007164,
+        "min": 3.0586120430089068,
+        "samples": [
+          3.609863719000714,
+          3.3950406090007164,
+          3.0586120430089068
+        ],
+        "stdev": 0.27785234654673235
+      },
+      "worker_peak_rss_bytes": {
+        "max": 57057280,
+        "median": 56803328,
+        "min": 56799232,
+        "samples": [
+          56799232,
+          56803328,
+          57057280
+        ],
+        "stdev": 147815.8571917551
+      }
+    }
+  },
+  "schema_version": 1,
+  "semantic_reference": {
+    "rows": 180,
+    "sha256": "68a9c1c0c051a3a5ec6257fb29826456565a391263421a083e38d4849373bee5"
+  },
+  "thread_limits": {
+    "OMP_NUM_THREADS": "1",
+    "OPENBLAS_NUM_THREADS": "1"
+  }
+}
