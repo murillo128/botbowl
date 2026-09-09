@@ -7,7 +7,7 @@ The existing lint and trusted-push Python/native core gates remain unchanged
 
 | Profile | Installation | Required contracts |
 | --- | --- | --- |
-| `lab-fast` (Python and native) | Core + test tools | Public control, atomic rejection, observation privacy, cross-process snapshot, recorded-action replay, causal windows, origin splits, external M1 client, ReplayV1 (#42), session command permissions/idempotency (#59) |
+| `lab-fast` (Python and native) | Core + test tools + storage | Sharded JSONL/Parquet storage, public control, atomic rejection, observation privacy, cross-process snapshot, recorded-action replay, causal windows, origin splits, external M1 client, ReplayV1 (#42), session command permissions/idempotency (#59) |
 | `lab-extended` (Python and native) | Core + test tools | #25 broad sequences with seeds 0/3/17 and sizes 1/3/5/7/11; full snapshot subprocess, generation and recording contracts |
 | `lab-adapters` (Python) | Core + test tools + multiagent (includes Gymnasium) | Gymnasium and PettingZoo AEC contracts (#57), including invalid calls and interruption/mask behavior |
 | `lab-http` (Python) | Core + test tools + web | HTTP/SDK (#60) roles, versions, local/remote parity, snapshots, retries, timeouts, resource cleanup, and the installed external HTTP example |
