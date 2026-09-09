@@ -160,6 +160,8 @@ class SimulationSession:
         self._truncation_reason: Optional[str] = None
         self._revision = 0
         self._closed = False
+        self._recorder = None
+        self._recording_initial = None
         if config is not None or seed_plan is not None:
             if config is None or seed_plan is None:
                 raise InvalidConfiguration("config and seed_plan must be supplied together")
@@ -220,6 +222,8 @@ class SimulationSession:
         """Build and validate a replacement completely before swapping it in."""
         if self._closed:
             raise SessionClosed("Session is closed")
+        if self._recorder is not None and not self._recorder.finished:
+            raise InvalidConfiguration("Close the active recorder before resetting")
         config = self._validated_config(config)
         seed_plan = self._validated_seed(seed_plan)
         game: Optional[Game] = None
@@ -243,9 +247,11 @@ class SimulationSession:
             candidate._config, candidate._seed_plan = config, seed_plan
             candidate._revision = self._revision + 1
             result = candidate._result()
-        except Exception as error:
+        except BaseException as error:
             if game is not None:
                 game.close()
+            if not isinstance(error, Exception):
+                raise
             if isinstance(error, InvalidConfiguration):
                 raise
             raise InvalidConfiguration(
@@ -260,9 +266,28 @@ class SimulationSession:
         self._accepted_decisions = 0
         self._truncation_reason = None
         self._revision += 1
+        self._recording_initial = self._result(observer_team="home").primary
         if previous is not None:
             previous.close()
         return result
+
+    def start_recording(self, destination, relative_path, **metadata):
+        """Attach DATA-02 before any coach decision, retaining synthetic setup.
+
+        The caller owns the returned recorder and must finish/close it. Reset or
+        restore is not supported during recording.
+        """
+        self._require_mutable()
+        if self._recording_initial is None:
+            raise InvalidConfiguration("Recording needs the original reset observation, not an imported snapshot")
+        from .recording import EpisodeRecorder
+
+        recorder = EpisodeRecorder(self._game, destination, relative_path,
+                                   _session=self, **metadata)
+        self._timeline = recorder.timeline
+        self._actions = ActionControl(self._game, self._timeline._entities)
+        self._recorder = recorder
+        return recorder
 
     def _active_side(self) -> Optional[Side]:
         game, timeline, _, _ = self._current()

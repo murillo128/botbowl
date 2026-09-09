@@ -101,7 +101,11 @@ Every explicit variant has a SHA-256 `variant_id` over recipe/version, rules,
 size, side, normalized parameters, objective and budgets. The scenario seed
 identifies a replicate and is retained in the spec, separately from variant
 identity. Scenario layout and engine chance use separate #35 purposes derived
-from that seed. The facade accepts no policy; independently seeded external
+from that seed by default. `create_scenario(spec, seed_plan=engine_seed)` may
+instead supply an explicit engine-purpose `SeedSpec`; layout still uses the
+specification's scenario seed. The [dataset generator](generate.md) records both
+recipes and uses this option for its episode-specific engine stream.
+The facade accepts no policy; independently seeded external
 policies can change continuation but cannot alter scenario construction.
 
 ## Difficulty factors and limits

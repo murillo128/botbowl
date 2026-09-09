@@ -200,7 +200,10 @@ def _construct(session, spec):
     first_half.kicked_off = first_half.prepared = True
     Turn(game, opponent, 1, 1)
     turn = Turn(game, own, 1, 1)
+    # A half starts at round zero; the following phase opens round one.
+    state.round = 0
     game._timeline_phase("half_started")
+    state.round = 1
     game._timeline_phase("round_started")
     game._timeline_phase("drive_started")
     turn.start()
@@ -281,7 +284,7 @@ class ScenarioSnapshot:
 class ScenarioSession:
     """Bounded exercise composed over SimulationSession; policies stay external."""
 
-    def __init__(self, spec):
+    def __init__(self, spec, *, seed_plan=None):
         if type(spec) is not ScenarioSpecV1:
             raise ScenarioError("Expected ScenarioSpecV1")
         self._spec = ScenarioSpecV1.from_json(spec.to_json())
@@ -293,14 +296,17 @@ class ScenarioSession:
             candidate = SimulationSession(
                 SessionConfig(config, home, away, self._spec.size,
                               self._spec.max_decisions, self._spec.max_steps),
+                seed_plan if seed_plan is not None else
                 SeedSpec(self._spec.scenario_seed, self._spec.scenario_id, "engine", "recipes-v1"),
             )
             _construct(candidate, self._spec)
             _validate_start(candidate, self._spec)
             self._session = candidate
-        except Exception as error:
+        except BaseException as error:
             if candidate is not None:
                 candidate.close()
+            if not isinstance(error, Exception):
+                raise
             if isinstance(error, ScenarioError):
                 raise
             raise ScenarioError("Recipe construction failed validation") from error
@@ -393,7 +399,11 @@ class ScenarioSession:
     def close(self):
         self._session.close()
 
+    def start_recording(self, destination, relative_path, **metadata):
+        """Record the validated synthetic prefix and subsequent session steps."""
+        return self._session.start_recording(destination, relative_path, **metadata)
 
-def create_scenario(spec):
+
+def create_scenario(spec, *, seed_plan=None):
     """Construct a private validated exercise, or raise ScenarioError atomically."""
-    return ScenarioSession(spec)
+    return ScenarioSession(spec, seed_plan=seed_plan)

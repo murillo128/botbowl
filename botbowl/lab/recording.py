@@ -17,7 +17,7 @@ from .records import (CHANNEL_FILES, MAX_EPISODE_BYTES, MAX_RECORD_BYTES, MAX_RO
                       decode_json, encode_json, identifier, require, safe_relative,
                       validate_episode, validate_provenance, validate_row)
 from .rules import describe_rules
-from .timeline import Timeline
+from .timeline import Timeline, TimelineContext
 
 
 class RecordingError(RuntimeError):
@@ -142,7 +142,13 @@ class JsonlEpisodeWriter:
         except OSError as error:
             self._fail(error)
 
-    def confirm(self, manifest, channels):
+    def confirm(self, manifest, channels, *, before_confirm=None):
+        """Validate persisted rows, prepare trusted consumer data, then publish.
+
+        The optional callback receives a detached manifest and the validated
+        persisted rows while the episode is still partial. It is trusted Python
+        controller code, never a callback selected by recorded JSON data.
+        """
         require(not self.failed and not self.closed and not self.confirmed, 'Writer is not open')
         try:
             for name in channels:
@@ -158,6 +164,8 @@ class JsonlEpisodeWriter:
             # Confirmation also validates actual persisted bytes and every reference.
             rows = _load_rows(self.partial, validated.to_json(), list(self._info))
             validate_episode(validated.to_json(), rows)
+            if before_confirm is not None:
+                before_confirm(validated.to_json(), rows)
             with (self.partial / 'manifest.json').open('xb') as stream:
                 stream.write(encode_json(data))
                 stream.flush()
@@ -376,7 +384,7 @@ class EpisodeRecorder:
 
     def __init__(self, game, destination, relative_path, *, episode_id, source_family,
                  scenario_id, policies, seed_plan, branch_id='root', profile=PRIMARY_PROFILE,
-                 rule_trace=False, rule_trace_options=None):
+                 rule_trace=False, rule_trace_options=None, _session=None):
         for value in (episode_id, source_family, scenario_id, branch_id):
             identifier(value)
         require(type(profile) is InputProfile, 'Expected InputProfile')
@@ -398,14 +406,45 @@ class EpisodeRecorder:
                             'policies': deepcopy(policies), 'seed_plan': deepcopy(seed_plan)}
         encode_json(self._provenance)
         validate_provenance(self._provenance)
-        self.timeline = _RecordingTimeline(game, self, episode_id, branch_id)
-        self._initial_context = self.timeline.context.to_json()
+        previous = game.timeline
+        if _session is None:
+            self.timeline = _RecordingTimeline(game, self, episode_id, branch_id)
+        else:
+            require(type(previous) is Timeline and previous.context.decision_seq == 0
+                    and not previous._decisions and not previous._macros
+                    and not previous._operational_errors and previous._pending is None
+                    and previous.context.episode_id == episode_id
+                    and previous.context.branch_id == branch_id,
+                    'Session recording requires an untouched coach-decision prefix')
+            # Transfer the already validated synthetic prefix without replaying
+            # setup, reseeding, resetting counters or dropping uncaused events.
+            self.timeline = object.__new__(_RecordingTimeline)
+            self.timeline.__dict__.update(vars(previous))
+            self.timeline.recorder = self
+            game.timeline = self.timeline
+        self._initial_context = TimelineContext(episode_id, branch_id).to_json()
         try:
             self.writer = JsonlEpisodeWriter(destination, relative_path)
         except Exception:
-            game.timeline = None
+            game.timeline = previous
             raise
-        self._initial_observation = self._observation()
+        try:
+            if _session is not None:
+                self._append('primary', {'schema_version': 1, 'observation_id': 1,
+                    'context': self._initial_context, 'channel': _session._recording_initial})
+                self._initial_observation = 1
+                for captured in self.timeline.events:
+                    event = captured.to_json()
+                    event.update(schema_version=1, payload_version=1,
+                                 event_id=[episode_id, branch_id, captured.context.event_seq])
+                    self._append('events', event)
+                self._observation()
+            else:
+                self._initial_observation = self._observation()
+        except BaseException:
+            self.writer.close()
+            game.timeline = previous
+            raise
         self.rule_trace = None
         if rule_trace:
             from .rule_traces import RuleTrace
@@ -506,7 +545,7 @@ class EpisodeRecorder:
             row['context'] = self._rows['primary'][observation_id - 1]['context']
         self._append(name, row)
 
-    def finish(self, *, truncation_reason=None):
+    def finish(self, *, truncation_reason=None, before_confirm=None):
         self._check()
         terminal = self.game.state.game_over
         require(terminal == (truncation_reason is None), 'Supply truncation reason exactly for a nonterminal episode')
@@ -531,7 +570,7 @@ class EpisodeRecorder:
             for name, rows in self._rows.items():
                 for row in rows:
                     self.writer.append((name, row))
-            result = self.writer.confirm(manifest, list(self._rows))
+            result = self.writer.confirm(manifest, list(self._rows), before_confirm=before_confirm)
             self.finished = True
             return result
         except (ValueError, OSError, RecordingError) as error:

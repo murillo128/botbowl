@@ -23,6 +23,11 @@ The recorder obtains the initial [rules descriptor](rules.md) from the loaded
 inputs, binds initial roster IDs, and specializes the existing [timeline](timeline.md)
 admission/settlement hooks. There are no engine/rules/RNG changes.
 
+For an existing public session, use `session.start_recording(...)` before any
+coach decision. This preserves its initial observation and imports a scenario's
+validated synthetic event prefix. The [generator contract](generate.md) describes
+this attachment, ownership and the mapping of scenario endings to match fragments.
+
 Use `recorder.advance(action_or_ActionRequestV1)` and
 `recorder.execute_macro(macro)`. Rejections through these methods become separate
 operational diagnostics, including stale semantic requests. Accepted advances
@@ -222,6 +227,12 @@ Existing destinations are never intentionally overwritten. Readers reject any
 `.partial` directory, including one containing a manifest before the rename.
 Atomic visibility is promised; power-loss durability of the parent-directory
 rename and hostile concurrent path races are not claimed.
+
+`finish(before_confirm=callback)` optionally invokes trusted controller code with
+the validated detached manifest and persisted rows before writing the manifest
+and renaming the partial directory. `JsonlEpisodeWriter.confirm` exposes the same
+hook. The generator uses it to prepare episode hashes and summaries; an exception
+prevents confirmation. This callback is never selected or loaded from JSON data.
 
 A writer failure propagates as `RecordingError`, leaves the recording visibly
 partial, and prevents further use of that recorder. `close()` without `finish`
