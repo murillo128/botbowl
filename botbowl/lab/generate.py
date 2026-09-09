@@ -27,6 +27,22 @@ def _hash(data):
     return hashlib.sha256(encode_json(data)).hexdigest()
 
 
+def _episode_hash(episode):
+    """Hash DATA-02-validated rows without treating the episode as one record.
+
+    Writer/reader validation owns the per-record and aggregate episode bounds.
+    Streaming retains V1 canonical bytes, including for existing small episodes,
+    without imposing the record encoder's byte, depth or node limits again on
+    the container of all rows.
+    """
+    digest = hashlib.sha256()
+    encoder = json.JSONEncoder(ensure_ascii=False, allow_nan=False,
+                               sort_keys=True, separators=(',', ':'))
+    for chunk in encoder.iterencode(episode):
+        digest.update(chunk.encode('utf-8'))
+    return digest.hexdigest()
+
+
 def _integer(value, low, high, name):
     if type(value) is not int or not low <= value <= high:
         raise ValueError('%s must be an integer in [%d, %d]' % (name, low, high))
@@ -251,11 +267,17 @@ def _run(entry, config, destination, supplied=None):
         recorder.append_channel('privileged', 1, {'generation': {
             'origin_family_id': entry['origin_family_id'], 'start': entry['start'],
             'horizon': entry['horizon'], 'decision_budget': entry['decision_budget'], 'end': end}})
-        manifest = recorder.finish(truncation_reason=None if result.terminated else end['reason']).to_json()
-        episode = EpisodeReader(destination, entry['episode_id']).read_episode()
-        return {'episode_id': entry['episode_id'], 'origin_family_id': entry['origin_family_id'],
-                'end': end, 'semantic_sha256': _hash(episode),
-                'manifest_sha256': _hash(manifest)}
+        summary = {'episode_id': entry['episode_id'], 'origin_family_id': entry['origin_family_id'],
+                   'end': end}
+
+        def prepare_summary(manifest, channels):
+            summary.update(semantic_sha256=_episode_hash({'manifest': manifest, 'channels': channels}),
+                           manifest_sha256=_hash(manifest))
+            encode_json(summary)
+
+        recorder.finish(truncation_reason=None if result.terminated else end['reason'],
+                        before_confirm=prepare_summary)
+        return summary
 
 
 def execute_plan(plan, output, *, _replay=None):
@@ -323,7 +345,7 @@ def _validate_dataset(destination):
         manifest = episode['manifest']
         rules = entry['recipe']['rules'] if entry['recipe']['kind'] == 'match' else entry['recipe']['spec']['rules']
         generation = episode['channels']['privileged'][0]['channel']['data']['generation']
-        if (_hash(episode) != summary['semantic_sha256'] or
+        if (_episode_hash(episode) != summary['semantic_sha256'] or
                 _hash(manifest) != summary['manifest_sha256'] or
                 manifest['episode_id'] != episode_id or manifest['profile'] != plan['profile'] or
                 manifest['source_family'] != entry['origin_family_id'] or

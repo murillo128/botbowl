@@ -98,6 +98,12 @@ Existing direct `EpisodeRecorder(Game, ...)` behavior remains supported.
 `dataset.json` contains the plan hash and each confirmed episode's manifest hash,
 semantic hash and exact outcome flags. The semantic hash covers the canonical
 manifest and all stored channel rows, including public events/actions/observations.
+The hash streams those canonical UTF-8 bytes after DATA-02 validation, retaining
+V1 hash values without treating the entire episode as a single 4 MiB record.
+Individual records retain that limit; their aggregate retains the 128 MiB
+episode bound. Hashes and the encodable summary are prepared from the validated
+persisted rows before the episode is atomically confirmed. A preparation failure
+therefore leaves a partial recording rather than a confirmed-but-failed episode.
 No incidental audit fields are currently emitted or excluded from hashing.
 A physically separate privileged generation row retains the start/horizon and
 outcome for cross-checking; it is never read by `EpisodeReader.read_inputs()`.

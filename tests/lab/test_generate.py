@@ -103,7 +103,7 @@ def test_plan_tampering_and_destination_protection(tmp_path):
     assert (tmp_path / 'data' / 'dataset.json').read_bytes() == before
 
 
-@pytest.mark.parametrize('failure', ['policy', 'invalid_action', 'write', 'cancel'])
+@pytest.mark.parametrize('failure', ['policy', 'invalid_action', 'write', 'hash', 'cancel'])
 def test_failures_close_every_resource_and_never_confirm(tmp_path, monkeypatch, failure):
     policies, sessions, writers = [], [], []
     policy_init, session_init, writer_init = ReferencePolicy.__init__, SimulationSession.__init__, JsonlEpisodeWriter.__init__
@@ -131,6 +131,8 @@ def test_failures_close_every_resource_and_never_confirm(tmp_path, monkeypatch, 
 
     if failure == 'write':
         monkeypatch.setattr(JsonlEpisodeWriter, 'flush', fail)
+    elif failure == 'hash':
+        monkeypatch.setattr('botbowl.lab.generate._episode_hash', fail)
     elif failure == 'invalid_action':
         monkeypatch.setattr(ReferencePolicy, 'act', lambda *args: {'type': 'UNKNOWN'})
     else:
@@ -255,3 +257,38 @@ def test_imported_snapshot_cannot_invent_recording_start(tmp_path):
     finally:
         imported.close()
         original.close()
+
+
+def test_large_valid_episode_hashes_validates_and_replays(tmp_path):
+    import hashlib
+    from botbowl.lab.records import MAX_EPISODE_BYTES, MAX_RECORD_BYTES, RecordError, encode_json
+
+    destination = tmp_path / 'data'
+    generated = generate(JobConfig(str(destination), scenario='match', size=11,
+                                   home_policy='random', away_policy='random', max_decisions=256))
+    episode = EpisodeReader(destination, 'episode-000000').read_episode()
+    transitions = episode['channels']['transitions']
+    assert len(transitions) == 256
+    canonical = json.dumps(episode, ensure_ascii=False, allow_nan=False,
+                           sort_keys=True, separators=(',', ':')).encode('utf-8')
+    assert MAX_RECORD_BYTES < len(canonical) < MAX_EPISODE_BYTES
+    assert generated['episodes'][0]['semantic_sha256'] == hashlib.sha256(canonical).hexdigest()
+    # The individual-record encoder must retain its existing bounds.
+    with pytest.raises(RecordError, match='JSON record byte limit'):
+        encode_json(episode)
+    assert not list(destination.glob('*.failure.json'))
+    assert not list(destination.glob('*.partial'))
+    assert validate_dataset(destination) == generated
+    replayed = replay_episode(destination, 'episode-000000', str(tmp_path / 'replay'),
+                              [row['action'] for row in transitions])
+    assert replayed['episodes'] == generated['episodes']
+    assert validate_dataset(tmp_path / 'replay') == replayed
+
+
+def test_streaming_episode_hash_preserves_existing_canonical_bytes():
+    from botbowl.lab.generate import _episode_hash, _hash
+
+    # Unicode, floating point and nested ordering must retain V1 hash semantics.
+    episode = {'manifest': {'title': 'Bowl é 🏈', 'number': 1.25},
+               'channels': {'empty': [], 'rows': [{'z': None, 'a': [True, 0, -3]}]}}
+    assert _episode_hash(episode) == _hash(episode)

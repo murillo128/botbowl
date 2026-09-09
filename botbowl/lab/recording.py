@@ -142,7 +142,13 @@ class JsonlEpisodeWriter:
         except OSError as error:
             self._fail(error)
 
-    def confirm(self, manifest, channels):
+    def confirm(self, manifest, channels, *, before_confirm=None):
+        """Validate persisted rows, prepare trusted consumer data, then publish.
+
+        The optional callback receives a detached manifest and the validated
+        persisted rows while the episode is still partial. It is trusted Python
+        controller code, never a callback selected by recorded JSON data.
+        """
         require(not self.failed and not self.closed and not self.confirmed, 'Writer is not open')
         try:
             for name in channels:
@@ -158,6 +164,8 @@ class JsonlEpisodeWriter:
             # Confirmation also validates actual persisted bytes and every reference.
             rows = _load_rows(self.partial, validated.to_json(), list(self._info))
             validate_episode(validated.to_json(), rows)
+            if before_confirm is not None:
+                before_confirm(validated.to_json(), rows)
             with (self.partial / 'manifest.json').open('xb') as stream:
                 stream.write(encode_json(data))
                 stream.flush()
@@ -537,7 +545,7 @@ class EpisodeRecorder:
             row['context'] = self._rows['primary'][observation_id - 1]['context']
         self._append(name, row)
 
-    def finish(self, *, truncation_reason=None):
+    def finish(self, *, truncation_reason=None, before_confirm=None):
         self._check()
         terminal = self.game.state.game_over
         require(terminal == (truncation_reason is None), 'Supply truncation reason exactly for a nonterminal episode')
@@ -562,7 +570,7 @@ class EpisodeRecorder:
             for name, rows in self._rows.items():
                 for row in rows:
                     self.writer.append((name, row))
-            result = self.writer.confirm(manifest, list(self._rows))
+            result = self.writer.confirm(manifest, list(self._rows), before_confirm=before_confirm)
             self.finished = True
             return result
         except (ValueError, OSError, RecordingError) as error:
