@@ -66,7 +66,9 @@ For non-trivial controlling issues, use exactly one current workflow-state label
 
 The label is authoritative for current workflow state. State-only transitions should not produce comments whose sole purpose is to announce the transition.
 
-`review-ready` is the executor's successful terminal state: implementation, validation, and required final technical review are complete and the PR is ready for user-facing review. `completed` is post-acceptance/post-merge. Executors and independent reviewers must not merge or enable auto-merge on their own authority.
+`review-ready` is the executor's successful terminal handoff state: implementation and required validation are complete, the PR is ready rather than draft, and any issue-declared intermediate review checkpoints are satisfied. It hands control to `codex-pr-audit`; the executor does not perform a duplicate final independent review merely to reach this state. `completed` is post-merge.
+
+Executors and the `codex-independent-review` reviewer role must not merge, enable auto-merge, change workflow labels, or close issues on their own authority. `codex-pr-audit` is a distinct controller role: after it obtains a `PASS` or `PASS_WITH_NOTES` with `final-capable: yes` from `codex-independent-review` on the current exact PR head, its skill has standing authority to merge that exact audited head, replace `review-ready` with `completed`, and close the controlling issue. The reviewer verdict alone has no mutation authority; the controller applies the verdict mapping only after the reviewer role has ended.
 
 `queued` is the normal waiting state for a fully defined child of an active or planned epic. It is not a blocker. Only `codex-epic-scheduler` may automatically move a child from `queued` to `execution-ready`; an actor that explicitly resolves `blocked`, `design-required`, or `investigation-required` may return that child to `queued`.
 
@@ -107,6 +109,6 @@ Never publish secrets, credentials, private data, or artifacts without the neces
 - Agent-created commits follow the convention owned by `skills/codex-github-operations/SKILL.md`.
 - Do not force-push or rewrite shared valid history without explicit user authorization.
 - Direct commits to the default branch require explicit user instruction except for the narrowly authorized `repository-wiki-curation` workflow.
-- A Codex implementation workflow ends with a ready-for-review pull request, the controlling issue transitioned from `in-progress` to `review-ready`, and a handoff.
+- A Codex implementation workflow ends with a ready-for-review pull request, the controlling issue transitioned from `in-progress` to `review-ready`, and a handoff to `codex-pr-audit`.
 - Before that `review-ready` transition, the executor must complete every remaining GitHub mutation required for the handoff: final push/publication, PR metadata and ready-for-review state, final technical/handoff comments, and any remote verification that could require a corrective mutation. Replacing `in-progress` with `review-ready` must be the executor's **final GitHub mutation**. After that transition the executor may perform only local teardown, local bookkeeping, response composition, and normal turn/session completion; it must not push, comment, edit PR/issue metadata, change labels, or otherwise mutate GitHub.
-- Merge into the default branch requires a later explicit user-facing instruction after review finds no material blocker.
+- Outside the positive automatic-completion path explicitly owned by `codex-pr-audit`, merging into the default branch requires a later explicit user-facing instruction after review finds no material blocker.
