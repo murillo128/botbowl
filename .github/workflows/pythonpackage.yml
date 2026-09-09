@@ -14,11 +14,20 @@ concurrency:
   group: tests-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
-# Untrusted pull-request code is never scheduled on the local runner. Public PRs
-# receive hosted lint and lab gates; functional core validation is triggered by
-# trusted pushes to repository-owned codex/** branches (and main).
+# Push owns validation for repository-owned main and codex/** heads, including
+# branches without a PR. PR events only run hosted checks for forks or heads not
+# covered by the push filter. An internal PR can still appear as skipped in the
+# UI, but must not allocate runners or repeat lint/lab work for the same head.
+#
+# Never share a cancellation group across push and PR: a later duplicate PR
+# event must not cancel the authoritative push. Skipped duplicate checks have
+# distinct names so they cannot stand in for real passing lint/lab checks.
+# Keep these head-branch conditions aligned with on.push.branches above.
+# Untrusted PR code never runs on Skynet; core remains trusted-push-only.
 jobs:
   lint:
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.full_name != github.repository || (github.head_ref != 'main' && !startsWith(github.head_ref, 'codex/'))))
+    name: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && (github.head_ref == 'main' || startsWith(github.head_ref, 'codex/')) && 'duplicate / lint' || 'lint' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -36,6 +45,8 @@ jobs:
         run: python tools/ci/check_public_types.py
       - name: Bounded lab protocol types and negative signatures
         run: python tools/ci/check_lab_types.py
+      - name: Push and PR ownership regression checks
+        run: python tests/ci/check_trigger_policy.py
       - name: Core selection negative controls
         run: python tools/ci/check_core_selection.py
       - name: Parallel shard process controls
@@ -80,7 +91,8 @@ jobs:
           retention-days: 14
 
   lab:
-    name: lab / ${{ matrix.profile }} / ${{ matrix.backend }}
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.full_name != github.repository || (github.head_ref != 'main' && !startsWith(github.head_ref, 'codex/'))))
+    name: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && (github.head_ref == 'main' || startsWith(github.head_ref, 'codex/')) && 'duplicate / lab' || 'lab' }} / ${{ matrix.profile }} / ${{ matrix.backend }}
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     strategy:
