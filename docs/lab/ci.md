@@ -55,7 +55,10 @@ nested consumers. A final cleanup step runs even after cancellation. Determinist
 fixtures, wheels and venvs are removed; no background service is started.
 
 Uploaded JSON contains counts, skip reasons, selected/executed test identities,
-versions, fixture seeds and observed status. Raw pytest logs/XML, snapshots,
-private RNG state and datasets are excluded from lab uploads. Detailed logs remain
-available during execution for diagnosis. The unchanged core profile has its own
-existing evidence policy. No benchmark threshold substitutes for semantic tests.
+failure identities and phases (without private assertion values),
+versions, fixture seeds and observed status. Core also retains its collection and
+shard receipts and a JSON package inventory. Raw pytest logs/XML, snapshots,
+private RNG state and datasets are excluded from all Tests workflow uploads;
+core and lab failures do not echo raw tracebacks into public job logs. Detailed
+logs remain locally available for diagnosis. No benchmark threshold substitutes
+for semantic tests.

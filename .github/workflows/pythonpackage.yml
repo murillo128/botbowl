@@ -74,10 +74,9 @@ jobs:
         if: always()
         with:
           name: core-${{ matrix.python }}-${{ matrix.backend }}
-          path: |
-            ${{ runner.temp }}/evidence/*.json
-            ${{ runner.temp }}/evidence/*.xml
-            ${{ runner.temp }}/evidence/*.log
+          # Counts/reasons and package versions are JSON; raw tracebacks can
+          # contain privileged lab snapshots or RNG state even in core tests.
+          path: ${{ runner.temp }}/evidence/*.json
           retention-days: 14
 
   lab:

@@ -86,7 +86,7 @@ def run_core_shards(python, helper, plan, output, suite, env, result, timeout=12
     commands = [(part, [python, helper, 'run', *common, '--plan', plan,
                         '--part', part, '--output', output / (part + '.json')])
                 for part in PARTS]
-    run_shards(commands, output, suite, env, result['steps'], timeout)
+    run_shards(commands, output, suite, env, result['steps'], timeout, show_failure_logs=False)
     coverage = verify(json.loads(plan.read_text()),
                       {part: json.loads((output / (part + '.json')).read_text())
                        for part in PARTS}, result['source_revision'], result['backend'])
@@ -130,7 +130,8 @@ def main():
                                 'exit_code': completed.returncode})
         print(name, completed.returncode, flush=True)
         if completed.returncode:
-            print((output / (name + '.log')).read_text()[-12000:], flush=True)
+            if args.profile != 'suite':
+                print((output / (name + '.log')).read_text()[-12000:], flush=True)
             raise subprocess.CalledProcessError(completed.returncode, command)
 
     def venv(name):
@@ -179,6 +180,11 @@ def main():
         run('install', [python, '-m', 'pip', 'install', str(wheel) + '[' + extras + ']'])
         run('pip-check', [python, '-m', 'pip', 'check'])
         run('freeze', [python, '-m', 'pip', 'freeze', '--all'])
+        run('versions', [python, '-c',
+            'import importlib.metadata as m, json, sys; from pathlib import Path; '
+            'Path(sys.argv[1]).write_text(json.dumps('
+            '{d.metadata["Name"]: d.version for d in m.distributions()}, sort_keys=True) + "\\n")',
+            output / 'versions.json'])
         if args.profile == 'extra':
             run('smoke', [python, source / 'tests/packaging/smoke.py', '--extra', args.extra])
             return

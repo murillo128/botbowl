@@ -60,7 +60,7 @@ def main():
         'profile': args.profile, 'backend': args.backend, 'python': sys.version,
         'versions': {d.metadata['Name']: d.version for d in distributions()},
         'selection': SELECTIONS[args.profile], 'collected': [], 'executed': [],
-        'skips': [], 'exit_code': None,
+        'skips': [], 'failed': [], 'exit_code': None,
         'capabilities': {'m0-m1': 'required: lab-fast', 'replays-42': 'required: lab-fast',
                          'adapters-57': 'required: lab-adapters',
                          'local-59': 'required: lab-fast',
@@ -76,10 +76,14 @@ def main():
             receipt['collected'] = [item.nodeid for item in items]
 
         def pytest_collectreport(self, report):
+            if report.failed:
+                receipt['failed'].append({'nodeid': report.nodeid, 'phase': 'collection'})
             if report.skipped:
                 receipt['skips'].append(str(report.longrepr))
 
         def pytest_runtest_logreport(self, report):
+            if report.failed:
+                receipt['failed'].append({'nodeid': report.nodeid, 'phase': report.when})
             if report.skipped:
                 receipt['skips'].append(str(report.longrepr))
             if report.when == 'teardown':
