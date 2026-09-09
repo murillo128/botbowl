@@ -457,7 +457,7 @@ jobs:
                       "thread/resume",
                       {
                           "threadId": thread_id,
-                          "cwd": REPO_ROOT,
+                          "cwd": WORKTREE,
                           "excludeTurns": True,
                           "approvalPolicy": "on-request",
                           "approvalsReviewer": "auto_review",
@@ -474,7 +474,7 @@ jobs:
                   started = client.request(
                       "thread/start",
                       {
-                          "cwd": REPO_ROOT,
+                          "cwd": WORKTREE,
                           "approvalPolicy": "on-request",
                           "approvalsReviewer": "auto_review",
                           "sandbox": "workspace-write",
@@ -493,7 +493,7 @@ jobs:
                       "thread/name/set",
                       {"threadId": thread_id, "name": display_name},
                   )
-                  log("thread_started", threadId=thread_id, name=display_name, cwd=REPO_ROOT)
+                  log("thread_started", threadId=thread_id, name=display_name, cwd=WORKTREE)
 
               client.thread_id = thread_id
               prompt = f"Execute GitHub issue #{ISSUE_NUMBER} according to AGENTS.md."
