@@ -1,0 +1,13 @@
+{
+  "scores": {"home": 2, "away": 1},
+  "resources": {
+    "home": {"rerolls": 3, "apothecaries": 1, "bribes": 2, "reroll_used": false, "wizard_available": true},
+    "away": {"rerolls": 0, "apothecaries": 0, "bribes": 1, "reroll_used": true, "wizard_available": false}
+  },
+  "positions": {"home:0": {"x": 5, "y": 5}, "away:0": {"x": 6, "y": 5}},
+  "geometry": {"manhattan": 1, "chebyshev": 1, "adjacent": true},
+  "one_die_no_skills_home_carrier": {
+    "attacker_down": [2, 6], "defender_down": [3, 6],
+    "attacker_ball_loss": [2, 6], "defender_ball_loss": [0, 6]
+  }
+}

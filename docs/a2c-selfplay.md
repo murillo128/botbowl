@@ -52,19 +52,27 @@ if selfplay:
 
 To swap the opponent policy, our worker process needs to handle the swap commands:
 
+The executable worker now lives in `examples/a2c/vec_env.py`. `VecEnv` uses
+`spawn`, bounded response/join waits and cooperative, idempotent closure. Remote
+exceptions retain their traceback. Its step/reset tuples end with separate
+`terminated` and `truncated` arrays: reaching `reset_steps` resets the environment
+as a truncation and contributes no win/loss, episode score or difficulty update.
+Both flags clear the training history. A wait timeout raises `WorkerTimeoutError`
+without killing the worker; the close error identifies any still-running PID.
+
 ```python
-def worker(remote, parent_remote, env, worker_id):
+def worker(remote, parent_remote, env, reset_steps):
     ...
     next_opp = botbowl.make_bot('random')
     while True:
         command, data = remote.recv()
         if command == 'step':
             ...    
-            if done or steps >= reset_steps:
+            if terminated or truncated:
                 ...
                 env.root_env.away_agent = next_opp
                 ...
-            remote.send((obs, reward, reward_shaped, tds_scored, tds_opp_scored, done, info))
+            remote.send(('ok', (*obs, reward, tds_scored, tds_opp_scored, terminated, truncated)))
         ...
         elif command == 'swap':
             next_opp = data
