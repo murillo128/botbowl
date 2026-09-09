@@ -40,6 +40,9 @@ For a verified-wheel, non-root container, see the [container guide](docs/docker.
 The default container runs a finite headless smoke; web serving is an explicit
 build target.
 
+For local dataset windows and control of both teams from a separately installed
+consumer, see the [external lab consumer guide](docs/lab/external-client.md).
+
 ## Tutorials
 Head over to our [tutorials](docs/tutorials.md) to learn about how to use the Bot Bowl framework.
 
