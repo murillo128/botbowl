@@ -89,6 +89,8 @@ Before the first implementation edit of an activation with canonical context:
 
 A retry or reactivation may therefore adopt a newer scheduler-pinned base while preserving previous issue commits. Never reset an existing issue branch to `base_sha` when doing so would discard issue-owned work.
 
+This pinned-base preparation is the **activation** rule, not the final handoff rule. After the PR has been published and while the issue is still `in-progress`, the final integration-freshness gate below may rebase the executor-owned issue branch onto a newer forward tip of `integration_branch`. That pre-handoff rewrite is allowed only through the exact-head `--force-with-lease` procedure owned by `codex-github-operations`.
+
 Use `codex-github-operations` for PR creation/reuse/retargeting. When canonical context exists, the PR must target its `integration_branch`; when none exists, it targets the repository default branch.
 
 ## Skillforge local-runner entry
@@ -127,7 +129,7 @@ Before editing, confirm:
 - scope, invariants, failure semantics, acceptance, and required inputs are clear;
 - no competing branch or PR creates ambiguous ownership.
 
-If the issue is already `review-ready`, the executor has handed implementation to `codex-pr-audit`. Do not resume or mutate implementation merely because a session was restarted; require an audit `FAIL` or another explicit correction/re-execution instruction that moves the issue back to an executable state.
+If the issue is already `review-ready`, the executor has handed implementation to `codex-pr-audit`. Do not resume or mutate implementation merely because a session was restarted; require an audit `FAIL`, an audit integration-drift return, or another explicit correction/re-execution instruction that moves the issue back to an executable state.
 
 Before the first implementation edit, use `codex-github-operations` to replace `execution-ready` with `in-progress`. Do not post a comment solely for this transition.
 
@@ -137,7 +139,7 @@ Use label replacements for execution-time returns:
 - evidence needed before design: `investigation-required`;
 - genuinely unavailable external capability: `blocked`.
 
-`review-ready` is the successful executor handoff state. Set it only when the complete implementation has passed required validation, any **explicitly issue-declared intermediate** review checkpoints are satisfied, the PR is marked ready for review, and the final handoff is being made. `completed` is post-merge and is owned by the positive `codex-pr-audit` path. The executor must not merge, set `completed`, or close the controlling issue.
+`review-ready` is the successful executor handoff state. Set it only when the complete implementation has passed required validation, any **explicitly issue-declared intermediate** review checkpoints are satisfied, the final integration-freshness gate has stabilized when canonical integration context exists, the PR is marked ready for review, and the final handoff is being made. `completed` is post-merge and is owned by the positive `codex-pr-audit` path. The executor must not merge, set `completed`, or close the controlling issue.
 
 By default, add comments only when a material reason, technical finding, contract amendment, exact checkpoint target/verdict, blocker capability, or final handoff must be preserved. The scheduler-owned canonical execution-context comment is the deliberate exception: it is control-plane input and must not be rewritten by the executor.
 
@@ -176,6 +178,8 @@ Prefer repository-native build, test, lint, type-check, evaluation, and benchmar
 
 Run required and useful narrower checks. Record material deviations, environmental limits, and checks not run. Never claim an unrun check passed. A local implementation failure is corrected within scope; it is not an external blocker.
 
+Any rebase or conflict resolution performed by the final integration-freshness gate creates a new candidate head. Rerun the focused checks whose assumptions may have changed and require fresh CI/check evidence for that exact new head. Do not reuse CI from the pre-rebase head as final evidence.
+
 ### 5. Retain evidence proportionally
 
 Keep enough technical evidence to support the claim being made. This may include configuration, dependency identities, commands, results, metrics, artifacts, and limitations.
@@ -189,6 +193,23 @@ Publish when remote preservation, collaboration, a checkpoint, or PR review requ
 When canonical execution context exists, verify before publication that the PR target equals its `integration_branch`. If an existing PR still targets a stale branch, retarget it through `codex-github-operations` before relying on its diff, CI, or review state.
 
 Update durable repository documents only when the durable content they own changes. Do not edit architecture, plans, decision records, guidelines, or knowledge documents merely to mirror workflow state.
+
+### 7. Stabilize against the integration branch before handoff
+
+This gate applies only when one valid canonical execution context supplies an `integration_branch`. It runs **after a candidate PR head has been published** and before the PR is marked ready or the issue is moved to `review-ready`.
+
+1. Fetch the current remote `integration_branch` and the remote executor-owned issue branch. Capture the current integration tip, local candidate head, and remote issue head.
+2. Require the issue still open with sole workflow state `in-progress`, the PR still uniquely matches the executor-owned issue branch and intended integration base, the worktree clean, and the remote issue head equal to the local candidate head. Any competing writer or ownership ambiguity fails closed.
+3. If the current integration tip is already an ancestor of the candidate head, no rebase is required for that observation. Otherwise require normal forward integration movement: the canonical `base_sha` must remain an ancestor of the current integration tip. A rewritten or incompatible integration history is a control-plane inconsistency, not permission to guess.
+4. When the integration tip advanced beyond the candidate, ask `codex-github-operations` to rebase the issue-owned commits onto that exact integration tip and publish the rewritten issue branch with an exact old-remote-head `--force-with-lease` guard. Never force-push the integration branch and never use an unguarded `--force`.
+5. Resolve syntactic/mechanical conflicts only within the issue's existing authority. If reconciliation requires a new product/design decision, return to `design-required` instead of improvising.
+6. After a rebase, rerun the focused validation affected by the reconciliation and obtain fresh required CI/check results for the **new exact head**. Keep the PR draft while this gate is still active. Do not duplicate broad local tests when exact-head CI already supplies trustworthy equivalent evidence, but never reuse old-head CI as final evidence.
+7. After the required exact-head CI/checks pass, fetch `integration_branch` again. If its tip changed since the candidate was rebased/observed, repeat this gate: rebase if needed, publish a new head, and obtain fresh CI again.
+8. The gate is stable only when the candidate head has its required validation/CI and the integration tip is still the same tip against which that candidate was stabilized. If the integration branch keeps advancing beyond a reasonable execution window, leave the issue `in-progress` and retry later rather than handing off a knowingly stale candidate.
+
+Do not busy-poll CI or branch state. Use normal blocking/waiting mechanisms and recheck only at material completion boundaries.
+
+A standalone issue with no canonical integration context does not perform this loop; its normal exact-head validation and publication rules apply.
 
 ## Comments and progress observability
 
@@ -248,11 +269,11 @@ After two consecutive failures in substantially the same validation, attestation
 
 ## Pull request discipline
 
-Use one PR per controlling issue unless the issue explicitly decomposes delivery. Keep it draft while required implementation or validation remains incomplete.
+Use one PR per controlling issue unless the issue explicitly decomposes delivery. Keep it draft while required implementation, validation, or integration stabilization remains incomplete.
 
 The intended PR base is resolved only from the canonical execution context when present, otherwise from the repository default branch. Do not let a stale target named in the child issue body override this rule.
 
-When the complete final diff has passed the required validation and any issue-declared intermediate checkpoints, update the PR description with the final technical state, mark the PR **ready for review**, use `codex-github-operations` to replace the controlling issue's `in-progress` label with `review-ready`, and then stop execution and hand it to `codex-pr-audit`. The label transition and PR readiness are one logical handoff: do not advertise `review-ready` while the PR is still draft or required technical work remains.
+When the complete final diff has passed the required validation and any issue-declared intermediate checkpoints, and the final integration-freshness gate is stable when applicable, update the PR description with the final technical state, mark the PR **ready for review**, use `codex-github-operations` to replace the controlling issue's `in-progress` label with `review-ready`, and then stop execution and hand it to `codex-pr-audit`. The label transition and PR readiness are one logical handoff: do not advertise `review-ready` while the PR is still draft, required technical work remains, exact-head CI is stale/pending, or the integration tip has advanced since stabilization.
 
 The Codex executor must never:
 
@@ -271,4 +292,4 @@ Include only what the next actor cannot derive cheaply:
 - material evidence not cheaply reproducible from CI/current repository state;
 - unresolved non-blocking note or finding.
 
-The immediate next action is `codex-pr-audit`; do not repeat its final review inside the executor. Do not continue past handoff unless a later audit `FAIL` or explicit instruction returns the issue to execution.
+The immediate next action is `codex-pr-audit`; do not repeat its final review inside the executor. Do not continue past handoff unless a later audit `FAIL`, integration-drift return, or explicit instruction returns the issue to execution.

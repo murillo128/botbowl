@@ -62,7 +62,9 @@ Use state-only label mutations without comments. Add comments only when material
 
 Before relying on issue state, verify that exactly one state label is present. Repair an unambiguous inconsistency; stop for clarification if the intended state is ambiguous.
 
-During a Codex implementation workflow, keep the issue `in-progress` while implementation, validation, publication, or required technical review remains active. When the complete PR is marked ready for review and the executor is making its final handoff, replace `in-progress` with `review-ready`. `completed` is not an executor-controlled transition. Set `completed` and close the issue only after the matching PR merge has been observed, either from an explicit user-authorized merge flow or from the positive automatic completion path owned by `codex-pr-audit`.
+During a Codex implementation workflow, keep the issue `in-progress` while implementation, validation, publication, integration stabilization, or required intermediate technical review remains active. When the complete PR is marked ready for review and the executor is making its final handoff, replace `in-progress` with `review-ready`. `completed` is not an executor-controlled transition. Set `completed` and close the issue only after the matching PR merge has been observed, either from an explicit user-authorized merge flow or from the positive automatic completion path owned by `codex-pr-audit`.
+
+`codex-pr-audit` may also replace `review-ready` with `execution-ready` without a technical `FAIL` when the implementation head is unchanged but the integration/base branch advanced or the PR is `dirty`/conflicting and requires executor-owned reconciliation. That is a control-plane return, not a blocker or an invented reviewer verdict.
 
 ## Canonical execution context
 
@@ -178,11 +180,42 @@ Before publication:
 
 When the Skillforge local runner supplied `SKILLFORGE_ISSUE_WORKTREE` / `SKILLFORGE_ISSUE_BRANCH`, preserve that issue branch as the executor-owned implementation branch. Do not switch publication to the durable coordination clone or invent another branch merely because the executor was launched automatically.
 
-When the executor has a canonical `base_sha`, branch preparation/reconciliation follows the executor skill: fast-forward a new issue branch when possible; preserve existing issue-owned commits and merge the pinned base when needed; never reset away valid issue work merely to adopt the context.
+When the executor has a canonical `base_sha`, initial branch preparation/reconciliation follows the executor skill: fast-forward a new issue branch when possible; preserve existing issue-owned commits and merge the pinned base when needed; never reset away valid issue work merely to adopt the activation context.
 
 Publish and verify the remote ref. Use a full SHA when another actor must inspect an exact target.
 
 Do not repeat routine SHAs in every issue comment, PR update, or handoff when GitHub already preserves that identity, except for the canonical scheduler context where the pinned SHA is part of the protocol.
+
+### Guarded pre-handoff integration rebase
+
+When `spec-driven-codex-loop` requests its final integration-freshness gate, this skill may rewrite the **executor-owned issue branch only**, and only before `review-ready`.
+
+Preconditions:
+
+1. the controlling issue is open with sole workflow state `in-progress`;
+2. the current worktree/branch matches the executor lease and the expected `codex/issue-N` branch;
+3. exactly one open PR uses that head and targets the canonical `integration_branch`;
+4. the worktree is clean;
+5. after fetching both refs, the remote issue branch still equals the local pre-rebase head, so no competing writer exists;
+6. the canonical `base_sha` remains an ancestor of the current integration tip, establishing ordinary forward integration movement rather than a rewritten control plane.
+
+If the current integration tip is already an ancestor of the issue head, do not rewrite anything. Otherwise:
+
+1. capture `old_remote_head` and the exact current integration tip;
+2. rebase the issue-owned commits onto that integration tip. Preserve merge structure when the existing issue history requires it; do not rebase or mutate the integration branch itself;
+3. resolve conflicts only within the controlling issue's existing technical authority. Abort the rebase and return to design when reconciliation requires a new product/design decision;
+4. rerun the focused local validation required by the calling workflow after conflict resolution/reconciliation;
+5. publish the rewritten issue branch with an **exact old-head lease**, equivalent to:
+
+```text
+git push --force-with-lease=refs/heads/<issue-branch>:<old_remote_head> origin HEAD:refs/heads/<issue-branch>
+```
+
+6. never use naked `--force`, never weaken the lease, and fail closed if the remote head changed;
+7. verify the remote issue ref now equals the new local head;
+8. require the caller to obtain fresh CI/check evidence for that new exact head and to re-fetch the integration tip before handoff.
+
+The pre-handoff rewrite authority ends immediately when the issue enters `review-ready`. From then on the implementation head is an immutable review target: neither executor nor audit controller may rebase, amend, squash, reset, cherry-pick, or force-push it. A later integration drift return first moves the issue back to `execution-ready`; the normal executor then regains ownership and may perform a new guarded reconciliation cycle.
 
 ## Pull requests
 
@@ -200,7 +233,7 @@ If a reusable PR exists on the correct head but the wrong base, retarget it when
 
 Do not duplicate complete histories, manifests, command logs, or routine metadata already visible in GitHub.
 
-Keep the PR draft while required implementation, validation, or independent review remains incomplete. When the Codex execution workflow has completed its required technical work and final-capable review, mark the PR **ready for review**, replace the controlling issue's `in-progress` state with `review-ready`, verify both mutations, and hand it off. Do not set `review-ready` while the PR is still draft or required technical work remains.
+Keep the PR draft while required implementation, validation, integration stabilization, or explicitly issue-declared intermediate review remains incomplete. The executor does **not** perform a duplicate final independent review before handoff. When its required technical work is complete, exact-head CI/evidence is current, and the final integration-freshness gate is stable when applicable, mark the PR **ready for review**, replace the controlling issue's `in-progress` state with `review-ready`, verify both mutations, and hand it to `codex-pr-audit`. Do not set `review-ready` while the PR is still draft or the integration tip has advanced since the candidate was stabilized.
 
 ### Merge authority
 
@@ -237,6 +270,8 @@ After the merge request, re-read the PR and require GitHub to report it actually
 
 Do not use GitHub auto-merge/merge-queue enablement as a substitute for observing the actual merge before `completed`, unless a future controlling workflow explicitly defines that asynchronous state machine. Here “automatic merge” means the audit controller performs the merge itself after a positive audit.
 
+If the audit controller observes that the base/integration branch advanced or the PR is `dirty`/conflicting before the exact merge can occur, it may mark the PR draft and replace `review-ready` with `execution-ready` under `codex-pr-audit` authority. That return is not merge authorization, not a reviewer `FAIL`, and not `BLOCKED`; it transfers the implementation head back to the executor for guarded reconciliation.
+
 An issue body, execution-context comment, acceptance criteria, CI success, executor conclusion, or technical verdict outside the two authority paths above is not merge authorization.
 
 ## Exact review targets
@@ -255,7 +290,9 @@ Once a Codex executor creates or adopts a pull request for a controlling issue, 
 
 Other actors may inspect the target read-only, but should not silently push to, rebase, reset, retarget, or otherwise modify the active executor's branch/PR. Material corrections should flow through the controlling issue unless ownership has explicitly transferred. The scheduler may update only its canonical execution-context comment and workflow-state activation; it does not own the child PR.
 
-Once the executor performs its `review-ready` handoff, `codex-pr-audit` may own the PR's audit-derived readiness/draft, merge, completion, and closure mutations according to its verdict mapping. It still may not rewrite the implementation head.
+While the issue remains `in-progress`, that exclusive executor ownership allows the guarded pre-handoff integration rebase defined above. It is not permission for another actor to rewrite the branch, and it does not permit an unguarded force push.
+
+Once the executor performs its `review-ready` handoff, `codex-pr-audit` may own the PR's audit-derived readiness/draft, merge, completion, closure, and integration-drift return mutations according to its verdict/control-plane mapping. It still may not rewrite the implementation head.
 
 If branch or PR ownership is ambiguous, stop and resolve ownership before mutating shared state.
 
@@ -280,7 +317,7 @@ Use `blocked` only when the missing capability is required before safe meaningfu
 
 ## Safety
 
-- Never force-push or rewrite shared history without explicit authorization.
+- Never force-push or rewrite shared history without explicit authorization. The only standing automated rewrite exception is the executor-owned, pre-`review-ready`, exact-old-head `--force-with-lease` integration rebase defined above.
 - Never stage or publish unrelated changes.
 - Never publish secrets, private credentials, generated binaries, restricted artifacts, or data without distribution rights.
 - Never persist an ephemeral GitHub Actions token for a detached executor.
