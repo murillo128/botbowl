@@ -108,6 +108,11 @@
     const decision=Number($('decision').value);
     if (!Number.isSafeInteger(decision) || decision < root.initial.decision_seq) throw new Error('Choose a recorded decision');
     const rows=[root, entry($('branch-a').value), entry($('branch-b').value)].filter(Boolean);
+    if (new Set(rows.map(r=>r.id)).size!==rows.length ||
+        new Set(rows.slice(1).map(r=>r.provenance.divergence)).size>1) {
+      $('panels').replaceChildren();
+      throw new Error('Choose distinct alternatives from the same divergence decision');
+    }
     if (decision > Math.max(...rows.map(r=>r.final.decision_seq))) throw new Error('No panel contains this decision');
     const panels=await Promise.all(rows.map(async row => {
       const shared=row !== root && decision <= row.provenance.divergence;

@@ -63,7 +63,8 @@ the recorded trajectory. Replay IDs survive reconnection within this process;
 restarting the service requires loading the files again.
 
 Alternatives created from the selected factual are available in two synchronized
-panels. Through each divergence they display the shared factual prefix. After
+panels. Selected alternatives must be distinct and share one divergence decision;
+otherwise the comparison is rejected. Through divergence they display the shared factual prefix. After
 that, the horizon is `requested_decision - divergence_decision`, measured in
 accepted primitive decisions. Each panel displays its full actual logical
 context; event counts and team turns need not agree. If a branch has ended, its

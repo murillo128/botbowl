@@ -127,6 +127,18 @@ def test_replay_search_branch_sync_values_reconnect_and_labels(page):
     expect(page.get_by_role('heading', name='Human annotation', exact=True)).to_be_visible()
     assert page.evaluate('window.researchInjected') is None
     assert store.summary(root)['predictions'][0]['record']['output']['probability'] == 0
+    original_b = page.locator('#branch-b').input_value()
+    page.locator('#branch-b').select_option(page.locator('#branch-a').input_value())
+    expect(page.get_by_role('status')).to_have_text('Choose distinct alternatives from the same divergence decision')
+    expect(page.locator('.panel')).to_have_count(0)
+    action = store.actions('editor', root, 2)[0]
+    different = store.fork('editor', root, {'decision': 2, 'action': action, 'horizon': 1})
+    page.locator('#branch-b').select_option(original_b)
+    expect(page.locator('.panel')).to_have_count(3)
+    connect(page)
+    page.locator('#branch-b').select_option(different['id'])
+    expect(page.get_by_role('status')).to_have_text('Choose distinct alternatives from the same divergence decision')
+    expect(page.locator('.panel')).to_have_count(0)
 
 
 def test_invalid_file_missing_resource_and_keyboard_navigation(page):
