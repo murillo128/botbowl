@@ -4,7 +4,7 @@ Validation used CPython 3.11.16, the Python pathfinding backend, Flask 3.1.3 and
 NumPy 2.4.6. No external service or production credential was provisioned.
 
 * `python -m pytest tests/lab/test_http_api.py tests/lab/test_http_client.py
-  tests/lab/test_commands.py -q`: **65 passed**. Includes two remote and two
+  tests/lab/test_commands.py -q`: **74 passed**. Includes two remote and two
   local controllers with identical standard/pickup/block configurations, seeds,
   observations, public notifications and episode outcomes; authenticated random
   continuation after snapshot restore; pause/clock purity; schema/role failures;
@@ -16,6 +16,10 @@ NumPy 2.4.6. No external service or production credential was provisioned.
   responses were lost. Both explicit recovery and exception unwinding release
   recoverable allocations. Expired cleanup does not resend; a failed creation
   receipt does not prevent cleanup of previously owned sessions.
+  Lost ordinary-command and close-command failure receipts are recovered during
+  explicit client/session close and context unwinding: allocations are released,
+  close uses the next request ID, and the appropriate exception is preserved.
+  Cleanup sends no new command while failure-receipt recovery remains uncertain.
 * Existing session/scenario/gateway regression baseline:
   `python -m pytest tests/lab/test_commands.py tests/lab/test_session.py
   tests/lab/test_scenarios.py -q`: **228 passed** before the additional typed

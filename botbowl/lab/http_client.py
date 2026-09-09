@@ -296,18 +296,29 @@ class RemoteSession:
     def close(self):
         if self._closed:
             return
+        failure = None
         if self._owned:
             if self.client._pending is not None:
                 path, raw, _ = self.client._pending
                 pending = json.loads(raw)
-                result = self.client.retry_pending()
-                if (pending["session_id"] == self.session_id
-                        and pending["payload"]["op"] == "close" and result["ok"]):
-                    self._closed = True
-                    return
+                try:
+                    result = self.client.retry_pending()
+                except HTTPError as error:
+                    if self.client._pending is not None:
+                        raise
+                    # A failed receipt resolves the command, so cleanup can
+                    # continue. Report it after releasing this allocation.
+                    failure = error
+                else:
+                    if (pending["session_id"] == self.session_id
+                            and pending["payload"]["op"] == "close" and result["ok"]):
+                        self._closed = True
+                        return
             state = self.read()
             self.command({"op": "close"}, state["state_revision"])
         self._closed = True
+        if failure is not None:
+            raise failure
 
     def __enter__(self):
         return self

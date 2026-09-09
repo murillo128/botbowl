@@ -114,6 +114,10 @@ recovery registers the allocated session for cleanup even when `create()` never
 returned a handle. Client close first attempts bounded recovery of a pending
 owned creation within its original retry window, then closes recovered sessions
 before discarding credentials. This also applies during exception unwinding.
+When pending command recovery returns an authoritative failed receipt, owned
+session cleanup continues with current state and the next request ID. Explicit
+close reports the recovered error after cleanup; context unwinding preserves
+the original exception. An unresolved pending command still blocks new writes.
 Low-level `execute()` creation remains caller-managed.
 
 `read`, `snapshot`, `events` and `execute(Command_dict)` expose the wire contract.

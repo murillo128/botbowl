@@ -441,3 +441,89 @@ def test_failed_creation_recovery_still_closes_previously_owned_sessions(monkeyp
                 admin.create(request_id=2, config=SessionConfig(size=1), seed=SeedSpec(18))
         assert not registry._entries
         assert admin._closed and admin._connection is None
+
+
+@pytest.mark.parametrize("cleanup", ["client_unwind", "client_close", "session_unwind", "session_close"])
+@pytest.mark.parametrize("op", ["pause", "close"])
+def test_failed_command_recovery_finishes_owned_cleanup(monkeypatch, cleanup, op):
+    with server() as (url, registry, gateway):
+        admin = HTTPClient(url, "admin", retries=0)
+        session = admin.create(request_id=1, config=SessionConfig(size=1), seed=SeedSpec(17))
+        other = admin.create(request_id=2, config=SessionConfig(size=1), seed=SeedSpec(18))
+        original = admin._once
+        sent = []
+        lost = False
+
+        def lose_failure(method, path, raw=None):
+            nonlocal lost
+            if method == "POST":
+                sent.append(json.loads(raw))
+            try:
+                return original(method, path, raw)
+            except HTTPError as error:
+                if method == "POST" and not lost:
+                    assert error.status == 409
+                    assert error.response["request_id"] == 17
+                    lost = True
+                    raise TimeoutError()
+                raise
+
+        monkeypatch.setattr(admin, "_once", lose_failure)
+        try:
+            owner = admin if cleanup.startswith("client") else session
+            if cleanup.endswith("unwind"):
+                with pytest.raises(UncertainResult):
+                    with owner:
+                        session.command({"op": op}, expected_revision=0, request_id=17)
+            else:
+                with pytest.raises(UncertainResult):
+                    session.command({"op": op}, expected_revision=0, request_id=17)
+                with pytest.raises(HTTPError) as recovered:
+                    owner.close()
+                assert recovered.value.status == 409
+                assert recovered.value.response["request_id"] == 17
+            assert admin._pending is None and session._closed
+            assert session.session_id not in registry._entries
+            assert sent[0] == sent[1]
+            assert sent[2] == envelope(session.session_id, 18, 1, "close")
+            session.close()  # Successful teardown stays idempotent despite the reported failure.
+            if cleanup.startswith("client"):
+                assert other._closed and not registry._entries
+                assert admin._closed and admin._token is None and admin._connection is None
+            else:
+                assert not admin._closed and not other._closed
+                assert other.read()["state_revision"] == 1
+        finally:
+            admin.close()
+        assert not registry._entries
+
+
+def test_owned_cleanup_waits_until_failed_command_is_resolved(monkeypatch):
+    with server() as (url, registry, gateway):
+        with HTTPClient(url, "admin", retries=0) as admin:
+            session = admin.create(request_id=1, config=SessionConfig(size=1), seed=SeedSpec(17))
+            original = admin._once
+            sent = []
+
+            def lose_failures(method, path, raw=None):
+                if method == "POST":
+                    sent.append(raw)
+                try:
+                    return original(method, path, raw)
+                except HTTPError:
+                    raise TimeoutError()
+
+            monkeypatch.setattr(admin, "_once", lose_failures)
+            with pytest.raises(UncertainResult):
+                session.command({"op": "pause"}, expected_revision=0)
+            pending = admin._pending
+            with pytest.raises(UncertainResult):
+                session.close()
+            assert admin._pending == pending and not session._closed
+            assert session.session_id in registry._entries
+            assert sent == [pending[1], pending[1]]
+            monkeypatch.setattr(admin, "_once", original)
+            with pytest.raises(HTTPError) as recovered:
+                session.close()
+            assert recovered.value.status == 409
+            assert session._closed and not registry._entries
