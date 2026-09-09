@@ -59,7 +59,7 @@ class HTTPClient:
         self._closed = False
         self._pending = None
         self._capabilities = None
-        self._owned = []
+        self._owned = {}
 
     def _disconnect(self):
         if self._connection is not None:
@@ -140,6 +140,11 @@ class HTTPClient:
             try:
                 result = self._once("POST", path, raw)
                 self._pending = None
+                command = json.loads(raw)
+                if command["payload"]["op"] == "close":
+                    owned = self._owned.get(command["session_id"])
+                    if owned is not None:
+                        owned._closed = True
                 return result
             except HTTPError as error:
                 if error.status >= 500 and "request_id" not in error.response:
@@ -165,8 +170,10 @@ class HTTPClient:
                        "seed": seed.to_json() if hasattr(seed, "to_json") else seed}
         result = self.execute({"session_id": "new", "request_id": request_id,
                                "expected_revision": 0, "payload": payload})
-        session = RemoteSession(self, result["session_id"], owned=True)
-        self._owned.append(session)
+        session = self._owned.get(result["session_id"])
+        if session is None:
+            session = RemoteSession(self, result["session_id"], owned=True)
+            self._owned[result["session_id"]] = session
         return session
 
     def attach(self, session_id):
@@ -177,7 +184,7 @@ class HTTPClient:
             return
         failure = None
         try:
-            for session in self._owned:
+            for session in self._owned.values():
                 try:
                     session.close()
                 except Exception as error:

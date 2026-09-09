@@ -4,7 +4,7 @@ Validation used CPython 3.11.16, the Python pathfinding backend, Flask 3.1.3 and
 NumPy 2.4.6. No external service or production credential was provisioned.
 
 * `python -m pytest tests/lab/test_http_api.py tests/lab/test_http_client.py
-  tests/lab/test_commands.py -q`: **52 passed**. Includes two remote and two
+  tests/lab/test_commands.py -q`: **53 passed**. Includes two remote and two
   local controllers with identical standard/pickup/block configurations, seeds,
   observations, public notifications and episode outcomes; authenticated random
   continuation after snapshot restore; pause/clock purity; schema/role failures;

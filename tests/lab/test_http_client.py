@@ -223,3 +223,15 @@ def test_unreceipted_internal_error_remains_uncertain(monkeypatch):
             receipt = admin.retry_pending()
             assert receipt["ok"] and len(registry._entries) == 1
             admin.execute(envelope(receipt["session_id"], 1, receipt["state_revision"], "close"))
+
+
+def test_duplicate_creation_handle_and_explicit_close_are_idempotent():
+    with server() as (url, registry, gateway):
+        with HTTPClient(url, "admin") as admin:
+            kwargs = dict(request_id=1, config=SessionConfig(size=1), seed=SeedSpec(17))
+            first = admin.create(**kwargs)
+            assert admin.create(**kwargs) is first
+            assert len(registry._entries) == 1
+            first.command({"op": "close"}, first.read()["state_revision"])
+            first.close()
+        assert not registry._entries
