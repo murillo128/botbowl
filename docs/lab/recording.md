@@ -23,6 +23,11 @@ The recorder obtains the initial [rules descriptor](rules.md) from the loaded
 inputs, binds initial roster IDs, and specializes the existing [timeline](timeline.md)
 admission/settlement hooks. There are no engine/rules/RNG changes.
 
+For an existing public session, use `session.start_recording(...)` before any
+coach decision. This preserves its initial observation and imports a scenario's
+validated synthetic event prefix. The [generator contract](generate.md) describes
+this attachment, ownership and the mapping of scenario endings to match fragments.
+
 Use `recorder.advance(action_or_ActionRequestV1)` and
 `recorder.execute_macro(macro)`. Rejections through these methods become separate
 operational diagnostics, including stale semantic requests. Accepted advances
