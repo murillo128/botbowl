@@ -39,7 +39,8 @@ def installed(tmp_path_factory):
         output = result.stdout + result.stderr
         for key, value in (extra_env or {}).items():
             if key.startswith('BOTBOWL_HTTP_TOKEN_'):
-                assert value not in output, 'credential appeared in example output'
+                if value in output:
+                    raise AssertionError('credential appeared in example output')
         assert result.returncode == expected, output
         return result.stdout
 
@@ -202,6 +203,15 @@ def test_installed_help_and_argument_errors(installed, module):
     run(module, *args, '--output', root / 'invalid', '--seed', '17',
         '--max-steps', '0', expected=2)
     assert not (root / 'invalid').exists()
+
+
+def test_installed_credential_failure_diagnostic_is_redacted(installed):
+    _, run, _ = installed
+    # A public canary present in help deliberately exercises the failure path.
+    # Pytest assertion introspection must never echo the credential or output.
+    with pytest.raises(AssertionError) as failure:
+        run('dataset', '--help', extra_env={'BOTBOWL_HTTP_TOKEN_ADMIN': 'usage:'})
+    assert str(failure.value) == 'credential appeared in example output'
 
 
 def test_quickstart_docs_links_and_runtime_contract():

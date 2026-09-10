@@ -93,6 +93,7 @@ operations or production availability.
 ```bash
 python -m botbowl.examples.snapshot save --output "$LAB_OUT/snapshot" --seed 17 --max-decisions 3 --max-steps 1000
 python -m botbowl.examples.snapshot resume --output "$LAB_OUT/snapshot" --seed 17 --max-decisions 3 --max-steps 1000
+cmp "$LAB_OUT/snapshot/expected.json" "$LAB_OUT/snapshot/actual.json"
 ```
 
 The first command saves an episode-scoped `SnapshotFileV1` after `START_GAME`,
@@ -121,8 +122,8 @@ records snapshots and validated decision/event history for seek and continuation
 python -m botbowl.examples.branches --output "$LAB_OUT/branches" --seed 17 --max-decisions 2 --max-steps 1000
 ```
 
-After `START_GAME`, the example normalizes a saved source to logical clocks and
-forks the next two legal initial actions into `left` and `right`. Each branch has
+The example normalizes a saved source to logical clocks, advances `START_GAME`,
+and forks the next two legal initial actions into `left` and `right`. Each branch has
 a two-decision horizon **including** its initial action and a declared
 `first-legal/v1` continuation policy. `ChancePolicy(mode='independent')` derives
 different branch streams from the explicit seed and component IDs. This is one
