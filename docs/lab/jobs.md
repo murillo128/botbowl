@@ -104,7 +104,9 @@ live decision callbacks use the sequential API. It requests cooperative stop
 and waits the configured `worker_timeout`, then terminates/kills only the process
 it created, with bounded `join_timeout` joins. Worker lifetime is also bounded by
 `worker_timeout`. The supervisor never scans or signals other processes.
-`job-supervisor.json` records forced termination as a failure/cancellation with
+`job-supervisor.json` retains versions, limits, the plan hash and current entry;
+`plan.json` is retained even when the worker never initialized. It records forced
+termination as a failure/cancellation with
 `restorable_snapshot=false`; it is never a restorable engine snapshot. If a safe
 recipe checkpoint reached disk, it can still be replayed through the sequential
 resume API. A worker killed before initialization has no such recovery claim.

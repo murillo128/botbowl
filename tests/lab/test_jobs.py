@@ -202,6 +202,10 @@ def test_noncooperative_worker_does_not_kill_unrelated_process(tmp_path, monkeyp
         assert value.state == 'failed' and unrelated.is_alive()
         report = json.loads((tmp_path / 'job' / 'job-supervisor.json').read_text())
         assert report['forced'] and not report['restorable_snapshot']
+        assert report['versions']['jobs'] == 1
+        assert report['limits']['worker_timeout'] == 0.2
+        assert report['entry'] == plan(tmp_path)['episodes'][0]
+        assert json.loads((tmp_path / 'job' / 'plan.json').read_text()) == plan(tmp_path)
     finally:
         unrelated.terminate()
         unrelated.join(2)

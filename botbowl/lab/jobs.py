@@ -18,7 +18,7 @@ import uuid
 from botbowl._version import __version__
 from .actions import ActionV1
 from .generate import (JobConfig, build_plan, _validate_plan, _run, _job_hash,
-                       _hash, _read_job_json)
+                       _hash, _read_job_json, _encode_job_json)
 from .recording import EpisodeReader, _read_file
 from .records import MAX_RECORD_BYTES, decode_json, encode_json, require, keys
 from .storage import DatasetReader, DatasetWriter, _atomic
@@ -527,12 +527,18 @@ def supervise(plan, output, *, context=None):
         if not process.is_alive():
             process.close()
     root.mkdir(parents=True, exist_ok=True)
-    if root.exists():
-        _atomic(root, 'job-supervisor.json', encode_json({
-            'schema_version': 1, 'forced': forced, 'restorable_snapshot': False,
-            'exitcode': code, 'reason': 'worker_timeout' if forced else 'worker_exit'}))
+    # A worker can time out before importing/initializing its writer. Preserve
+    # the validated recipe even then; no snapshot or completed decision is claimed.
+    if not (root / 'plan.json').exists():
+        _atomic(root, 'plan.json', _encode_job_json(plan))
     if (root / 'manifest.json').exists():
         _confirmed(ctx, root, None)
+    _atomic(root, 'job-supervisor.json', encode_json({
+        'schema_version': 1, 'versions': _versions(), 'plan_sha256': _job_hash(plan),
+        'limits': asdict(ctx.limits), 'forced': forced, 'restorable_snapshot': False,
+        'last_confirmed_index': ctx.confirmed - 1,
+        'entry': plan['episodes'][ctx.confirmed] if ctx.confirmed < ctx.planned else None,
+        'exitcode': code, 'reason': 'worker_timeout' if forced else 'worker_exit'}))
     if forced or code != 0:
         ctx.failed += 1
         ctx._finish('cancelled' if ctx._cancel.is_set() else 'failed',
