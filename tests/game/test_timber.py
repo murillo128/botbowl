@@ -26,8 +26,8 @@ def test_pass_roll_inaccurate(nbr_of_teammates):
     
     target = max(2, 4 - nbr_of_teammates) 
     
-    D6.fix(target - 1)  # Fail first,
-    D6.fix(target)  # re-roll success next
+    game.dice.fix(D6, target - 1)  # Fail first,
+    game.dice.fix(D6, target)  # re-roll success next
 
     game.step(Action(ActionType.START_MOVE, player=player))
     for action in game.get_available_actions(): 
