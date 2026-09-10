@@ -16,6 +16,7 @@
   const showJSON = value => JSON.stringify(value, null, 2);
   const entry = id => library.find(row => row.id === id);
   const factual = () => entry($('factual').value);
+  const eventReplay = () => entry($('event-replay').value);
   async function api(path, data) {
     const response = await fetch('/research/' + path, {cache:'no-store', headers:{
       Authorization:'Bearer ' + token, ...(data === undefined ? {} : {'Content-Type':'application/json'})},
@@ -46,6 +47,8 @@
     const root = factual();
     const children = library.filter(row => root && row.provenance.parent === root.id);
     options($('branch-a'), children, 'None'); options($('branch-b'), children, 'None');
+    options($('event-replay'), root ? [root, ...children] : [], 'Choose replay');
+    if (root && !$('event-replay').value) $('event-replay').value=root.id;
     $('turn').replaceChildren(new Option('Choose turn', ''));
     if (root) root.turns.forEach(t => $('turn').add(new Option(
       `Half ${t.half}, round ${t.round}, team turn ${t.team_turn_seq}`, String(t.decision_start))));
@@ -66,6 +69,15 @@
       (kind === 'observed' ? 'Observed values:\n' : 'Simulated values:\n') + showJSON({attributes:player.attributes, status:player.status,
         location:player.location, skills:player.skills});
   }
+  function pitch(frame) {
+    const canvas = node('canvas'); const img = frame.image;
+    canvas.width = img.width; canvas.height = img.height;
+    canvas.setAttribute('role', 'img'); canvas.setAttribute('aria-label', `Geometric pitch, ${frame.observation.geometry.width} by ${frame.observation.geometry.height} cells; player controls follow`);
+    const rgb = atob(img.rgb), rgba = new Uint8ClampedArray(img.width * img.height * 4);
+    for (let i=0,j=0;i<rgb.length;i+=3,j+=4) {rgba[j]=rgb.charCodeAt(i);rgba[j+1]=rgb.charCodeAt(i+1);rgba[j+2]=rgb.charCodeAt(i+2);rgba[j+3]=255;}
+    canvas.getContext('2d').putImageData(new ImageData(rgba,img.width,img.height),0,0);
+    return canvas;
+  }
   function panel(row, frame, requested, shared) {
     const p = node('article', undefined, 'panel'); p.dataset.replayId = row.id;
     p.append(node('h2', labels[row.provenance.kind] + ' · ' +
@@ -80,12 +92,7 @@
       'Available recorded state.', exhausted ? 'availability exhausted' : 'availability'));
     const ctx=frame.context, value=v=>v===null?'unavailable':String(v);
     p.append(node('p', `Decision ${ctx.decision_seq} · event ${ctx.event_seq}\nHalf ${value(ctx.half)} · round ${value(ctx.round)} · team turn ${value(ctx.team_turn_seq)}`, 'time'));
-    const canvas = node('canvas'); const img = frame.image;
-    canvas.width = img.width; canvas.height = img.height;
-    canvas.setAttribute('role', 'img'); canvas.setAttribute('aria-label', `Geometric pitch, ${frame.observation.geometry.width} by ${frame.observation.geometry.height} cells; player controls follow`);
-    const rgb = atob(img.rgb), rgba = new Uint8ClampedArray(img.width * img.height * 4);
-    for (let i=0,j=0;i<rgb.length;i+=3,j+=4) {rgba[j]=rgb.charCodeAt(i);rgba[j+1]=rgb.charCodeAt(i+1);rgba[j+2]=rgb.charCodeAt(i+2);rgba[j+3]=255;}
-    canvas.getContext('2d').putImageData(new ImageData(rgba,img.width,img.height),0,0); p.append(canvas);
+    p.append(pitch(frame));
     const buttons = node('div', undefined, 'entities'); buttons.setAttribute('aria-label', 'Players');
     frame.observation.players.forEach(player => {
       const b = node('button', player.id + ' · ' + player.role, player.id === selectedEntity ? 'selected' : '');
@@ -175,7 +182,8 @@
       $('panels').replaceChildren();
       throw new Error('Choose distinct alternatives from the same divergence decision');
     }
-    if (decision > Math.max(...rows.map(r=>r.final.decision_seq))) throw new Error('No panel contains this decision');
+    const available=interiorEvent ? [...rows,eventReplay()].filter(Boolean) : rows;
+    if (decision > Math.max(...available.map(r=>r.final.decision_seq))) throw new Error('No panel contains this decision');
     const panels=await Promise.all(rows.map(async row => {
       const shared=row !== root && decision <= row.provenance.divergence;
       const source=shared ? root : row;
@@ -190,6 +198,7 @@
     say('Connected · navigation is read-only');
   }
   async function navigate(value, clearEvents = false) {
+    say('Loading recorded decision…');
     invalidateSelection(clearEvents); $('event').value='';
     interiorEvent=false; $('boundary').textContent=''; $('event-detail').textContent='';
     $('decision').value=String(value); await render();
@@ -203,6 +212,7 @@
   }));
   $('factual').addEventListener('change',run(async()=>{stop();interiorEvent=false;selectedEntity=null;updateBranches();await navigate(factual()?factual().initial.decision_seq:0,true);}));
   ['branch-a','branch-b'].forEach(id=>$(id).addEventListener('change',run(async()=>{stop();invalidateSelection();await render();})));
+  $('event-replay').addEventListener('change',run(async()=>{stop();await navigate(factual()?factual().initial.decision_seq:0,true);}));
   $('go').addEventListener('click',run(async()=>{stop();await navigate(Number($('decision').value));}));
   $('previous').addEventListener('click',run(async()=>{stop();await navigate(Number($('decision').value)-1);}));
   $('next').addEventListener('click',run(async()=>{stop();await navigate(Number($('decision').value)+1);}));
@@ -213,11 +223,11 @@
     timer=setTimeout(tick,1000);
   }));
   $('search').addEventListener('click',run(async()=>{
-    const root=factual();if(!root)return;
+    const root=factual(), source=eventReplay();if(!root || !source)return;
     const current=selectionGeneration, request=++searchGeneration;
-    const isCurrent=()=>selectionIsCurrent(root,current) && searchGeneration===request;
+    const isCurrent=()=>selectionIsCurrent(root,current) && eventReplay()?.id===source.id && searchGeneration===request;
     try {
-      const result=await api(`replays/${root.id}/events?kind=${encodeURIComponent($('kind').value)}&entity=${encodeURIComponent($('event-entity').value)}`);
+      const result=await api(`replays/${source.id}/events?kind=${encodeURIComponent($('kind').value)}&entity=${encodeURIComponent($('event-entity').value)}`);
       if(!isCurrent())return;
       $('event').replaceChildren(new Option('Choose event',''));
       result.events.forEach(e=>$('event').add(new Option(`${e.context.event_seq} · ${e.kind} · decision ${e.decision_seq}`,String(e.context.event_seq))));
@@ -225,21 +235,26 @@
     } catch(error) {if(isCurrent())throw error;}
   }));
   ['kind','event-entity'].forEach(id=>$(id).addEventListener('input',()=>{++searchGeneration;}));
-  $('event').addEventListener('change',run(async()=>{
-    stop();invalidateSelection();const root=factual(), event=$('event').value;
-    if(!root || !event)return;
+  async function showEvent() {
+    stop();invalidateSelection();const root=factual(), source=eventReplay(), event=$('event').value;
+    $('event-detail').textContent='';$('boundary').textContent='';
+    if(!root || !source || !event)return;
     const current=selectionGeneration;
-    const isCurrent=()=>selectionIsCurrent(root,current) && $('event').value===event;
+    const isCurrent=()=>selectionIsCurrent(root,current) && eventReplay()?.id===source.id && $('event').value===event;
     try {
-      const result=await api(`replays/${root.id}/event?event=${event}`);
+      const result=await api(`replays/${source.id}/event?event=${event}`);
       if(!isCurrent())return;
       interiorEvent=true;$('decision').value=String(result.previous_decision);await render();
       if(!isCurrent())return;
       $('event-detail').textContent=showJSON(result.event);
-      $('event-layers').replaceChildren(externalLayers(root,result.frame,result.event.context,'event'));
+      const board=pitch(result.frame);board.setAttribute('aria-label','Selected event replay: preceding recorded board');
+      const details=node('details');details.append(node('summary','Preceding board context'),node('pre',showJSON(result.frame.context),'event-frame-context'));
+      $('event-layers').replaceChildren(node('h3',labels[source.provenance.kind]+' · '+source.id),board,details,
+        externalLayers(source,result.frame,result.event.context,'event'));
       $('boundary').textContent=`Interior event ${result.event.context.event_seq}. Board is the preceding restorable decision ${result.previous_decision}; next boundary ${result.next_decision}. Use Go to decision to explicitly select a branch point.`;
     } catch(error) {if(isCurrent())throw error;}
-  }));
+  }
+  $('event').addEventListener('change',run(showEvent));
   $('decision').addEventListener('input',()=>{stop();invalidateSelection();actions=[];$('fork').disabled=true;});
   $('load-actions').addEventListener('click',run(async()=>{
     const source=factual().id, decision=$('decision').value;
@@ -259,7 +274,9 @@
     const file=$('annotation-upload').files[0], source=$('annotation-replay').value;
     if(!file)return;if(!source)throw new Error('Choose an annotation replay');
     if(file.size>1024*1024)throw new Error('Annotation bundle too large');
-    await api(`replays/${source}/annotation-bundles`,JSON.parse(await file.text()));await refresh();await render();
+    say('Importing external annotations…');
+    await api(`replays/${source}/annotation-bundles`,JSON.parse(await file.text()));await refresh();
+    if(interiorEvent && $('event').value)await showEvent();else await render();
   }));
   $('export-fragment').addEventListener('click',run(async()=>{
     const source=$('annotation-replay').value;if(!source)throw new Error('Choose an annotation replay');

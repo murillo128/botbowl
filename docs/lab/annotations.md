@@ -27,6 +27,10 @@ join to the replay by stable player ID; the projection plot is accompanied by an
 accessible entity/coordinate table. Notes, source strings and metadata render as
 text. Moving away from a target hides its decision layers. Interior event records
 appear with their event detail and explicitly refer to the preceding board.
+Choose **Event replay** before searching events to inspect the factual replay or
+one of its branches, independently of the comparison panels and import selector.
+The selected event shows that replay's exact context, preceding recorded board
+and external layers; equal event counters in other branches do not share layers.
 At a branch's initial boundary, layers use that branch's recorded context even
 while its board displays the shared factual prefix. They remain isolated from
 the factual panel and other branches.
