@@ -426,6 +426,9 @@ def reproduce(output):
     config = _validate_plan(plan)
     if data['error'] is None or data['entry'] is None:
         raise IncompatibleRecovery('No reproducible episode failure was recorded')
+    if data['error']['class'] == 'WorkerTimeout':
+        raise IncompatibleRecovery('Worker timeout has no in-process failure snapshot; '
+                                   'repeat supervise with the recorded plan and limits')
     context = JobContext(JobLimits(**data['limits']))
     context._start(len(plan['episodes']))
     observer = _Observer(context, data['checkpoint'])
@@ -539,6 +542,21 @@ def supervise(plan, output, *, context=None):
         'last_confirmed_index': ctx.confirmed - 1,
         'entry': plan['episodes'][ctx.confirmed] if ctx.confirmed < ctx.planned else None,
         'exitcode': code, 'reason': 'worker_timeout' if forced else 'worker_exit'}))
+    if not (root / 'job-recovery.json').exists():
+        from .storage import StorageLimits
+        # No writer checkpoint means the initial recipe is the only safe point.
+        # This supports resume without representing a killed process as a snapshot.
+        fallback = {
+            'schema_version': 1, 'versions': _versions(), 'plan_sha256': _job_hash(plan),
+            'limits': asdict(ctx.limits), 'storage_limits': asdict(StorageLimits()),
+            'entry': plan['episodes'][ctx.confirmed] if ctx.confirmed < ctx.planned else None,
+            'last_confirmed_index': ctx.confirmed - 1,
+            'checkpoint': _Observer(ctx).checkpoint(),
+            'error': _error(WorkerTimeout()) if forced else _error(RuntimeError()),
+            'stage': 'generation', 'state': 'failed', 'reason': 'job_error'}
+        payload = encode_json(fallback)
+        _atomic(root, 'job-recovery.json', payload)
+        _atomic(root, 'job-failure-' + uuid.uuid4().hex + '.json', payload)
     if forced or code != 0:
         ctx.failed += 1
         ctx._finish('cancelled' if ctx._cancel.is_set() else 'failed',

@@ -107,6 +107,8 @@ it created, with bounded `join_timeout` joins. Worker lifetime is also bounded b
 `job-supervisor.json` retains versions, limits, the plan hash and current entry;
 `plan.json` is retained even when the worker never initialized. It records forced
 termination as a failure/cancellation with
-`restorable_snapshot=false`; it is never a restorable engine snapshot. If a safe
-recipe checkpoint reached disk, it can still be replayed through the sequential
-resume API. A worker killed before initialization has no such recovery claim.
+`restorable_snapshot=false`; it is never a restorable engine snapshot. A safe
+recipe checkpoint can still be replayed through sequential resume. If the worker
+never wrote a checkpoint, the supervisor records the initial recipe as the safe
+restart point. A hard timeout is explicitly incompatible with in-process failure
+reproduction: repeat `supervise` with its recorded plan and limits instead.

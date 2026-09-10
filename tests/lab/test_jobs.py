@@ -206,6 +206,11 @@ def test_noncooperative_worker_does_not_kill_unrelated_process(tmp_path, monkeyp
         assert report['limits']['worker_timeout'] == 0.2
         assert report['entry'] == plan(tmp_path)['episodes'][0]
         assert json.loads((tmp_path / 'job' / 'plan.json').read_text()) == plan(tmp_path)
+        recovery = json.loads((tmp_path / 'job' / 'job-recovery.json').read_text())
+        assert recovery['checkpoint']['snapshot'] is None
+        with pytest.raises(IncompatibleRecovery, match='Worker timeout'):
+            reproduce(tmp_path / 'job')
+        assert resume(tmp_path / 'job').state == 'succeeded'
     finally:
         unrelated.terminate()
         unrelated.join(2)
