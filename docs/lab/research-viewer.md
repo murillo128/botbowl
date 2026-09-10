@@ -128,3 +128,7 @@ browser suite runs Chromium against a temporary loopback server, with actual
 uploads, events, branch creation, keyboard selection, geometry/context/value
 assertions, reconnection, navigation pause, permissions and HTML input. It uses
 DOM and data assertions; screenshots are not the correctness oracle.
+
+External representation layers, fitting provenance and synthetic image/fragment
+exports use [AnnotationBundleV1](annotations.md). These remain separate from
+engine state and the standard dataset reader.

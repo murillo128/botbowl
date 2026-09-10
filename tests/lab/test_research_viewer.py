@@ -211,3 +211,99 @@ def test_empty_confirmed_replay_and_transport_boundary(tmp_path):
         store.close()
         registry.close()
         game.close()
+
+
+def test_external_bundles_permissions_atomicity_and_original_predictions(research):
+    from tests.lab.test_annotations import annotation_bundle
+    app, store, bundle, _ = research
+    client = app.test_client()
+    row = upload(client, bundle)
+    prefix = '/research/replays/' + row['id']
+    frame = store.frame(row['id'], 1)
+    original = prediction(row, frame['context'])
+    store.prediction(row['id'], {'prediction': original, 'target_decision': 1, 'retrospective': False})
+    data = annotation_bundle(frame['context'])
+    data['items'][0]['provenance']['access'] = 'privileged'
+    assert client.post(prefix + '/annotation-bundles', json=data, headers=auth()).status_code == 403
+    assert client.post(prefix + '/annotation-bundles', json=data, headers=auth('evaluator')).status_code == 201
+    assert not store.summary(row['id'])['external_annotations']
+    for role in ('viewer', 'player'):
+        assert client.get(prefix + '/annotation-bundles', headers=auth(role)).json == {'bundles': []}
+        assert client.get('/research/replays', headers=auth(role)).json['replays'][0]['external_annotations'] == []
+    assert client.get(prefix + '/annotation-bundles', headers=auth('evaluator')).json['bundles'] == [data]
+    # Atomic validation rejects all rows, including a valid first row.
+    bad = deepcopy(data)
+    bad['bundle_id'] = 'bad'
+    bad['items'].append(deepcopy(bad['items'][0]))
+    bad['items'][1]['annotation_id'] = 'unknown-entity'
+    bad['items'][1]['entity_ids'][0] = 'missing'
+    assert client.post(prefix + '/annotation-bundles', json=bad, headers=auth('evaluator')).status_code == 400
+    assert client.post(prefix + '/annotation-bundles', json=data, headers=auth('evaluator')).status_code == 400
+    assert store.frame(row['id'], 1) == frame
+    assert store.summary(row['id'])['predictions'][0]['record'] == original
+    # The standard replay reader and public observations do not acquire features.
+    assert 'external_annotations' not in json.dumps(store._entry(row['id'])['reader'].manifest)
+    assert 'annotation' not in json.dumps(frame['observation'])
+    assert len(store.annotation_bundles(row['id'], 'evaluator')) == 1
+
+
+def test_external_branch_membership_and_export_traceability(research):
+    import struct
+    import zlib
+    from tests.lab.test_annotations import annotation_bundle
+    app, store, bundle, _ = research
+    client = app.test_client()
+    row = upload(client, bundle)
+    root = row['id']
+    frame = store.frame(root, 1)
+    data = annotation_bundle(frame['context'], kind='projection_2d')
+    store.import_annotations('viewer', root, data)
+    action = store.actions('editor', root, 1)[0]
+    branch = store.fork('editor', root, {'decision': 1, 'action': action, 'horizon': 1})
+    prefix = '/research/replays/' + branch['id']
+    assert client.post(prefix + '/annotation-bundles', json=data, headers=auth()).status_code == 400
+    context = store.frame(branch['id'], 1)['context']
+    branch_data = annotation_bundle(context)
+    assert client.post(prefix + '/annotation-bundles', json=branch_data, headers=auth()).status_code == 201
+    private = annotation_bundle(frame['context'], kind='human_note')
+    private['bundle_id'] = 'private'
+    private['items'][0]['provenance']['access'] = 'privileged'
+    store.import_annotations('evaluator', root, private)
+    for role in ('viewer', 'evaluator'):
+        result = client.post('/research/replays/' + root + '/export', json={'decisions': [1, 2]}, headers=auth(role))
+        assert result.status_code == 200, result.json
+        files = {name: base64.b64decode(value) for name, value in result.json['files'].items()}
+        manifest = json.loads(files['manifest.json'])
+        fragment = json.loads(files['fragment.json'])
+        assert manifest['source'] == fragment['source']
+        assert manifest['source']['replay_id'] == row['replay_id']
+        assert manifest['source']['origin_family_id'] == row['origin_family_id']
+        assert manifest['fragment']['sha256'] == hashlib.sha256(files['fragment.json']).hexdigest()
+        assert len(fragment['annotation_bundles']) == (2 if role == 'evaluator' else 1)
+        assert manifest['annotations'][0]['entity_ids'] == data['items'][0]['entity_ids']
+        assert manifest['annotations'][0]['target'] == frame['context']
+        for link in manifest['frames']:
+            image = files[link['file']]
+            assert image.startswith(b'\x89PNG\r\n\x1a\n')
+            assert link['sha256'] == hashlib.sha256(image).hexdigest()
+            exported = fragment['frames'][link['frame_index']]
+            assert exported['context'] == link['context']
+            assert link['entity_ids'] == [p['id'] for group in ('players', 'teams') for p in exported['observation'][group]]
+            expected = store.frame(root, link['context']['decision_seq'])['image']
+            # Verify actual PNG pixels against the geometric renderer, not just hashes.
+            width, height = struct.unpack('!II', image[16:24])
+            assert (width, height) == (expected['width'], expected['height'])
+            offset, compressed = 8, b''
+            while offset < len(image):
+                size = struct.unpack('!I', image[offset:offset + 4])[0]
+                if image[offset + 4:offset + 8] == b'IDAT':
+                    compressed += image[offset + 8:offset + 8 + size]
+                offset += 12 + size
+            scanlines = zlib.decompress(compressed)
+            pixels = b''.join(scanlines[y * (width * 3 + 1) + 1:(y + 1) * (width * 3 + 1)] for y in range(height))
+            assert pixels == base64.b64decode(expected['rgb'])
+        serialized = json.dumps(fragment)
+        for forbidden in ('rng_state', 'seed_spec', 'SnapshotFileV1', 'checkpoints'):
+            assert forbidden not in serialized
+    for decisions in ([], [1, 1], [2, 1], [True], list(range(17)), [999]):
+        assert client.post('/research/replays/' + root + '/export', json={'decisions': decisions}, headers=auth()).status_code == 400

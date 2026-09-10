@@ -27,6 +27,7 @@ FAST = [
     'tests/lab/test_external_client.py',
     'tests/lab/test_replays.py',
     'tests/lab/test_commands.py',
+    'tests/lab/test_annotations.py',
 ]
 SELECTIONS = {
     'lab-fast': FAST,

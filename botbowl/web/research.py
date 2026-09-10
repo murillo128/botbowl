@@ -90,7 +90,7 @@ def create_app(gateway, store):
             if request.method == 'POST':
                 return jsonify(store.upload(g.principal, body())), 201
             grant = store.access(g.principal)
-            return jsonify(replays=[store.summary(key) for key in store.entries],
+            return jsonify(replays=[store.summary(key, g.principal) for key in store.entries],
                            can_fork=grant.role == 'evaluator' and {'snapshot', 'restore'} <= grant.capabilities,
                            max_bytes=store.limits.max_bytes, max_horizon=store.limits.max_decisions)
 
@@ -105,6 +105,8 @@ def create_app(gateway, store):
                 return jsonify(store.event(identity, integer('event')))
             if resource == 'actions':
                 return jsonify(actions=store.actions(g.principal, identity, integer('decision')))
+            if resource == 'annotation-bundles':
+                return jsonify(bundles=store.annotation_bundles(identity, g.principal))
             return jsonify(error='not_found'), 404
 
     @bp.post('/replays/<identity>/<resource>')
@@ -118,6 +120,10 @@ def create_app(gateway, store):
                 return jsonify(store.prediction(identity, body())), 201
             if resource == 'annotations':
                 return jsonify(store.annotate(identity, body())), 201
+            if resource == 'annotation-bundles':
+                return jsonify(store.import_annotations(g.principal, identity, body())), 201
+            if resource == 'export':
+                return jsonify(store.export_fragment(g.principal, identity, body()))
             return jsonify(error='not_found'), 404
 
     app.register_blueprint(bp)

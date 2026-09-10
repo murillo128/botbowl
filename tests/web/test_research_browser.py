@@ -1,4 +1,5 @@
 """Real Chromium research navigation; run explicitly with the web test extra."""
+import base64
 import json
 from copy import deepcopy
 from threading import Thread
@@ -169,7 +170,7 @@ def test_invalid_file_missing_resource_and_keyboard_navigation(page):
 
 
 @pytest.mark.parametrize('pending', ['event', 'search', 'frame'])
-@pytest.mark.parametrize('destination', ['replay', 'decision'])
+@pytest.mark.parametrize('destination', ['replay', 'decision', 'event-replay'])
 def test_navigation_discards_delayed_event_work(page, tmp_path, pending, destination):
     page, store, bundle = page
     game, _, _, _, _ = record(tmp_path, decisions=0, name='empty')
@@ -181,6 +182,9 @@ def test_navigation_discards_delayed_event_work(page, tmp_path, pending, destina
     connect(page, 'editor')
     open_replay(page, bundle)
     root = page.locator('#factual').input_value()
+    if destination == 'event-replay':
+        branch = store.fork('editor', root, {'decision': 1, 'action': store.actions('editor', root, 1)[0], 'horizon': 1})
+        connect(page, 'editor')
     page.get_by_role('button', name='Search events').click()
     expect(page.locator('#event option').nth(1)).to_be_attached()
     event = page.locator('#event option').nth(1).get_attribute('value')
@@ -206,6 +210,11 @@ def test_navigation_discards_delayed_event_work(page, tmp_path, pending, destina
         page.locator('#factual').select_option(empty['id'])
         expect(page.locator('.panel')).to_have_attribute('data-replay-id', empty['id'])
         target = 0
+    elif destination == 'event-replay':
+        page.get_by_label('Event replay', exact=True).select_option(branch['id'])
+        expect(page.locator('#event option')).to_have_count(1)
+        expect(page.locator('.context')).to_contain_text('"decision_seq": 0')
+        target = 0
     else:
         go(page, 3)
         target = 3
@@ -223,5 +232,166 @@ def test_navigation_discards_delayed_event_work(page, tmp_path, pending, destina
     expect(page.locator('#event-detail')).to_be_empty()
     expect(page.get_by_role('button', name='Load legal alternatives')).to_be_enabled()
     expect(page.get_by_role('status')).to_have_text('Connected · navigation is read-only')
-    if destination == 'replay':
+    if destination in ('replay', 'event-replay'):
         expect(page.locator('#event option')).to_have_count(1)
+
+
+def test_external_layers_entity_join_text_toggle_and_download(page):
+    from tests.lab.test_annotations import annotation_bundle
+    page, store, bundle = page
+    connect(page)
+    open_replay(page, bundle)
+    root = page.locator('#factual').input_value()
+    go(page, 1)
+    frame = store.frame(root, 1)
+    data = annotation_bundle(frame['context'], kind='projection_2d')
+    note = annotation_bundle(frame['context'], kind='human_note')['items'][0]
+    note['annotation_id'] = 'html-note'
+    data['items'].append(note)
+    before = store.summary(root)['predictions']
+    page.get_by_label('Annotation / export replay').select_option(root)
+    page.get_by_label('AnnotationBundleV1 JSON file').set_input_files({
+        'name': 'annotations.json', 'mimeType': 'application/json', 'buffer': json.dumps(data).encode()})
+    toggle = page.get_by_label('External layer · artificial', exact=True)
+    expect(toggle).to_be_checked()
+    expect(page.locator('[data-annotation-entity="home:0"]')).to_contain_text('[\n  1,\n  4\n]')
+    expect(page.locator('[data-annotation-entity="away:0"]')).to_contain_text('[\n  2,\n  3\n]')
+    expect(page.locator('.external-layer-content')).to_contain_text('<script>window.annotationInjected=true</script>')
+    assert page.locator('.external-layer-content script').count() == 0
+    assert page.evaluate('window.annotationInjected') is None
+    toggle.uncheck()
+    expect(page.locator('.external-layer-content')).to_be_hidden()
+    toggle.check()
+    expect(page.locator('.external-layer-content')).to_be_visible()
+    assert store.frame(root, 1) == frame
+    assert store.summary(root)['predictions'] == before
+    with page.expect_download() as downloaded:
+        page.get_by_role('button', name='Export current decision with synthetic image').click()
+    assert downloaded.value.suggested_filename == 'research-export.json'
+    go(page, 2)
+    expect(page.locator('.external-layer-content')).to_have_count(0)
+
+
+def test_branch_initial_annotations_keep_shared_board_and_branch_isolation(page):
+    from tests.lab.test_annotations import annotation_bundle
+    page, store, bundle = page
+    connect(page)
+    open_replay(page, bundle)
+    root = page.locator('#factual').input_value()
+    actions = store.actions('editor', root, 1)
+    branches = [store.fork('editor', root, {'decision': 1, 'action': action, 'horizon': 1})
+                for action in actions[:2]]
+    branch = branches[0]
+    frame = store.frame(branch['id'], 1)
+    data = annotation_bundle(frame['context'])
+    connect(page)
+    page.locator('#branch-a').select_option(branch['id'])
+    expect(page.locator('.panel')).to_have_count(2)
+    page.locator('#branch-b').select_option(branches[1]['id'])
+    expect(page.locator('.panel')).to_have_count(3)
+    go(page, 1)
+    page.get_by_label('Annotation / export replay').select_option(branch['id'])
+    page.get_by_label('AnnotationBundleV1 JSON file').set_input_files({
+        'name': 'branch.json', 'mimeType': 'application/json', 'buffer': json.dumps(data).encode()})
+    panel = page.locator('.panel[data-replay-id="' + branch['id'] + '"]')
+    toggle = panel.get_by_label('External layer · artificial', exact=True)
+    expect(toggle).to_be_checked()
+    assert store.annotation_bundles(branch['id']) == [data]
+    expect(panel.locator('.alignment')).to_have_text('Shared factual prefix')
+    # The displayed board/context still belongs to the factual prefix.
+    factual_context = store.frame(root, 1)['context']
+    assert json.loads(panel.locator('.context').text_content()) == factual_context
+    canvases = page.locator('.panel > canvas').evaluate_all('(cs)=>cs.map(c=>c.toDataURL())')
+    assert len(set(canvases)) == 1
+    expect(panel.locator('[data-annotation-entity="home:0"]')).to_contain_text('10')
+    for other in (root, branches[1]['id']):
+        expect(page.locator('.panel[data-replay-id="' + other + '"] .external-layer-content')).to_have_count(0)
+    toggle.uncheck()
+    expect(panel.locator('.external-layer-content')).to_be_hidden()
+    toggle.check()
+    expect(panel.locator('.external-layer-content')).to_be_visible()
+    assert store.frame(branch['id'], 1) == frame
+    for decision in (0, 2):
+        go(page, decision)
+        expect(page.locator('.external-layer-content')).to_have_count(0)
+    go(page, 1)
+    expect(toggle).to_be_checked()
+
+
+def test_branch_event_annotations_use_exact_source_and_preceding_board(page):
+    from tests.lab.test_annotations import annotation_bundle
+    page, store, bundle = page
+    connect(page)
+    open_replay(page, bundle)
+    root = page.locator('#factual').input_value()
+    actions = store.actions('editor', root, 1)
+    branches = [store.fork('editor', root, {'decision': 1, 'action': action, 'horizon': 1})
+                for action in actions[:2]]
+    branch = branches[0]
+    event = store.events(branch['id'])[0]
+    counter = event['context']['event_seq']
+    # Equal counters across different branches must never select the same layer.
+    assert counter in {e['context']['event_seq'] for e in store.events(root)}
+    assert counter in {e['context']['event_seq'] for e in store.events(branches[1]['id'])}
+    data = annotation_bundle(event['context'])
+    item = data['items'][0]
+    item.update(target_kind='event', issued_at=branch['initial'],
+                horizon=event['context']['decision_seq'] - branch['initial']['decision_seq'])
+    before = store.event(branch['id'], counter)
+    connect(page)
+    page.locator('#branch-a').select_option(branch['id'])
+    expect(page.locator('.panel')).to_have_count(2)
+    page.get_by_label('Annotation / export replay').select_option(branch['id'])
+    with page.expect_response('**/replays/' + branch['id'] + '/annotation-bundles') as imported:
+        page.get_by_label('AnnotationBundleV1 JSON file').set_input_files({
+            'name': 'branch-event.json', 'mimeType': 'application/json', 'buffer': json.dumps(data).encode()})
+    assert imported.value.status == 201
+    expect(page.get_by_role('status')).to_have_text('Connected · navigation is read-only')
+    assert store.annotation_bundles(branch['id']) == [data]
+
+    def select_event(source):
+        page.get_by_label('Event replay', exact=True).select_option(source)
+        expect(page.get_by_role('status')).to_have_text('Connected · navigation is read-only')
+        page.get_by_role('button', name='Search events').click()
+        expect(page.locator('#event option[value="%s"]' % counter)).to_be_attached()
+        page.get_by_label('Event', exact=True).select_option(str(counter))
+        expect(page.locator('#event-detail')).not_to_be_empty()
+        assert json.loads(page.locator('#event-detail').text_content()) == store.event(source, counter)['event']
+
+    select_event(branch['id'])
+    toggle = page.locator('#event-layers').get_by_label('External layer · artificial', exact=True)
+    expect(toggle).to_be_checked()
+    expect(page.locator('#event-layers [data-annotation-entity="home:0"]')).to_contain_text('10')
+    assert json.loads(page.locator('.event-frame-context').text_content()) == before['frame']['context']
+    rgb = page.locator('#event-layers > canvas').evaluate('''c => {
+        const rgba = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+        return Array.from(rgba).filter((_, i) => i % 4 !== 3);
+    }''')
+    assert bytes(rgb) == base64.b64decode(before['frame']['image']['rgb'])
+    toggle.uncheck()
+    expect(page.locator('#event-layers .external-layer-content')).to_be_hidden()
+    toggle.check()
+    expect(page.locator('#event-layers .external-layer-content')).to_be_visible()
+    page.locator('#branch-b').select_option(branches[1]['id'])
+    expect(page.locator('.panel')).to_have_count(3)
+    expect(toggle).to_be_checked()
+    connect(page)
+    expect(toggle).to_be_checked()
+    # Importing while this event is open refreshes its layers in place.
+    note = deepcopy(data)
+    note['bundle_id'] = 'event-note'
+    note['items'][0].update(kind='human_note', data='Branch event note')
+    page.get_by_label('AnnotationBundleV1 JSON file').set_input_files({
+        'name': 'event-note.json', 'mimeType': 'application/json', 'buffer': json.dumps(note).encode()})
+    expect(page.locator('#event-layers').get_by_label('External layer · event-note', exact=True)).to_be_checked()
+    expect(page.locator('#event-layers')).to_contain_text('Branch event note')
+    assert json.loads(page.locator('#event-detail').text_content()) == before['event']
+    expect(page.locator('#panels .external-layer-content')).to_have_count(0)
+    for source in (root, branches[1]['id']):
+        select_event(source)
+        expect(page.locator('#event-layers .external-layer-content')).to_have_count(0)
+    select_event(branch['id'])
+    expect(toggle).to_be_checked()
+    assert store.event(branch['id'], counter) == before
+    go(page, 1)
+    expect(page.locator('#event-layers')).to_be_empty()
