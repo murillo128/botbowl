@@ -36,6 +36,7 @@ SELECTIONS = {
     'lab-adapters': ['tests/ai/test_gymnasium_env.py', 'tests/lab/test_pettingzoo_aec.py'],
     'lab-http': ['tests/lab/test_http_api.py', 'tests/lab/test_http_client.py',
                  'tests/lab/test_research_viewer.py',
+                 'tests/lab/test_quickstarts.py',
                  'tests/ci/http_profile.py'],
 }
 
@@ -78,7 +79,8 @@ def main():
                          'adapters-57': 'required: lab-adapters',
                          'local-59': 'required: lab-fast',
                          'remote-60': 'required: lab-http',
-                         'viewer-51': 'unavailable; not tested'},
+                         'viewer-51': 'required: lab-http',
+                         'quickstarts-41': 'required: lab-http'},
         'fixture_plan': {'m1_seed': 17, 'm1_episodes': 100, 'm1_size': 3,
                          'm1_max_decisions': 8, 'm1_max_steps': 1000,
                          'http_seed': 17, 'http_example_max_decisions': 24,

@@ -46,10 +46,21 @@ See the complete [Gymnasium contract](gymnasium.md).
 
 The inherited Flask UI remains optional. Reads no longer advance a game; updates
 are explicit, rejected client actions use JSON errors, and trusted local
-save/load preserves engine RNG rather than reseeding. The web API is still a
-local interactive interface, not an authenticated public simulation service.
+save/load preserves engine RNG rather than reseeding. Those inherited UI routes remain a local interactive interface. The separate
+[lab HTTP service and SDK](lab/http.md) provide authenticated JSON control with
+explicit roles, revision guards and bounded requests; they do not retrofit those
+guarantees onto legacy UI routes.
 
 The competition socket continues to serialize Python objects with pickle. Its
 new framing, loopback restriction, deadlines and cleanup improve robustness but
 do not make deserialization safe. Never accept arbitrary peers or files. See
 [web API](web-api.md) and [trusted transport limits](docker.md).
+
+## Laboratory formats
+
+Use the [installed quickstarts](lab/quickstarts.md) for datasets, authenticated
+control, portable snapshots and alternative branches. The [compatibility matrix](lab/release-proposal.md)
+names accepted versions and unsupported migrations. Legacy visual pickle replays
+do not contain the state needed for automatic conversion to executable ReplayV1.
+SnapshotFileV1 requires its exact component/schema identities; upgrading the
+package does not promise to migrate an old saved graph.

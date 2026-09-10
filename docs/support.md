@@ -26,14 +26,17 @@ is made across arbitrary package, NumPy, RNG-algorithm or rules changes. See
 
 | Mechanism | Intended use | Continue simulation? | Trust/portability boundary |
 | --- | --- | --- | --- |
-| `Replay` | Action/report history and visual seeking | Not a general branch point | Pickled local file; trusted input only |
+| Legacy `Replay` | Action/report history and visual seeking | Not a general branch point | Pickled local file; trusted input only |
 | Web save/load | Resume an inherited local game | Yes, within compatible trusted code | Pickled local file; trusted input only |
 | `Game.capture_checkpoint()` / `Game.restore_checkpoint()` | Rewind engine/RNG during one live process | Yes, for tested in-memory branches | Not a persistent or cross-process format |
 | `Game.to_json()` / replay page | UI observation | No | Data view, not enough to restore the simulator |
+| `SnapshotFileV1` | Validated JSON engine/episode graph | Yes, in compatible processes | Exact engine/NumPy/backend/schema identities; bounded closed codec |
+| `ReplayV1` | Snapshot plus verified decisions/events | Yes, seek and branch | JSON manifests/checkpoints; same snapshot compatibility requirements |
 
 A replay looking correct in the browser does not prove that a simulation can be
-restored and continued. None of these is the future portable, validated,
-untrusted-input snapshot format. Checkpoints do not own external I/O, policy
-state or wall clocks. Loading pickle can execute code; accept only files and
+restored and continued. The portable [snapshot codec](lab/snapshot-files.md) and
+[executable replay](lab/replays.md) are separate from legacy visual data; neither
+automatically converts old pickle files. Checkpoints do not own external I/O,
+policy state or wall clocks. Loading pickle can execute code; accept only files and
 peers controlled by the same trusted user. See [forward model](forward-model.md),
 [web API](web-api.md), and [transport](docker.md).
