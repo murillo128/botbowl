@@ -372,6 +372,11 @@ def test_branch_event_annotations_use_exact_source_and_preceding_board(page):
     expect(page.locator('#event-layers .external-layer-content')).to_be_hidden()
     toggle.check()
     expect(page.locator('#event-layers .external-layer-content')).to_be_visible()
+    page.locator('#branch-b').select_option(branches[1]['id'])
+    expect(page.locator('.panel')).to_have_count(3)
+    expect(toggle).to_be_checked()
+    connect(page)
+    expect(toggle).to_be_checked()
     # Importing while this event is open refreshes its layers in place.
     note = deepcopy(data)
     note['bundle_id'] = 'event-note'

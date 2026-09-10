@@ -203,7 +203,7 @@
     interiorEvent=false; $('boundary').textContent=''; $('event-detail').textContent='';
     $('decision').value=String(value); await render();
   }
-  $('connect').addEventListener('submit',run(async () => {stop();invalidateSelection();say('Connecting…');token=$('token').value;await refresh();await render();say('Connected · navigation is read-only');}));
+  $('connect').addEventListener('submit',run(async () => {stop();invalidateSelection();say('Connecting…');token=$('token').value;await refresh();await renderSelection();say('Connected · navigation is read-only');}));
   $('upload').addEventListener('change',run(async () => {
     const file=$('upload').files[0]; if (!file) return;
     if (file.size>limit) throw new Error('Replay file too large');
@@ -211,7 +211,7 @@
     $('factual').value=row.id;updateBranches();await navigate(row.initial.decision_seq,true);
   }));
   $('factual').addEventListener('change',run(async()=>{stop();interiorEvent=false;selectedEntity=null;updateBranches();await navigate(factual()?factual().initial.decision_seq:0,true);}));
-  ['branch-a','branch-b'].forEach(id=>$(id).addEventListener('change',run(async()=>{stop();invalidateSelection();await render();})));
+  ['branch-a','branch-b'].forEach(id=>$(id).addEventListener('change',run(async()=>{stop();invalidateSelection();await renderSelection();})));
   $('event-replay').addEventListener('change',run(async()=>{stop();await navigate(factual()?factual().initial.decision_seq:0,true);}));
   $('go').addEventListener('click',run(async()=>{stop();await navigate(Number($('decision').value));}));
   $('previous').addEventListener('click',run(async()=>{stop();await navigate(Number($('decision').value)-1);}));
@@ -255,6 +255,9 @@
     } catch(error) {if(isCurrent())throw error;}
   }
   $('event').addEventListener('change',run(showEvent));
+  async function renderSelection() {
+    if(interiorEvent && $('event').value)await showEvent();else await render();
+  }
   $('decision').addEventListener('input',()=>{stop();invalidateSelection();actions=[];$('fork').disabled=true;});
   $('load-actions').addEventListener('click',run(async()=>{
     const source=factual().id, decision=$('decision').value;
@@ -276,7 +279,7 @@
     if(file.size>1024*1024)throw new Error('Annotation bundle too large');
     say('Importing external annotations…');
     await api(`replays/${source}/annotation-bundles`,JSON.parse(await file.text()));await refresh();
-    if(interiorEvent && $('event').value)await showEvent();else await render();
+    await renderSelection();
   }));
   $('export-fragment').addEventListener('click',run(async()=>{
     const source=$('annotation-replay').value;if(!source)throw new Error('Choose an annotation replay');
