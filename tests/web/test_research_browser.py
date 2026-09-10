@@ -261,3 +261,49 @@ def test_external_layers_entity_join_text_toggle_and_download(page):
     assert downloaded.value.suggested_filename == 'research-export.json'
     go(page, 2)
     expect(page.locator('.external-layer-content')).to_have_count(0)
+
+
+def test_branch_initial_annotations_keep_shared_board_and_branch_isolation(page):
+    from tests.lab.test_annotations import annotation_bundle
+    page, store, bundle = page
+    connect(page)
+    open_replay(page, bundle)
+    root = page.locator('#factual').input_value()
+    actions = store.actions('editor', root, 1)
+    branches = [store.fork('editor', root, {'decision': 1, 'action': action, 'horizon': 1})
+                for action in actions[:2]]
+    branch = branches[0]
+    frame = store.frame(branch['id'], 1)
+    data = annotation_bundle(frame['context'])
+    connect(page)
+    page.locator('#branch-a').select_option(branch['id'])
+    expect(page.locator('.panel')).to_have_count(2)
+    page.locator('#branch-b').select_option(branches[1]['id'])
+    expect(page.locator('.panel')).to_have_count(3)
+    go(page, 1)
+    page.get_by_label('Annotation / export replay').select_option(branch['id'])
+    page.get_by_label('AnnotationBundleV1 JSON file').set_input_files({
+        'name': 'branch.json', 'mimeType': 'application/json', 'buffer': json.dumps(data).encode()})
+    panel = page.locator('.panel[data-replay-id="' + branch['id'] + '"]')
+    toggle = panel.get_by_label('External layer · artificial', exact=True)
+    expect(toggle).to_be_checked()
+    assert store.annotation_bundles(branch['id']) == [data]
+    expect(panel.locator('.alignment')).to_have_text('Shared factual prefix')
+    # The displayed board/context still belongs to the factual prefix.
+    factual_context = store.frame(root, 1)['context']
+    assert json.loads(panel.locator('.context').text_content()) == factual_context
+    canvases = page.locator('.panel > canvas').evaluate_all('(cs)=>cs.map(c=>c.toDataURL())')
+    assert len(set(canvases)) == 1
+    expect(panel.locator('[data-annotation-entity="home:0"]')).to_contain_text('10')
+    for other in (root, branches[1]['id']):
+        expect(page.locator('.panel[data-replay-id="' + other + '"] .external-layer-content')).to_have_count(0)
+    toggle.uncheck()
+    expect(panel.locator('.external-layer-content')).to_be_hidden()
+    toggle.check()
+    expect(panel.locator('.external-layer-content')).to_be_visible()
+    assert store.frame(branch['id'], 1) == frame
+    for decision in (0, 2):
+        go(page, decision)
+        expect(page.locator('.external-layer-content')).to_have_count(0)
+    go(page, 1)
+    expect(toggle).to_be_checked()

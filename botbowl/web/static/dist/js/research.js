@@ -97,7 +97,10 @@
       node('pre',showJSON(frame.context),'context'),node('pre',showJSON({replay_id:row.replay_id,
         origin_family_id:row.origin_family_id,...row.provenance,end:row.end}),'provenance'));
     p.append(details);
-    if (!exhausted) p.append(externalLayers(row, frame));
+    // At divergence the board is still factual, but branch annotations target
+    // the exact initial context recorded in that branch's replay manifest.
+    const layerContext = shared && requested === row.initial.decision_seq ? row.initial : frame.context;
+    if (!exhausted) p.append(externalLayers(row, frame, layerContext));
     return p;
   }
   function externalLayers(row, frame, target = frame.context, targetKind = 'decision') {

@@ -27,6 +27,9 @@ join to the replay by stable player ID; the projection plot is accompanied by an
 accessible entity/coordinate table. Notes, source strings and metadata render as
 text. Moving away from a target hides its decision layers. Interior event records
 appear with their event detail and explicitly refer to the preceding board.
+At a branch's initial boundary, layers use that branch's recorded context even
+while its board displays the shared factual prefix. They remain isolated from
+the factual panel and other branches.
 
 ## Wire format
 
