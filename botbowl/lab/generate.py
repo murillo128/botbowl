@@ -290,7 +290,7 @@ def _atomic_json(path, data, *, job=False):
     temporary.rename(path)
 
 
-def _run(entry, config, destination, supplied=None):
+def _run(entry, config, destination, supplied=None, *, observer=None):
     with ExitStack() as resources:
         session = _open_session(entry, config)
         resources.callback(session.close)
@@ -309,7 +309,15 @@ def _run(entry, config, destination, supplied=None):
         result = session.observe()
         count = 0
         options = []
+        if observer is not None:
+            observer.boundary(result, count, recorder)
+        administrative_end = None
         while _end(result, count, entry) is None:
+            reason = None if observer is None else observer.stop_reason()
+            if reason is not None:
+                administrative_end = dict(reason=reason, terminated=False, truncated=True,
+                    scenario_terminal=False, scenario_success=None, decisions=count)
+                break
             legal = session.legal_actions()
             if supplied is not None:
                 if count >= len(supplied):
@@ -323,6 +331,8 @@ def _run(entry, config, destination, supplied=None):
                     features = project_inputs({'primary': result.primary}, PRIMARY_PROFILE)['features']
                     action = policies[result.next_actor].act(features, deepcopy(legal))
             counts = option_counts(legal, action) if 'policy_specs' in entry else None
+            if observer is not None:
+                observer.action(action)
             try:
                 result = session.step(action, legal.state_revision)
                 count += 1
@@ -333,7 +343,9 @@ def _run(entry, config, destination, supplied=None):
                 result = session.observe()
             if counts is not None:
                 options.append(counts)
-        end = _end(result, count, entry)
+            if observer is not None:
+                observer.boundary(result, count, recorder)
+        end = administrative_end or _end(result, count, entry)
         if supplied is not None and count != len(supplied):
             raise ValueError('Supplied actions continue past the declared episode boundary')
         generation = {
