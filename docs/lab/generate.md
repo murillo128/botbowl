@@ -14,6 +14,10 @@ python -m botbowl.lab.generate replay /tmp/botbowl-small episode-000000 \
   --output /tmp/botbowl-replayed
 ```
 
+For progress, cooperative cancellation, atomic incremental publication and
+recovery, use the separate [long-job driver](jobs.md). The following describes
+the original generator API.
+
 Every destination must be new. There is no overwrite, automatic retry, resume or
 parallel execution. Configuration validates before creating a destination or
 executing any episode. The CLI accepts closed IDs and JSON data, never module
