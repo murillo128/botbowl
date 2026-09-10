@@ -40,7 +40,7 @@ with tempfile.TemporaryDirectory() as directory:
     for side in ('left', 'right'):
         game = ReplayReader(root / 'branches', side).replay_all()
         game.close()
-    run('http_match', 8)
+    run('http_match', 8, '--creation-request-id', '1')
     http = read('http_match/http.json')
     assert {action['actor_id'] for action in http['actions']} == {'home', 'away'}
     assert http['state']['truncated'] and len(http['actions']) == 8

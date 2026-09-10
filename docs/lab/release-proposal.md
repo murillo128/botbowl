@@ -25,7 +25,9 @@ Expected release evidence is deliberately finite:
 - Dataset: six 3v3 origins at seed 17, four accepted decisions each; repeated
   semantic hashes, 24 windows, disjoint partitions and no privileged input read.
 - HTTP: eight decisions at seed 17 through two player credentials, compared with
-  local public session output using the same selection policy. Ephemeral loopback
+  local public session output using the same selection policy. Two new episodes
+  also run against one persistent gateway with distinct, increasing creation IDs;
+  retries retain their original identity. Ephemeral loopback
   transport is tested; production TLS/proxy deployment is not implied.
 - Snapshot: a natural pregame episode saved after one decision, resumed in a new
   interpreter, with matching continuation events, budget state and semantic hash.

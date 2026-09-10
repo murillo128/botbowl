@@ -154,6 +154,50 @@ finally:
     assert result['state']['end_reason'] == 'decision_budget'
 
 
+def test_http_installed_repeated_invocations_share_persistent_service(installed):
+    root, _, code = installed
+    code("""
+import os
+from pathlib import Path
+import subprocess
+import sys
+from botbowl.examples._loopback import ephemeral_tokens, loopback
+# One server and principal set outlive two independent example interpreters.
+tokens = ephemeral_tokens()
+with loopback(tokens) as url:
+    env = dict(os.environ, BOTBOWL_HTTP_URL=url)
+    env.update({'BOTBOWL_HTTP_TOKEN_' + role.upper(): token for role, token in tokens.items()})
+    for creation_id in (101, 102):
+        result = subprocess.run([
+            sys.executable, '-I', '-m', 'botbowl.examples.http_match',
+            '--output', 'persistent-' + str(creation_id), '--seed', '17',
+            '--max-decisions', '8', '--max-steps', '1000',
+            '--creation-request-id', str(creation_id)],
+            env=env, capture_output=True, text=True, timeout=60)
+        if any(token in result.stdout + result.stderr for token in tokens.values()):
+            raise AssertionError('credential appeared in example output')
+        if result.returncode:
+            raise AssertionError('persistent-service invocation failed')
+""")
+    first = read(root / 'persistent-101/http.json')
+    assert first == read(root / 'persistent-102/http.json')
+    assert len(first['actions']) == 8
+    assert {action['actor_id'] for action in first['actions']} == {'home', 'away'}
+    assert first['state']['truncated'] and first['state']['end_reason'] == 'decision_budget'
+
+
+@pytest.mark.parametrize('creation_args', [(), ('--creation-request-id', '0')])
+def test_http_persistent_service_requires_positive_creation_id(installed, creation_args):
+    root, run, _ = installed
+    credentials = {'BOTBOWL_HTTP_TOKEN_' + role: secrets.token_urlsafe(32)
+                   for role in ('ADMIN', 'HOME', 'AWAY')}
+    credentials['BOTBOWL_HTTP_URL'] = 'http://127.0.0.1:9'
+    output = root / 'invalid-creation'
+    run('http_match', '--output', output, '--seed', '17', *creation_args,
+        extra_env=credentials, expected=2)
+    assert not output.exists()
+
+
 def test_snapshot_installed_fresh_process_restores_episode(installed):
     root, run, _ = installed
     for operation in ('save', 'resume'):

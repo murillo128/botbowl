@@ -59,7 +59,8 @@ python -m botbowl.examples.http_match --loopback --output "$LAB_OUT/http" --seed
 ```
 
 `--loopback` starts one temporary server on an OS-assigned loopback port, creates
-three ephemeral bearer credentials in memory and shuts down on exit. Credentials
+three ephemeral bearer credentials in memory and shuts down on exit. Creation
+request ID 1 is safe by default here because each invocation owns a fresh gateway. Credentials
 are not printed or saved. The administrator can create/close its sessions; the
 home and away principals can play only their own team. The SDK queries legal
 commands at every revision and selects the indexed legal command for the actual
@@ -70,7 +71,27 @@ session state; the acceptance test compares it with the same decisions through
 For an operator-configured remote service, omit `--loopback` and provide
 `BOTBOWL_HTTP_URL`, `BOTBOWL_HTTP_TOKEN_ADMIN`, `BOTBOWL_HTTP_TOKEN_HOME` and
 `BOTBOWL_HTTP_TOKEN_AWAY` through your process environment/secret manager. The
-same command and SDK run against that URL. Never put tokens in URLs, source,
+same SDK runs against that URL, with an explicit `--creation-request-id`.
+For a fresh administrator principal, two successive runs are:
+
+```bash
+python -m botbowl.examples.http_match --creation-request-id 1 --output "$LAB_OUT/http-first" --seed 17 --max-decisions 8 --max-steps 1000
+python -m botbowl.examples.http_match --creation-request-id 2 --output "$LAB_OUT/http-second" --seed 17 --max-decisions 8 --max-steps 1000
+```
+
+Coordinate strictly increasing creation IDs across **all** clients using that
+administrator principal during the gateway lifetime. For an existing principal,
+choose IDs above its last accepted creation ID; the example does not allocate or
+persist this shared counter. Closing a session or expiring a receipt does not
+reset the high-water mark. Reusing an ID can return the earlier, already closed
+session; changing its payload conflicts. The installed acceptance test runs two
+separate interpreters against one server and credential set with IDs 101 and 102.
+A creation retry must retain the original ID and identical payload: the SDK
+retries the same pending command. Restarting this whole example is a **new
+episode**, not a recovery mechanism for an uncertain earlier creation. Reconcile
+that pending outcome through the SDK/operator before allocating another ID.
+
+Never put tokens in URLs, source,
 output files or shell commands stored in history. This example does not provision
 a remote service. The SDK rejects plaintext non-loopback URLs, redirects and
 proxy discovery. Real remote deployments require TLS (or the server's exact
@@ -168,7 +189,7 @@ docker run --rm botbowl-headless python -m botbowl.examples.branches --output /t
 
 The base headless image can also run `http_match` against your HTTPS service,
 passing the four environment variables with `docker run --env NAME` (names only,
-not literal credentials). Its optional loopback server needs Flask, so use the
+not literal credentials) and an operator-coordinated `--creation-request-id`. Its optional loopback server needs Flask, so use the
 existing `web` target for that variant and override its command with the same
 `python -m botbowl.examples.http_match --loopback ...` invocation. Persist desired
 outputs through an operator-owned writable mount; ephemeral `/tmp` is discarded
