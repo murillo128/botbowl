@@ -298,3 +298,101 @@ def test_replay_retains_administrative_boundary_before_failed_publication(tmp_pa
     assert resume(tmp_path / 'job').confirmed_episodes == 1
     assert reproduce(failure)['status'] == 'not_reproduced'
     assert DatasetReader(tmp_path / 'job').episode(0).manifest['end']['reason'] == 'job_decision_budget'
+
+
+def _checkpoint_worker(plan, output, limits, cancel, failure):
+    """Reach a committed prefix and saved decision before failing in a policy."""
+    import os
+    from pathlib import Path
+    from botbowl.lab import jobs
+
+    original = ReferencePolicy.act
+    root = Path(output)
+
+    def act(policy, *args, **kwargs):
+        payload = (root / 'job-recovery.json').read_text()
+        recovery = json.loads(payload)
+        if (recovery['entry']['episode_id'] == plan['episodes'][1]['episode_id'] and
+                len(recovery['checkpoint']['actions']) == 1):
+            (root / 'probe-checkpoint.json').write_text(payload)
+            if failure == 'exit':
+                os._exit(17)
+            if failure == 'error':
+                raise ValueError('worker secret must be redacted')
+            if failure == 'cancel':
+                cancel.set()
+            while True:
+                time.sleep(0.05)
+        return original(policy, *args, **kwargs)
+
+    ReferencePolicy.act = act
+    jobs._supervised_worker(plan, output, limits, cancel)
+
+
+def _hang_after_checkpoint(plan, output, limits, cancel):
+    _checkpoint_worker(plan, output, limits, cancel, 'timeout')
+
+
+def _cancel_after_checkpoint(plan, output, limits, cancel):
+    _checkpoint_worker(plan, output, limits, cancel, 'cancel')
+
+
+def _exit_after_checkpoint(plan, output, limits, cancel):
+    _checkpoint_worker(plan, output, limits, cancel, 'exit')
+
+
+def _error_after_checkpoint(plan, output, limits, cancel):
+    _checkpoint_worker(plan, output, limits, cancel, 'error')
+
+
+@pytest.mark.parametrize('worker,error,state', [
+    (_hang_after_checkpoint, 'WorkerTimeout', 'failed'),
+    (_cancel_after_checkpoint, 'WorkerTimeout', 'cancelled'),
+    (_exit_after_checkpoint, 'WorkerExit', 'failed'),
+    (_error_after_checkpoint, 'ValueError', 'failed'),
+])
+def test_supervisor_retains_checked_failure_after_resume(tmp_path, monkeypatch, worker, error, state):
+    from botbowl.lab import jobs
+    # Keep the true worker entry callable inside the spawned helper.
+    real_worker = jobs._supervised_worker
+    monkeypatch.setattr(jobs, '_supervised_worker', worker)
+    p = plan(tmp_path, episodes=2, scenario='match', max_decisions=3)
+    ctx = JobContext(JobLimits(worker_timeout=10, join_timeout=0.2))
+    # The same event allows the child probe to request cancellation deterministically.
+    if worker is _cancel_after_checkpoint:
+        spawn = multiprocessing.get_context('spawn')
+        shared_cancel = spawn.Event()
+        monkeypatch.setattr(spawn, 'Event', lambda: shared_cancel)
+        ctx._cancel = shared_cancel
+    before = {child.pid for child in multiprocessing.active_children()}
+    started = time.monotonic()
+    value = supervise(p, tmp_path / 'job', context=ctx)
+    assert time.monotonic() - started < 25
+    assert value.state == state and value.confirmed_episodes == 1
+    assert {child.pid for child in multiprocessing.active_children()} == before
+    root = tmp_path / 'job'
+    saved = json.loads((root / 'probe-checkpoint.json').read_text())
+    failure, = root.glob('job-failure-*.json')
+    retained = failure.read_bytes()
+    data = json.loads(retained)
+    assert data['checkpoint'] == saved['checkpoint']
+    assert len(data['checkpoint']['actions']) == 1
+    assert len(data['checkpoint']['boundaries']) == 2
+    assert data['checkpoint']['snapshot'] is None
+    assert data['entry'] == p['episodes'][1]
+    assert data['last_confirmed_index'] == 0
+    assert data['state'] == state and data['error']['class'] == error
+    assert data['error']['message'] == 'Exception details redacted'
+    original = DatasetReader(root).episode(0).manifest
+    monkeypatch.setattr(jobs, '_supervised_worker', real_worker)
+    assert resume(root).confirmed_episodes == 2
+    reader = DatasetReader(root)
+    reader.verify()
+    assert reader.episode(0).manifest == original
+    assert failure.read_bytes() == retained
+    if error in ('WorkerTimeout', 'WorkerExit'):
+        with pytest.raises(IncompatibleRecovery, match='Worker timeout' if error == 'WorkerTimeout'
+                           else 'Abnormal worker exit'):
+            reproduce(failure)
+    else:
+        assert reproduce(failure)['status'] == 'not_reproduced'

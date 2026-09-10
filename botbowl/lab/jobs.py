@@ -429,6 +429,9 @@ def reproduce(output):
     if data['error']['class'] == 'WorkerTimeout':
         raise IncompatibleRecovery('Worker timeout has no in-process failure snapshot; '
                                    'repeat supervise with the recorded plan and limits')
+    if data['error']['class'] == 'WorkerExit':
+        raise IncompatibleRecovery('Abnormal worker exit has no in-process failure snapshot; '
+                                   'repeat supervise with the recorded plan and limits')
     context = JobContext(JobLimits(**data['limits']))
     context._start(len(plan['episodes']))
     observer = _Observer(context, data['checkpoint'])
@@ -462,6 +465,10 @@ def reproduce(output):
 
 
 class WorkerTimeout(RuntimeError):
+    pass
+
+
+class WorkerExit(RuntimeError):
     pass
 
 
@@ -542,21 +549,35 @@ def supervise(plan, output, *, context=None):
         'last_confirmed_index': ctx.confirmed - 1,
         'entry': plan['episodes'][ctx.confirmed] if ctx.confirmed < ctx.planned else None,
         'exitcode': code, 'reason': 'worker_timeout' if forced else 'worker_exit'}))
-    if not (root / 'job-recovery.json').exists():
+    recovery_exists = (root / 'job-recovery.json').exists()
+    if recovery_exists:
+        recovery = _read_recovery(root, plan)
+    else:
         from .storage import StorageLimits
         # No writer checkpoint means the initial recipe is the only safe point.
         # This supports resume without representing a killed process as a snapshot.
-        fallback = {
+        recovery = {
             'schema_version': 1, 'versions': _versions(), 'plan_sha256': _job_hash(plan),
             'limits': asdict(ctx.limits), 'storage_limits': asdict(StorageLimits()),
             'entry': plan['episodes'][ctx.confirmed] if ctx.confirmed < ctx.planned else None,
             'last_confirmed_index': ctx.confirmed - 1,
             'checkpoint': _Observer(ctx).checkpoint(),
-            'error': _error(WorkerTimeout()) if forced else _error(RuntimeError()),
+            'error': None,
             'stage': 'generation', 'state': 'failed', 'reason': 'job_error'}
-        payload = encode_json(fallback)
-        _atomic(root, 'job-recovery.json', payload)
+    if (not recovery_exists or forced or
+            code != 0 and (recovery['error'] is None or
+                          not any(root.glob('job-failure-*.json')))):
+        # A dead worker cannot finish its own failure report. Archive the checked
+        # prefix before resume can overwrite it, including late forced stops.
+        # Preserve a worker-written error if only its archive write was interrupted.
+        if forced or recovery['error'] is None:
+            recovery = {**recovery, 'last_confirmed_index': ctx.confirmed - 1,
+                        'error': _error(WorkerTimeout()) if forced else _error(WorkerExit()),
+                        'state': 'cancelled' if ctx._cancel.is_set() else 'failed',
+                        'reason': 'job_cancelled' if ctx._cancel.is_set() else 'job_error'}
+        payload = encode_json(recovery)
         _atomic(root, 'job-failure-' + uuid.uuid4().hex + '.json', payload)
+        _atomic(root, 'job-recovery.json', payload)
     if forced or code != 0:
         ctx.failed += 1
         ctx._finish('cancelled' if ctx._cancel.is_set() else 'failed',
