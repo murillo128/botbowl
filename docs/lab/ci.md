@@ -10,7 +10,7 @@ The existing lint and trusted-push Python/native core gates remain unchanged
 | `lab-fast` (Python and native) | Core + test tools + storage | Sharded JSONL/Parquet storage, public control, atomic rejection, observation privacy, cross-process snapshot, recorded-action replay, causal windows, origin splits, external M1 client, ReplayV1 (#42), session command permissions/idempotency (#59) |
 | `lab-extended` (Python and native) | Core + test tools | #25 broad sequences with seeds 0/3/17 and sizes 1/3/5/7/11; full snapshot subprocess, generation and recording contracts |
 | `lab-adapters` (Python) | Core + test tools + multiagent (includes Gymnasium) | Gymnasium and PettingZoo AEC contracts (#57), including invalid calls and interruption/mask behavior |
-| `lab-http` (Python) | Core + test tools + web | HTTP/SDK (#60) roles, versions, local/remote parity, snapshots, retries, timeouts, resource cleanup, and the installed external HTTP example |
+| `lab-http` (Python) | Core + test tools + web | HTTP/SDK (#60) roles, versions, local/remote parity, snapshots, retries, timeouts, resource cleanup, the installed external HTTP example, research viewer (#51), and all four installed laboratory quickstarts (#41) |
 
 Run a profile from a clean committed tree:
 
@@ -26,7 +26,7 @@ and run both examples with isolated Python from an unrelated working directory.
 
 `lab-fast` runs twice with independent temporary fixtures. Its M1 owner test
 compares two generated 100-episode, seed-17, 3v3 plans (eight decisions and 1,000
-engine steps per episode), validates all three origin partitions and reads 800
+automatic engine steps per decision), validates all three origin partitions and reads 800
 windows in other processes. It checks semantic hashes, masks and shapes, rather
 than merely accepting an example exit code. All 100 episodes are intentionally
 truncated; this is neither 100 complete matches nor model-quality evidence.
@@ -44,10 +44,12 @@ a missing adapter dependency. The wheel currently supplies replays, local comman
 and HTTP/SDK and advertises the multiagent and web extras, so their profiles are
 mandatory. The HTTP cell uses disposable loopback listeners and public fixture
 identities; its external example must report 24 decisions, a decision-budget
-ending and session cleanup. The research viewer #51 is not supplied yet: receipts
-explicitly say **unavailable; not tested**, rather than passed. Its owner must add its
-installed dependency, test selection and mandatory workflow cell when adding the
-capability to the distribution. The release manifest currently inventories wheel
+ending and session cleanup. The research viewer #51 is included in this cell through its existing owner
+tests. The four [laboratory quickstarts](quickstarts.md) additionally build a
+separate wheel and validate dataset splits, local/HTTP equivalence, cross-process
+episode restoration and isolated branch replay. Their HTTP test generates
+ephemeral credentials that are never printed. Receipts mark these as required
+contracts; successful execution, rather than selection alone, supplies evidence. The release manifest currently inventories wheel
 members, not a separate feature/version schema; this CI does not invent one.
 
 Hosted jobs have a 45-minute ceiling, a 20-minute process-group deadline per
