@@ -83,3 +83,7 @@ permissions; built distributions and the default container exclude them. Team
 icons are described by upstream as used with FUMBBL permission, and some icons
 originate from Fantasy Football Client. Do not treat those statements as a
 general redistribution grant. See the separate [rights inventory](THIRD_PARTY_NOTICES.md).
+
+For installed laboratory dataset, HTTP, snapshot and branching walkthroughs, see
+the [laboratory quickstarts](docs/lab/quickstarts.md) and their
+[release compatibility proposal](docs/lab/release-proposal.md).

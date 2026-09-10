@@ -15,12 +15,16 @@ This is a reviewable pre-release proposal, not a published release.
   truncation semantics; legacy Gym v4 remains a separate compatibility extra.
 - Rules/configuration descriptors, isolated RNG recipes, lab protocols and
   observation/channel APIs for reproducible experiments.
+- Installed laboratory quickstarts for dataset generation/consumption, authenticated
+  HTTP control, portable episode snapshots and isolated alternative branches, with
+  wheel acceptance tests and a [compatibility proposal](docs/lab/release-proposal.md).
 - Explicit Python/native pathfinding builds and installed-artifact validation.
 
 ### Changed
 
 - The maintained fork requires Python 3.11 or newer. Optional dependencies are
-  split into `web`, `rl`, `gymnasium`, `competition`, `render`, and `dev` extras.
+  split into `web`, `rl`, `gymnasium`, `multiagent`, `storage`, `competition`,
+  `render`, and `dev` extras.
 - Invalid public actions are validated before mutation, engine advancement has
   explicit budgets, and web errors use explicit HTTP status contracts.
 - The local competition socket has bounded framing and deadlines. Its pickle
@@ -38,8 +42,9 @@ This is a reviewable pre-release proposal, not a published release.
 
 - v5 Gymnasium actions and observations are not compatible with trained v4 Gym
   policies. See [migration](docs/migration.md).
-- Replays are visual/action-history data. In-memory checkpoints are not portable
-  snapshots, and local pickle saves/replays must never be loaded from untrusted
-  sources. See [support boundaries](docs/support.md).
+- Legacy pickle replays remain trusted visual history. SnapshotFileV1 supports
+  compatible-process restore; ReplayV1 adds executable history and hash checks.
+  Neither automatically migrates legacy files. In-memory checkpoints remain local.
+  See [support boundaries](docs/support.md).
 - BB2016 behavior is partial and tested for the shipped configurations; package
   naming does not claim complete official rules conformance.

@@ -43,7 +43,8 @@ python -m pip install '.[dev]'
 
 | Extra | Capability | Additional requirements |
 | --- | --- | --- |
-| `web` | Existing Flask HTTP routes | Flask and its dependencies |
+| `web` | Flask UI and authenticated lab HTTP server | Flask and its dependencies |
+| `storage` | Optional Arrow/Parquet laboratory storage ([contract](lab/storage.md)) | PyArrow >=21,<26 |
 | `rl` | Legacy Gym environments and wrappers | Gym 0.26.2, NumPy <2; see compatibility below |
 | `gymnasium` | Versioned Gymnasium v5 adapter and explicit controllers | Gymnasium >=1.3,<2; CPython 3.11–3.14, NumPy 2 |
 | `multiagent` | Two-coach PettingZoo AEC adapter ([contract](lab/pettingzoo.md)) | PettingZoo 1.25.0, Gymnasium >=1.3,<2 |
@@ -165,3 +166,6 @@ Choose a bounded path from the [core](quickstart-core.md),
 [bots](quickstart-bots.md), [Gymnasium](quickstart-gymnasium.md), or
 [web](quickstart-web.md) quickstart. Rules, RNG, replay and snapshot claims are
 summarized in [support boundaries](support.md).
+
+For four executable installed-wheel laboratory walkthroughs, see
+[dataset, HTTP, snapshot and branch quickstarts](lab/quickstarts.md).
