@@ -20,6 +20,7 @@ FAST = [
     'tests/lab/test_windows.py',
     'tests/lab/test_observers.py',
     'tests/lab/test_storage.py',
+    'tests/lab/test_collections.py',
     'tests/lab/test_parallel.py',
     'tests/lab/test_splits.py',
     'tests/lab/test_external_client.py',
