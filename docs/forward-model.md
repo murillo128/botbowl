@@ -68,4 +68,81 @@ With this forward model, we can go forward and the back. After this, we can go f
 
 We can also forward revert to a state that we previously revert from but the forward model itself does not store _"the history of the future"_. So we have to manage the that ourselves. The forward model makes that easy, `game.revert()` returns the steps that was reverted. And we simply provide them as argument to ´game.forward()` to get back our future state.  
 
-Notice that the random generator's state is not reverted. To force determinisim in the forward model you have to manually store the seed before taking actions and setting it after the revert, simply set the seed before stepping forward. 
+`game.revert(step)` and `game.forward(steps)` undo and redo trajectory-managed
+state only. They leave the random generator and forced-dice queues advanced,
+preserving the existing search behavior. Reapplying the initial seed restarts
+the stream; it does not restore an arbitrary point in that stream.
+
+## Repeating an action sequence
+
+After enabling the forward model, capture an explicit checkpoint to combine the
+trajectory position with the complete game RNG and forced-dice queues:
+
+```python
+checkpoint = game.capture_checkpoint()
+game.step(action)
+# Take further explicit actions as needed.
+game.restore_checkpoint(checkpoint)
+game.step(action)  # Repeats the same game randomness from that checkpoint.
+```
+
+Restore is valid only for an ancestor still present in the same game's
+trajectory. Checkpoints from another game, a discarded future, or a different
+branch at the same step number raise `ValueError`. A checkpoint can be restored
+repeatedly while its ancestor remains present. The returned undone steps can be
+passed to `forward`, which retains its state-only semantics.
+
+For RNG-only capture, use `state = game.capture_rng_state()` and
+`game.restore_rng_state(state)`. This includes NumPy `RandomState`'s MT19937 keys,
+position, cached Gaussian, all forced queues, and strict-context modes. Captured
+queues and RNG keys are immutable copies; restoring or deep-copying a game does
+not share mutable queues with another branch. Outside a forced context, an RNG
+state can also be restored into another game's dice source.
+
+These are in-memory replay tools, not persistent or safe cross-process snapshot
+formats. They cover the state managed by the trajectory and randomness owned by
+the game. They do not restore wall clocks, external I/O, persistent replay
+recorders, or bot/policy state. Supply the same decisions to reproduce events;
+if a policy chooses those decisions randomly, capture its state separately.
+The existing `RandomBot(name, seed=policy_seed)` owns its own RNG.
+`game.set_seed(game_seed)` only restarts the game's stream and preserves pending
+forced rolls. Drawing policy choices from `game.rng` would deliberately consume
+the game stream, so use a separate policy RNG when independence is required.
+
+## Game-local test dice
+
+`game.rng` remains a NumPy `RandomState`; natural dice retain their previous
+algorithm and block-die probabilities. Engine dice draw from `game.dice`, which
+owns the game's RNG and optional forced queues. Forced results are a testing
+facility and must not be interpreted as samples from a natural distribution.
+
+```python
+with game.dice.force(d6=[1, 6], block_dice=[botbowl.BBDieResult.PUSH], strict=True):
+    # Engine procedures and direct dice consume only this game's current queues.
+    assert botbowl.D6(game.dice).value == 1
+    checkpoint = game.capture_checkpoint()
+    assert botbowl.D6(game.dice).value == 6
+    game.restore_checkpoint(checkpoint)
+    assert botbowl.D6(game.dice).value == 6
+```
+
+`force` replaces all four queues within its context, supports nesting, and
+restores the outer queues on exit, including exceptions. Unused inner results
+are discarded. Exhaustion raises `ForcedRollExhausted` in strict mode; otherwise
+it falls back to the natural RNG. Forced draws never advance that RNG. Natural
+draws inside a context remain advanced on exit. Restore a captured RNG state or
+checkpoint within the same active forced contexts; expired contexts cannot be
+resurrected. Strict mode governs dice, not direct calls to `game.rng`.
+
+For a queue lasting until consumption, explicit clearing, or the game's lifetime,
+use `game.dice.fix(botbowl.D6, 1, 6)`. Inspect it with
+`game.dice.pending(botbowl.D6)` (an immutable tuple), clear that die with
+`game.dice.clear(botbowl.D6)`, or clear all current queues with `game.dice.clear()`.
+Numeric dice accept integers in 1–3, 1–6, or 1–8 respectively; booleans and floats
+are rejected. Block dice accept `BBDieResult` values. Invalid values raise
+`ValueError` before any supplied results are queued.
+
+The former process-global `D3/D6/D8/BBDie.fix`, `FixedRolls`, and
+`BBDie.clear_fixes` test hooks are removed. Migrate them to the owning game's
+source or a `force` context. Standalone natural dice still accept an ordinary
+NumPy `RandomState`; standalone forced-dice tests can construct a `DiceSource`.

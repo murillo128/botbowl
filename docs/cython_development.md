@@ -12,8 +12,8 @@ The only reason for not using Cython's pure mode is if you what to build part of
 Here's the suggested workflow for developing cython modules without pure mode: 
  1. Write tests. 
  2. Write python code that passes the tests.
- 3. Setup the cython module, remember to add it to [setup.py](setup.py)
- 4. Extened the test suite to include the cython module, see [tests/ai/test_pathfinding.py](tests/ai/test_pathfinding.py) for example.
+ 3. Set up the Cython module; build configuration lives in [`setup.py`](../setup.py).
+ 4. Extend the test suite to include the Cython module; see [`tests/ai/test_pathfinding.py`](../tests/ai/test_pathfinding.py) for example.
  5. Implement the cython module. 
 
 This means, if you want to work on the pathfinding module (e.g. add Break Tackle to the list of skills considered) 

@@ -4,6 +4,18 @@ appServices.factory('GameService', function($http) {
         get: function(id) {
             return $http.get(options.api.base_url + '/games/' + id);
         },
+
+        update: function(id) {
+            return $http.post(options.api.base_url + '/games/' + id + '/update', {});
+        },
+
+        pause: function(id) {
+            return $http.post(options.api.base_url + '/games/' + id + '/pause', {});
+        },
+
+        resume: function(id) {
+            return $http.post(options.api.base_url + '/games/' + id + '/resume', {});
+        },
         
         findAll: function() {
             return $http.get(options.api.base_url + '/games/');
@@ -22,7 +34,7 @@ appServices.factory('GameService', function($http) {
         },
 
         deleteSaved: function(name) {
-            return $http.delete(options.api.base_url + '/save/' + name + "/delete");
+            return $http.delete(options.api.base_url + '/save/' + encodeURIComponent(name) + "/delete");
         },
 
         create: function(game, mode) {
@@ -34,7 +46,7 @@ appServices.factory('GameService', function($http) {
         },
 
         load: function(name) {
-            return $http.get(options.api.base_url + '/game/load/' + name);
+            return $http.post(options.api.base_url + '/game/load/' + encodeURIComponent(name), {});
         }
 
     };
@@ -43,11 +55,11 @@ appServices.factory('GameService', function($http) {
 appServices.factory('ReplayService', function($http) {
     return {
         get: function(id) {
-            return $http.get(options.api.base_url + '/replays/' + id);
+            return $http.get(options.api.base_url + '/replays/' + encodeURIComponent(id));
         },
 
         getSteps: function(id, from_idx, num_steps) {
-            return $http.get(options.api.base_url + '/steps/' + id + "/" + from_idx + "/" + num_steps);
+            return $http.get(options.api.base_url + '/steps/' + encodeURIComponent(id) + "/" + from_idx + "/" + num_steps);
         },
 
         findAll: function() {

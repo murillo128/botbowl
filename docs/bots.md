@@ -5,6 +5,54 @@ If you end up developing your own bot, please submit it to [Bot Bowl II](bot-bow
 
 Make sure that botbowl is installed. If you haven't installed it yet, go to the [installation guide](installation.md).
 
+## Checking an action
+
+Use `game.is_action_allowed(action)` for a boolean, or `game.validate_action(action)`
+for an immutable result with `allowed`, `code`, and `message` fields. Both queries
+check the current `game.get_available_actions()` without changing the action,
+game state, procedure stack, trajectory, reports, replay, or random generator.
+They do not print or run a procedure to regenerate choices. The former private
+`game._is_action_allowed` remains a compatibility shim with the same behavior.
+Disabled choices are unavailable until their pending decision is resolved;
+an enabled alternative of the same action type can still match.
+Gym's simple-action mask and the engine's forced-action selection exclude
+disabled choices as well.
+
+```python
+action = botbowl.Action(botbowl.ActionType.START_MOVE, player=player)
+result = game.validate_action(action)
+if result.allowed:
+    game.step(action)
+else:
+    print(result.code, result.message)
+```
+
+`Game.step` validates again against the current choices, then executes a new
+action containing canonical game references. A rejected input raises
+`botbowl.InvalidActionError` with the same `code` and message, before changing
+the game or caller's action. Internal procedure errors still propagate as
+internal errors. Validation does not make subsequent procedure execution
+transactional, nor does it change the legacy HTTP wrapper's refresh behavior.
+
+Player objects copied from this game are resolved by string ID and matching team.
+A square can select an eligible player; a player can identify an eligible target
+square, including an opponent for a block. If a choice has one eligible player,
+omitting that player selects it implicitly, preserving optional skill decisions.
+An explicitly supplied different player is rejected. Setup's `None` destination
+is allowed only when listed. Existing explicit player/destination pairs and
+redundant in-board squares on type-only choices (for example rerolls) remain
+accepted. Integer coordinates must lie within the allocated board; an edge crowd
+square is legal only when the choice lists it. Negative indices never wrap.
+`None` and `Action(ActionType.CONTINUE)` can advance automatic procedures only
+when there is no pending choice.
+
+Successful results use `ok`. Rejection codes are `invalid_action_type`,
+`invalid_player_type`, `invalid_player_id`, `unknown_player`,
+`invalid_player_team`, `invalid_position_type`, `invalid_coordinates`,
+`position_out_of_bounds`, `action_required`, `action_not_available`, and
+`invalid_target`. Codes and messages are deterministic and independent of object
+representations; use the code when handling an error programmatically.
+
 ## A Random Bot
 Let’s start by making a bot that takes random actions. The code below, which can also be found in [examples/random_bot_example.py](https://github.com/njustesen/botbowl/blob/main/examples/random_bot_example.py), implements a bot that takes random actions.
 
@@ -175,7 +223,7 @@ To play against you agent in the web interface, add the following the your bot s
 
 ```python
 register_bot('my-random-bot', MyRandomBot)
-server.start_server(debug=True, use_reloader=False)
+server.start_server(host="127.0.0.1", debug=False, use_reloader=False)
 ```
 
 ## A Procedure-based Bot

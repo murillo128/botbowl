@@ -1,0 +1,360 @@
+{
+  "final_package_source_revision": "9cbfdbaeba0beb882ce34755fc501301d5d4fd9a",
+  "platform": "Linux x86_64 / glibc 2.39",
+  "build_inputs": {
+    "setuptools": "84.0.0",
+    "Cython": "3.3.0",
+    "build": "1.6.0",
+    "compiler": "GCC/G++ 13.3.0"
+  },
+  "runtime_cells": [
+    {
+      "python": "3.11.16",
+      "backend": "python",
+      "numpy_for_core": "2.4.6",
+      "core_summary": "489 passed, 53 skipped, 1 xfailed in 22.39s",
+      "final_baseline_and_import_summary": "78 passed, 1 xfailed in 3.19s",
+      "numpy_for_full": "1.26.4",
+      "full_summary": "525 passed, 39 skipped, 1 xfailed, 102 warnings in 45.65s",
+      "fresh_artifact_baseline_pathfinding_import_summary": "119 passed, 39 skipped, 1 xfailed in 55.30s"
+    },
+    {
+      "python": "3.11.16",
+      "backend": "native",
+      "numpy_for_core": "2.4.6",
+      "core_summary": "528 passed, 14 skipped, 1 xfailed in 22.86s",
+      "final_baseline_and_import_summary": "78 passed, 1 xfailed in 3.21s",
+      "numpy_for_full": "1.26.4",
+      "full_summary": "564 passed, 1 xfailed, 102 warnings in 43.45s",
+      "fresh_artifact_baseline_pathfinding_import_summary": "158 passed, 1 xfailed in 107.26s (0:01:47)"
+    },
+    {
+      "python": "3.12.14",
+      "backend": "python",
+      "numpy_for_core": "2.5.3",
+      "core_summary": "489 passed, 53 skipped, 1 xfailed in 20.52s",
+      "final_baseline_and_import_summary": "78 passed, 1 xfailed in 2.61s",
+      "numpy_for_full": "1.26.4",
+      "full_summary": "525 passed, 39 skipped, 1 xfailed, 102 warnings in 40.66s",
+      "fresh_artifact_baseline_pathfinding_import_summary": "119 passed, 39 skipped, 1 xfailed in 51.43s"
+    },
+    {
+      "python": "3.12.14",
+      "backend": "native",
+      "numpy_for_core": "2.5.3",
+      "core_summary": "528 passed, 14 skipped, 1 xfailed in 18.31s",
+      "final_baseline_and_import_summary": "78 passed, 1 xfailed in 2.63s",
+      "numpy_for_full": "1.26.4",
+      "full_summary": "564 passed, 1 xfailed, 102 warnings in 41.37s",
+      "fresh_artifact_baseline_pathfinding_import_summary": "158 passed, 1 xfailed in 95.43s (0:01:35)"
+    },
+    {
+      "python": "3.13.15",
+      "backend": "python",
+      "numpy_for_core": "2.5.3",
+      "core_summary": "489 passed, 53 skipped, 1 xfailed in 18.54s",
+      "final_baseline_and_import_summary": "64 passed, 14 skipped, 1 xfailed in 2.11s",
+      "fresh_artifact_baseline_pathfinding_import_summary": "105 passed, 53 skipped, 1 xfailed in 48.14s"
+    },
+    {
+      "python": "3.13.15",
+      "backend": "native",
+      "numpy_for_core": "2.5.3",
+      "core_summary": "528 passed, 14 skipped, 1 xfailed in 17.13s",
+      "final_baseline_and_import_summary": "64 passed, 14 skipped, 1 xfailed in 2.09s",
+      "fresh_artifact_baseline_pathfinding_import_summary": "144 passed, 14 skipped, 1 xfailed in 89.97s (0:01:29)"
+    },
+    {
+      "python": "3.14.7",
+      "backend": "python",
+      "numpy_for_core": "2.5.3",
+      "core_summary": "489 passed, 53 skipped, 1 xfailed in 17.58s",
+      "final_baseline_and_import_summary": "64 passed, 14 skipped, 1 xfailed in 2.17s",
+      "fresh_artifact_baseline_pathfinding_import_summary": "105 passed, 53 skipped, 1 xfailed in 40.25s"
+    },
+    {
+      "python": "3.14.7",
+      "backend": "native",
+      "numpy_for_core": "2.5.3",
+      "core_summary": "528 passed, 14 skipped, 1 xfailed in 15.77s",
+      "final_baseline_and_import_summary": "64 passed, 14 skipped, 1 xfailed in 2.18s",
+      "fresh_artifact_baseline_pathfinding_import_summary": "144 passed, 14 skipped, 1 xfailed in 69.14s (0:01:09)"
+    }
+  ],
+  "artifacts": [
+    {
+      "filename": "botbowl-1.1.0.tar.gz",
+      "sha256": "f816eb6c928b8a734ebb2d9b26b2ca3fd64cc09a7cf955d45b871b459339d69c",
+      "files": 116
+    },
+    {
+      "filename": "botbowl-1.1.0-py3-none-any.whl",
+      "sha256": "8b9c5b3f6eae3cf151ebf0b5724858e118fe27ae516857d06b6d1b4627418b5c",
+      "files": 105
+    },
+    {
+      "filename": "botbowl-1.1.0-cp311-cp311-linux_x86_64.whl",
+      "sha256": "47d7d2bc6e87529ff139a26a39dc502a89117ac7b107c5a0ed52320633e24527",
+      "files": 106
+    },
+    {
+      "filename": "botbowl-1.1.0-cp312-cp312-linux_x86_64.whl",
+      "sha256": "c32af1289aa9531e67ba707c12be53869f67de56021d72e6bfb33822160d9d65",
+      "files": 106
+    },
+    {
+      "filename": "botbowl-1.1.0-cp313-cp313-linux_x86_64.whl",
+      "sha256": "08871d049f5d65edbf0f3389a6436981b902b2b0f0cdbb683dc83be656d6147f",
+      "files": 106
+    },
+    {
+      "filename": "botbowl-1.1.0-cp314-cp314-linux_x86_64.whl",
+      "sha256": "8a3056498ca6034dbd6a426b5c8aadc899af296090b022abda44245163d32414",
+      "files": 106
+    }
+  ],
+  "retained_anomaly": {
+    "test": "tests/framework/test_forward_model.py::test_forward_model_revert_every_step",
+    "initial_python": "3.14.7",
+    "initial_result": "1 failed, 488 passed, 53 skipped, 1 xfailed",
+    "seed": 3,
+    "step": 167,
+    "phase": "Setup",
+    "action": "SETUP_FORMATION_ZONE",
+    "matching_controls": [
+      "accepted baseline / CPython3.11.16",
+      "installed package / CPython3.11.16",
+      "installed package / CPython3.14.7"
+    ],
+    "divergence": {
+      "action": "SETUP_FORMATION_ZONE",
+      "changed": [
+        [
+          [
+            1,
+            6,
+            [
+              13,
+              8
+            ]
+          ],
+          [
+            1,
+            6,
+            [
+              13,
+              6
+            ]
+          ]
+        ],
+        [
+          [
+            1,
+            7,
+            [
+              13,
+              10
+            ]
+          ],
+          [
+            1,
+            7,
+            [
+              13,
+              8
+            ]
+          ]
+        ],
+        [
+          [
+            1,
+            8,
+            [
+              9,
+              2
+            ]
+          ],
+          [
+            1,
+            8,
+            [
+              13,
+              10
+            ]
+          ]
+        ],
+        [
+          [
+            1,
+            9,
+            [
+              9,
+              5
+            ]
+          ],
+          [
+            1,
+            9,
+            [
+              9,
+              2
+            ]
+          ]
+        ],
+        [
+          [
+            1,
+            10,
+            [
+              9,
+              11
+            ]
+          ],
+          [
+            1,
+            10,
+            [
+              9,
+              5
+            ]
+          ]
+        ],
+        [
+          [
+            1,
+            11,
+            [
+              9,
+              14
+            ]
+          ],
+          [
+            1,
+            11,
+            [
+              9,
+              11
+            ]
+          ]
+        ],
+        [
+          [
+            1,
+            12,
+            [
+              13,
+              6
+            ]
+          ],
+          [
+            1,
+            12,
+            [
+              9,
+              14
+            ]
+          ]
+        ]
+      ],
+      "phase": "Setup",
+      "seed": 3,
+      "step": 167
+    }
+  },
+  "suite_package_source_revision": "3c1441a46f38ae5092729a688ed2d4816ba445ee",
+  "artifact_file_count": "Regular files for sdist; archive members for wheels",
+  "fresh_sdist_regression": {
+    "script": "tests/packaging/verify_sdist.py",
+    "red_revision": "52dd3caf0899fe0dfdf5729b1a6fc5a2870f2f0f",
+    "red_exit_code": 1,
+    "red_failure": "AssertionError: Fresh Python sdist is missing pathing_node.cpp",
+    "checks": [
+      "Fresh git archive, no build or egg-info cache",
+      "Default Python sdist and wheel build with unavailable CC/CXX",
+      "Required pathing_node.cpp and pathing_node.h sdist members",
+      "Required native wheel built from freshly extracted Python sdist",
+      "Native extension member, clean installed minimal smoke, pip check"
+    ],
+    "passing_runs": [
+      {
+        "source_revision": "9cbfdbaeba0beb882ce34755fc501301d5d4fd9a",
+        "python": "3.11.16",
+        "artifacts": [
+          {
+            "filename": "botbowl-1.1.0-cp311-cp311-linux_x86_64.whl",
+            "sha256": "47d7d2bc6e87529ff139a26a39dc502a89117ac7b107c5a0ed52320633e24527"
+          },
+          {
+            "filename": "botbowl-1.1.0-py3-none-any.whl",
+            "sha256": "8b9c5b3f6eae3cf151ebf0b5724858e118fe27ae516857d06b6d1b4627418b5c"
+          },
+          {
+            "filename": "botbowl-1.1.0.tar.gz",
+            "sha256": "f816eb6c928b8a734ebb2d9b26b2ca3fd64cc09a7cf955d45b871b459339d69c"
+          }
+        ]
+      },
+      {
+        "source_revision": "9cbfdbaeba0beb882ce34755fc501301d5d4fd9a",
+        "python": "3.12.14",
+        "artifacts": [
+          {
+            "filename": "botbowl-1.1.0-cp312-cp312-linux_x86_64.whl",
+            "sha256": "c32af1289aa9531e67ba707c12be53869f67de56021d72e6bfb33822160d9d65"
+          },
+          {
+            "filename": "botbowl-1.1.0-py3-none-any.whl",
+            "sha256": "8b9c5b3f6eae3cf151ebf0b5724858e118fe27ae516857d06b6d1b4627418b5c"
+          },
+          {
+            "filename": "botbowl-1.1.0.tar.gz",
+            "sha256": "d2c0264926b0252b03b950ce42123e61159a97a7b94066048f7dd6627c3c6860"
+          }
+        ]
+      },
+      {
+        "source_revision": "9cbfdbaeba0beb882ce34755fc501301d5d4fd9a",
+        "python": "3.13.15",
+        "artifacts": [
+          {
+            "filename": "botbowl-1.1.0-cp313-cp313-linux_x86_64.whl",
+            "sha256": "08871d049f5d65edbf0f3389a6436981b902b2b0f0cdbb683dc83be656d6147f"
+          },
+          {
+            "filename": "botbowl-1.1.0-py3-none-any.whl",
+            "sha256": "8b9c5b3f6eae3cf151ebf0b5724858e118fe27ae516857d06b6d1b4627418b5c"
+          },
+          {
+            "filename": "botbowl-1.1.0.tar.gz",
+            "sha256": "257cacdb79d11ae9a56c87d7269b2591296dd43a7433781dafe37c0df2d460ce"
+          }
+        ]
+      },
+      {
+        "source_revision": "9cbfdbaeba0beb882ce34755fc501301d5d4fd9a",
+        "python": "3.14.7",
+        "artifacts": [
+          {
+            "filename": "botbowl-1.1.0-cp314-cp314-linux_x86_64.whl",
+            "sha256": "8a3056498ca6034dbd6a426b5c8aadc899af296090b022abda44245163d32414"
+          },
+          {
+            "filename": "botbowl-1.1.0-py3-none-any.whl",
+            "sha256": "8b9c5b3f6eae3cf151ebf0b5724858e118fe27ae516857d06b6d1b4627418b5c"
+          },
+          {
+            "filename": "botbowl-1.1.0.tar.gz",
+            "sha256": "6b7e58f4ca3a9096411a4c1a1ca4d4d78f137cdf04a6e81407226c9260b18f09"
+          }
+        ]
+      }
+    ],
+    "additional_checks": "Eight reinstalled baseline/pathfinding/import cells, core smokes, RL smokes on 3.11/3.12, minimal wheel and sdist installs, archive audit, required-native unavailable-compiler failure",
+    "unchanged_python_package_files": 99,
+    "hosted_ci": {
+      "revision": "9cbfdbaeba0beb882ce34755fc501301d5d4fd9a",
+      "run_id": 34099205271,
+      "conclusion": "success"
+    }
+  }
+}

@@ -17,8 +17,8 @@ def test_failed_always_hungry_fail_escape():
     right_stuff_position = Square(2, 1)
     game.put(right_stuff, right_stuff_position)
     game.step(Action(ActionType.START_PASS, player=passer))
-    D6.fix(1)  # Hungry
-    D6.fix(1)  # Escape
+    game.dice.fix(D6, 1)  # Hungry
+    game.dice.fix(D6, 1)  # Escape
     game.step(Action(ActionType.PICKUP_TEAM_MATE, player=passer, position=right_stuff.position))
     game.step(Action(ActionType.DONT_USE_REROLL))
     game.step(Action(ActionType.DONT_USE_REROLL))
@@ -44,9 +44,9 @@ def test_failed_always_hungry_escaped():
     right_stuff_position = Square(2, 1)
     game.put(right_stuff, right_stuff_position)
     game.step(Action(ActionType.START_PASS, player=passer))
-    D6.fix(1)  # Hungry
-    D6.fix(2)  # Escape
-    D6.fix(6)  # Land
+    game.dice.fix(D6, 1)  # Hungry
+    game.dice.fix(D6, 2)  # Escape
+    game.dice.fix(D6, 6)  # Land
     game.step(Action(ActionType.PICKUP_TEAM_MATE, player=passer, position=right_stuff.position))
     game.step(Action(ActionType.DONT_USE_REROLL))
     assert game.has_report_of_type(OutcomeType.SUCCESSFUL_ESCAPE_BEING_EATEN)

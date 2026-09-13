@@ -1,0 +1,86 @@
+name: Prepare release artifacts
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.11'
+      - name: Install release verification tools
+        run: |
+          python -m pip install --upgrade -c requirements/core.txt pip setuptools wheel build pytest
+          python -m pip install -c requirements/core.txt .
+      - name: Match an explicit tag to the single source version
+        if: github.ref_type == 'tag'
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          python - <<'PY'
+          import os
+          import runpy
+
+          __version__ = runpy.run_path("botbowl/_version.py")["__version__"]
+          expected = 'v' + __version__
+          if os.environ['RELEASE_TAG'] != expected:
+              raise SystemExit(f"tag must be {expected!r}")
+          PY
+      - name: Validate docs and bounded source examples
+        run: |
+          python tools/release/check_docs.py
+          python examples/quickstart_core.py --max-steps 100
+          python examples/quickstart_bot.py --max-steps 100
+      - name: Build twice, inspect, install and smoke artifacts
+        run: python tools/release/verify_artifacts.py --output dist/release --install-smoke
+      - name: Validate optional quickstarts from the verified wheel
+        run: |
+          python -m venv "$RUNNER_TEMP/optional"
+          wheel="$(find dist/release/artifacts -maxdepth 1 -name '*.whl' -print -quit)"
+          "$RUNNER_TEMP/optional/bin/python" -m pip install "${wheel}[gymnasium,web]"
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/optional/bin/python" "$GITHUB_WORKSPACE/examples/quickstart_gymnasium.py" --max-steps 100
+          "$RUNNER_TEMP/optional/bin/python" "$GITHUB_WORKSPACE/examples/quickstart_web.py" --check
+      - name: Build and smoke non-root headless container
+        run: |
+          docker build --target headless -t botbowl-headless-candidate .
+          test "$(docker image inspect botbowl-headless-candidate --format '{{.Config.User}}')" = '10001:10001'
+          docker run --rm --read-only --tmpfs /tmp botbowl-headless-candidate
+          docker run --rm --entrypoint python botbowl-headless-candidate -c \
+            'import os; assert os.getuid() == 10001; assert "DISPLAY" not in os.environ'
+      - name: Build and smoke explicit non-debug web container
+        run: |
+          docker build --target web -t botbowl-web-candidate .
+          test "$(docker image inspect botbowl-web-candidate --format '{{.Config.User}}')" = '10001:10001'
+          docker run --rm --entrypoint python botbowl-web-candidate -c \
+            'from botbowl.web.server import app; assert not app.debug'
+          container="$(docker run --rm -d -p 127.0.0.1:5000:5000 botbowl-web-candidate)"
+          trap 'docker stop "$container" >/dev/null 2>&1 || true' EXIT
+          for attempt in $(seq 1 20); do
+            if curl -fsS http://127.0.0.1:5000/game-modes/ >/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:5000/game-modes/
+          docker logs "$container" 2>&1 | grep 'Debug mode: off'
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: botbowl-${{ github.sha }}-release-candidate
+          path: |
+            dist/release/artifacts/*
+            dist/release/manifest.json
+          if-no-files-found: error
+          retention-days: 14

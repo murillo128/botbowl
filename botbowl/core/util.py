@@ -12,6 +12,7 @@ from copy import copy
 from typing import Sized
 
 import botbowl
+from importlib.resources import files as _resource_files
 from botbowl.core.forward_model import Reversible
 from botbowl.core.model import *
 
@@ -106,9 +107,8 @@ class Stack(Reversible):
 
 
 def get_data_path(rel_path):
-    root_dir = botbowl.__file__.replace("__init__.py", "")
-    filename = os.path.join(root_dir, "data/" + rel_path)
-    return os.path.abspath(os.path.realpath(filename))
+    """Return an installed package resource path, independent of the caller cwd."""
+    return os.fspath(_resource_files("botbowl").joinpath("data", rel_path))
 
 
 def compare_iterable(s1, s2, path=""):

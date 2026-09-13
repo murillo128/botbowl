@@ -51,8 +51,8 @@ def test_pickup_sure_hands(sure_hands):
     assert player.has_skill(Skill.SURE_HANDS) == sure_hands
 
     game.step(Action(ActionType.START_MOVE, player=player))
-    D6.fix(1)  # Failed pickup
-    D6.fix(6)  # Successful pickup
+    game.dice.fix(D6, 1)  # Failed pickup
+    game.dice.fix(D6, 6)  # Successful pickup
     game.step(Action(ActionType.MOVE, position=Square(2, 2)))
 
     if sure_hands:

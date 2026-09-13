@@ -133,8 +133,8 @@ def test_pass_roll_fumble(pass_skill):
 
     passer.role.skills = [Skill.PASS] if pass_skill else []
 
-    D6.fix(1)  # Fumble pass
-    D6.fix(6)  # Successful pass after skill re-roll
+    game.dice.fix(D6, 1)  # Fumble pass
+    game.dice.fix(D6, 6)  # Successful pass after skill re-roll
 
     game.step(Action(ActionType.START_PASS, player=passer))
     game.step(Action(ActionType.PASS, position=catcher.position))
@@ -157,8 +157,8 @@ def test_pass_roll_inaccurate(pass_skill):
                                                    ball_position=(5,5))
     passer.role.skills = [Skill.PASS] if pass_skill else []
 
-    D6.fix(2)  # Inaccurate pass
-    D6.fix(6)  # Successful pass after skill re-roll
+    game.dice.fix(D6, 2)  # Inaccurate pass
+    game.dice.fix(D6, 6)  # Successful pass after skill re-roll
     
     if pass_skill: 
         assert passer.can_use_skill(Skill.PASS)

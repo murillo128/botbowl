@@ -10,10 +10,6 @@ game_turn_full = {}
 
 
 def get_game_turn(seed=0, empty=False, home_team: str = 'human', away_team: str = 'orc'):
-    D3.FixedRolls = []
-    D6.FixedRolls = []
-    D8.FixedRolls = []
-    BBDie.FixedRolls = []
 
     key = f"{seed} {home_team} {away_team}"
     if empty:
@@ -110,10 +106,6 @@ def get_custom_game_turn(player_positions: List[Position], opp_player_positions:
 
 
 def get_game_kickoff(seed=0):
-    D3.FixedRolls = []
-    D6.FixedRolls = []
-    D8.FixedRolls = []
-    BBDie.FixedRolls = []
     config = load_config("gym-11")
     ruleset = load_rule_set(config.ruleset)
     home = load_team_by_filename("human", ruleset)
@@ -134,10 +126,6 @@ def get_game_kickoff(seed=0):
 
 
 def get_game_setup(home_team, seed=0):
-    D3.FixedRolls = []
-    D6.FixedRolls = []
-    D8.FixedRolls = []
-    BBDie.FixedRolls = []
     config = load_config("gym-11")
     config.kick_off_table = False
     ruleset = load_rule_set(config.ruleset)
@@ -164,10 +152,6 @@ def get_game_setup(home_team, seed=0):
 
 
 def get_game_coin_toss(seed=0):
-    D3.FixedRolls = []
-    D6.FixedRolls = []
-    D8.FixedRolls = []
-    BBDie.FixedRolls = []
     config = load_config("gym-11")
     ruleset = load_rule_set(config.ruleset)
     home = load_team_by_filename("human", ruleset)
@@ -181,10 +165,6 @@ def get_game_coin_toss(seed=0):
 
 
 def get_game_fans(seed=0):
-    D3.FixedRolls = []
-    D6.FixedRolls = []
-    D8.FixedRolls = []
-    BBDie.FixedRolls = []
     config = load_config("gym-11")
     ruleset = load_rule_set(config.ruleset)
     home = load_team_by_filename("human", ruleset)
@@ -197,10 +177,6 @@ def get_game_fans(seed=0):
 
 
 def get_game_weather_table(seed=0):
-    D3.FixedRolls = []
-    D6.FixedRolls = []
-    D8.FixedRolls = []
-    BBDie.FixedRolls = []
     config = load_config("gym-11")
     ruleset = load_rule_set(config.ruleset)
     home = load_team_by_filename("human", ruleset)
@@ -246,43 +222,17 @@ def only_fixed_rolls(game: botbowl.Game,
     > with only_fixed_rolls(game, block_dice=[BBDieResult.DEFENDER_DOWN], d6=[6, 6]):
     >     game.step(...)
     """
+    dice = (botbowl.D3, botbowl.D6, botbowl.D8, botbowl.BBDie)
     if assert_no_prev_fixes:
-        assert len(botbowl.D3.FixedRolls) == 0, f"There are fixed D3 rolls={botbowl.D3.FixedRolls}"
-        assert len(botbowl.D6.FixedRolls) == 0, f"There are fixed D6 rolls={botbowl.D6.FixedRolls}"
-        assert len(botbowl.D8.FixedRolls) == 0, f"There are fixed D8 rolls={botbowl.D8.FixedRolls}"
-        assert len(botbowl.BBDie.FixedRolls) == 0, f"There are fixed BBDie rolls={botbowl.BBDie.FixedRolls}"
+        for die in dice:
+            assert not game.dice.pending(die), f"There are fixed {die.__name__} rolls={game.dice.pending(die)}"
 
-    if d3 is not None:
-        for roll in d3:
-            assert roll in {1, 2, 3}
-            botbowl.D3.fix(roll)
-    if d6 is not None:
-        for roll in d6:
-            assert roll in {1, 2, 3, 4, 5, 6}
-            botbowl.D6.fix(roll)
-    if d8 is not None:
-        for roll in d8:
-            assert roll in {1, 2, 3, 4, 5, 6, 7, 8}
-            botbowl.D8.fix(roll)
-    if block_dice is not None:
-        for roll in block_dice:
-            assert roll in BBDieResult
-            botbowl.BBDie.fix(roll)
-
-    rnd = game.rng
-    game.rng = None
-
-    try:
+    rng_before = game.capture_rng_state().rng_state
+    with game.dice.force(d3=() if d3 is None else d3, d6=() if d6 is None else d6,
+                         d8=() if d8 is None else d8,
+                         block_dice=() if block_dice is None else block_dice, strict=True):
         yield
-
         if assert_fixes_consumed:
-            assert len(botbowl.D3.FixedRolls) == 0, "Not all fixed D3 rolls were consumed"
-            assert len(botbowl.D6.FixedRolls) == 0, "Not all fixed D6 rolls were consumed"
-            assert len(botbowl.D8.FixedRolls) == 0, "Not all fixed D8 rolls were consumed"
-            assert len(botbowl.BBDie.FixedRolls) == 0, "Not all fixed BBDie rolls were consumed"
-    finally:
-        game.rng = rnd
-
-
-
-
+            for die in dice:
+                assert not game.dice.pending(die), f"Not all fixed {die.__name__} rolls were consumed"
+        assert game.capture_rng_state().rng_state == rng_before, "Non-dice randomness was consumed"

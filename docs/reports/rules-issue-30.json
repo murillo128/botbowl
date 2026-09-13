@@ -1,0 +1,377 @@
+{
+  "base_revision": "1cf22c3801ce3dd81587c448d6f382cd6918bdf4",
+  "tested_implementation_revision": "440902fefc100f1d37290807731faa66ae515397",
+  "platform": "Linux x86_64, CPython 3.11.16",
+  "profiles": {
+    "python_core": {
+      "source_revision": "440902fefc100f1d37290807731faa66ae515397",
+      "python": "3.11.16 (main, Sep  1 2026, 14:18:37) [Clang 22.1.3 ]",
+      "backend": "python",
+      "seconds": 257.18,
+      "tests": {
+        "integration": {
+          "passed": 443,
+          "failed": 0,
+          "errors": 0,
+          "skipped": 279,
+          "xfailed": 0,
+          "skip_reasons": {
+            "Optional Cython extension is not installed": 279
+          }
+        },
+        "unit": {
+          "passed": 655,
+          "failed": 0,
+          "errors": 0,
+          "skipped": 9,
+          "xfailed": 1,
+          "skip_reasons": {
+            "Issue #17: legacy Gym is a separate 3.11/3.12 capability": 2,
+            "Issue #16: externally stepped human games leave end_time unset": 1,
+            "could not import 'gym': No module named 'gym'": 7
+          }
+        }
+      },
+      "steps": [
+        {
+          "name": "export",
+          "seconds": 0.06,
+          "exit_code": 0
+        },
+        {
+          "name": "build",
+          "seconds": 1.32,
+          "exit_code": 0
+        },
+        {
+          "name": "installed",
+          "seconds": 2.17,
+          "exit_code": 0
+        },
+        {
+          "name": "installed-bootstrap",
+          "seconds": 1.47,
+          "exit_code": 0
+        },
+        {
+          "name": "install",
+          "seconds": 2.97,
+          "exit_code": 0
+        },
+        {
+          "name": "pip-check",
+          "seconds": 0.16,
+          "exit_code": 0
+        },
+        {
+          "name": "freeze",
+          "seconds": 0.16,
+          "exit_code": 0
+        },
+        {
+          "name": "identity",
+          "seconds": 0.17,
+          "exit_code": 0
+        },
+        {
+          "name": "unit",
+          "seconds": 176.74,
+          "exit_code": 0
+        },
+        {
+          "name": "integration",
+          "seconds": 71.82,
+          "exit_code": 0
+        }
+      ],
+      "evidence_path": "/tmp/botbowl-issue30-final-python-suite"
+    },
+    "native_rl": {
+      "source_revision": "440902fefc100f1d37290807731faa66ae515397",
+      "python": "3.11.16 (main, Sep  1 2026, 14:18:37) [Clang 22.1.3 ]",
+      "backend": "native",
+      "seconds": 434.06,
+      "tests": {
+        "integration": {
+          "passed": 740,
+          "failed": 0,
+          "errors": 0,
+          "skipped": 0,
+          "xfailed": 0,
+          "skip_reasons": {}
+        },
+        "unit": {
+          "passed": 664,
+          "failed": 0,
+          "errors": 0,
+          "skipped": 0,
+          "xfailed": 1,
+          "skip_reasons": {
+            "Issue #16: externally stepped human games leave end_time unset": 1
+          }
+        }
+      },
+      "steps": [
+        {
+          "name": "export",
+          "seconds": 0.06,
+          "exit_code": 0
+        },
+        {
+          "name": "build",
+          "seconds": 7.33,
+          "exit_code": 0
+        },
+        {
+          "name": "installed",
+          "seconds": 2.12,
+          "exit_code": 0
+        },
+        {
+          "name": "installed-bootstrap",
+          "seconds": 1.52,
+          "exit_code": 0
+        },
+        {
+          "name": "install",
+          "seconds": 3.07,
+          "exit_code": 0
+        },
+        {
+          "name": "pip-check",
+          "seconds": 0.17,
+          "exit_code": 0
+        },
+        {
+          "name": "freeze",
+          "seconds": 0.37,
+          "exit_code": 0
+        },
+        {
+          "name": "identity",
+          "seconds": 0.16,
+          "exit_code": 0
+        },
+        {
+          "name": "unit",
+          "seconds": 178.27,
+          "exit_code": 0
+        },
+        {
+          "name": "integration",
+          "seconds": 240.83,
+          "exit_code": 0
+        }
+      ],
+      "evidence_path": "/tmp/botbowl-issue30-final-native-rl-suite"
+    },
+    "artifacts": {
+      "source_revision": "440902fefc100f1d37290807731faa66ae515397",
+      "python": "3.11.16 (main, Sep  1 2026, 14:18:37) [Clang 22.1.3 ]",
+      "backend": "python",
+      "seconds": 29.7,
+      "tests": {},
+      "steps": [
+        {
+          "name": "export",
+          "seconds": 0.06,
+          "exit_code": 0
+        },
+        {
+          "name": "fresh-sdist",
+          "seconds": 16.4,
+          "exit_code": 0
+        },
+        {
+          "name": "minimal-0",
+          "seconds": 2.12,
+          "exit_code": 0
+        },
+        {
+          "name": "minimal-0-bootstrap",
+          "seconds": 1.42,
+          "exit_code": 0
+        },
+        {
+          "name": "install-0",
+          "seconds": 1.72,
+          "exit_code": 0
+        },
+        {
+          "name": "check-0",
+          "seconds": 0.16,
+          "exit_code": 0
+        },
+        {
+          "name": "smoke-0",
+          "seconds": 0.37,
+          "exit_code": 0
+        },
+        {
+          "name": "freeze-0",
+          "seconds": 0.16,
+          "exit_code": 0
+        },
+        {
+          "name": "minimal-1",
+          "seconds": 2.07,
+          "exit_code": 0
+        },
+        {
+          "name": "minimal-1-bootstrap",
+          "seconds": 1.42,
+          "exit_code": 0
+        },
+        {
+          "name": "install-1",
+          "seconds": 2.97,
+          "exit_code": 0
+        },
+        {
+          "name": "check-1",
+          "seconds": 0.16,
+          "exit_code": 0
+        },
+        {
+          "name": "smoke-1",
+          "seconds": 0.37,
+          "exit_code": 0
+        },
+        {
+          "name": "freeze-1",
+          "seconds": 0.16,
+          "exit_code": 0
+        }
+      ],
+      "evidence_path": "/tmp/botbowl-issue30-final-artifacts"
+    }
+  },
+  "focused": {
+    "descriptor-initial": {
+      "passed": 59,
+      "failed": 9,
+      "errors": 0,
+      "skipped": 0,
+      "xfailed": 0,
+      "seconds": 1.612
+    },
+    "jersey-negative": {
+      "passed": 0,
+      "failed": 1,
+      "errors": 0,
+      "skipped": 0,
+      "xfailed": 0,
+      "seconds": 0.182
+    },
+    "focused-freeze": {
+      "passed": 140,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xfailed": 1,
+      "seconds": 6.025
+    },
+    "installed-descriptor-python": {
+      "passed": 77,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xfailed": 0,
+      "seconds": 2.455
+    },
+    "installed-focused-native": {
+      "passed": 140,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xfailed": 1,
+      "seconds": 6.335
+    }
+  },
+  "superseded_profiles": {
+    "python": {
+      "source_revision": "adc0ea3af7ea4c2351c5795e97b08608daa9e25b",
+      "seconds": 259.94,
+      "tests": {
+        "integration": {
+          "passed": 443,
+          "failed": 0,
+          "errors": 0,
+          "skipped": 279,
+          "xfailed": 0,
+          "skip_reasons": {
+            "Optional Cython extension is not installed": 279
+          }
+        },
+        "unit": {
+          "passed": 652,
+          "failed": 0,
+          "errors": 0,
+          "skipped": 9,
+          "xfailed": 1,
+          "skip_reasons": {
+            "Issue #17: legacy Gym is a separate 3.11/3.12 capability": 2,
+            "Issue #16: externally stepped human games leave end_time unset": 1,
+            "could not import 'gym': No module named 'gym'": 7
+          }
+        }
+      }
+    },
+    "native-rl": {
+      "source_revision": "adc0ea3af7ea4c2351c5795e97b08608daa9e25b",
+      "seconds": 444.59,
+      "tests": {
+        "integration": {
+          "passed": 740,
+          "failed": 0,
+          "errors": 0,
+          "skipped": 0,
+          "xfailed": 0,
+          "skip_reasons": {}
+        },
+        "unit": {
+          "passed": 661,
+          "failed": 0,
+          "errors": 0,
+          "skipped": 0,
+          "xfailed": 1,
+          "skip_reasons": {
+            "Issue #16: externally stepped human games leave end_time unset": 1
+          }
+        }
+      }
+    }
+  },
+  "artifacts": [
+    {
+      "filename": "botbowl-1.1.0-cp311-cp311-linux_x86_64.whl",
+      "sha256": "aed4a9cac7ca75744119e77084474d129953b08d55251cc692793f8bf93363e2"
+    },
+    {
+      "filename": "botbowl-1.1.0-py3-none-any.whl",
+      "sha256": "fd4d9a50397626baf45a29b44893bca7007fd3dc3fce8524e8b564d67f89ac8c"
+    },
+    {
+      "filename": "botbowl-1.1.0.tar.gz",
+      "sha256": "6ed8b9b0f53bbf8936f86c1c04e7202ff66f8c86bf25d77431cecbf1d0bfcf07"
+    }
+  ],
+  "cross_backend_comparison": {
+    "sizes": [
+      1,
+      3,
+      5,
+      7,
+      11
+    ],
+    "equal_except_backend_id": true,
+    "evidence": "/tmp/botbowl-issue30-evidence/compare-backends.log"
+  },
+  "limits": [
+    "Hosted CI must identify the exact published report head.",
+    "Fresh independent field and capability review is a separate gate.",
+    "Core Python intentionally excludes the separate legacy Gym module and reports capability skips.",
+    "The strict inherited human end-time xfail remains issue #16.",
+    "No exhaustive rules conformance or arbitrary custom/native-table support is claimed."
+  ]
+}

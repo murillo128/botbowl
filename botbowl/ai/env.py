@@ -9,7 +9,6 @@ This module contains the BotBowlEnv class; implementing the Open AI Gym interfac
 
 import botbowl.core.procedure as procedures
 from botbowl.ai.bots import RandomBot
-from botbowl.ai.env_render import EnvRenderer
 from botbowl.ai.registry import registry as bot_registry
 from botbowl.ai.layers import *
 from botbowl.core.model import *
@@ -33,140 +32,7 @@ def take(n: int, iterable) -> None:
         next(iterable)
 
 
-formation_defaults = {1: ['def_spread.txt', 'def_zone.txt', 'off_line.txt', 'off_wedge.txt'],
-                      3: ['def_spread.txt', 'off_wedge.txt'],
-                      5: ['def_spread.txt', 'off_wedge.txt'],
-                      7: ['def_spread.txt', 'off_wedge.txt'],
-                      11: ['def_spread.txt', 'def_zone.txt', 'off_line.txt', 'off_wedge.txt']
-                      }
-
-
-class EnvConf:
-    config: Configuration
-    simple_action_types: List[Union[ActionType, Formation]]
-    positional_action_types: List[ActionType]
-    action_types: List[Union[ActionType, Formation]]
-    layers: List[FeatureLayer]
-    procedures: List[procedures.Procedure]
-    formations: List[Formation]
-
-    def __init__(self, size=11,
-                 extra_formations: Optional[Iterable[Formation]] = None,
-                 extra_feature_layers: Optional[Iterable[FeatureLayer]] = None,
-                 pathfinding=False):
-
-        self.size = size
-        self.config: Configuration = load_config(f"gym-{size}")
-        self.config.pathfinding_enabled = pathfinding
-
-        self.simple_action_types = [
-            ActionType.START_GAME,
-            ActionType.HEADS,
-            ActionType.TAILS,
-            ActionType.KICK,
-            ActionType.RECEIVE,
-            ActionType.END_PLAYER_TURN,
-            ActionType.USE_REROLL,
-            ActionType.DONT_USE_REROLL,
-            ActionType.USE_SKILL,
-            ActionType.DONT_USE_SKILL,
-            ActionType.END_TURN,
-            ActionType.STAND_UP,
-            ActionType.SELECT_ATTACKER_DOWN,
-            ActionType.SELECT_BOTH_DOWN,
-            ActionType.SELECT_PUSH,
-            ActionType.SELECT_DEFENDER_STUMBLES,
-            ActionType.SELECT_DEFENDER_DOWN,
-            ActionType.SELECT_NONE,
-            ActionType.USE_BRIBE,
-            ActionType.DONT_USE_BRIBE,
-        ]
-        self.formations = [load_formation(formation, size=size) for formation in formation_defaults[size]]
-        if extra_formations is not None:
-            assert all(map(lambda x: type(x) is Formation, extra_formations)), ''
-            self.formations.extend(extra_formations)
-        self.simple_action_types.extend(self.formations)
-
-        self.positional_action_types = [
-            ActionType.PLACE_BALL,
-            ActionType.PUSH,
-            ActionType.FOLLOW_UP,
-            ActionType.MOVE,
-            ActionType.BLOCK,
-            ActionType.PASS,
-            ActionType.FOUL,
-            ActionType.HANDOFF,
-            ActionType.LEAP,
-            ActionType.STAB,
-            ActionType.SELECT_PLAYER,
-            ActionType.START_MOVE,
-            ActionType.START_BLOCK,
-            ActionType.START_BLITZ,
-            ActionType.START_PASS,
-            ActionType.START_FOUL,
-            ActionType.START_HANDOFF
-        ]
-
-        self.action_types = self.simple_action_types + self.positional_action_types
-
-        self.layers = [AvailablePositionLayer(action_type) for action_type in self.positional_action_types]
-        self.layers.extend([
-            OccupiedLayer(),
-            OwnPlayerLayer(),
-            OppPlayerLayer(),
-            OwnTackleZoneLayer(),
-            OppTackleZoneLayer(),
-            UpLayer(),
-            StunnedLayer(),
-            UsedLayer(),
-            RollProbabilityLayer(),
-            BlockDiceLayer(),
-            ActivePlayerLayer(),
-            TargetPlayerLayer(),
-            MALayer(),
-            STLayer(),
-            AGLayer(),
-            AVLayer(),
-            MovementLeftLayer(),
-            GFIsLeftLayer(),
-            BallLayer(),
-            OwnHalfLayer(),
-            OwnTouchdownLayer(),
-            OppTouchdownLayer(),
-            SkillLayer(Skill.BLOCK),
-            SkillLayer(Skill.DODGE),
-            SkillLayer(Skill.SURE_HANDS),
-            SkillLayer(Skill.CATCH),
-            SkillLayer(Skill.PASS)
-        ])
-        if extra_feature_layers is not None:
-            self.layers.extend(extra_feature_layers)
-
-        # Procedures that require actions
-        self.procedures = [
-            procedures.StartGame,
-            procedures.CoinTossFlip,
-            procedures.CoinTossKickReceive,
-            procedures.Setup,
-            procedures.PlaceBall,
-            procedures.HighKick,
-            procedures.Touchback,
-            procedures.Turn,
-            procedures.MoveAction,
-            procedures.BlockAction,
-            procedures.BlitzAction,
-            procedures.PassAction,
-            procedures.HandoffAction,
-            procedures.FoulAction,
-            procedures.ThrowBombAction,
-            procedures.Block,
-            procedures.Push,
-            procedures.FollowUp,
-            procedures.Apothecary,
-            procedures.PassAttempt,
-            procedures.Interception,
-            procedures.Reroll,
-            procedures.Ejection]
+from botbowl.ai.env_conf import EnvConf, formation_defaults
 
 
 class BotBowlEnv(gym.Env):
@@ -323,7 +189,8 @@ class BotBowlEnv(gym.Env):
 
         # Available action types
         aa_types = np.zeros(len(self.env_conf.action_types))
-        game_aa_types = set(action_choice.action_type for action_choice in game.get_available_actions())
+        game_aa_types = set(action_choice.action_type for action_choice in game.get_available_actions()
+                            if not action_choice.disabled)
         is_setup: bool = type(self.game.get_procedure()) == procedures.Setup
         for i, action_type in enumerate(self.env_conf.action_types):
             if action_type is ActionType.END_SETUP and not game.is_setup_legal(active_team):
@@ -349,9 +216,9 @@ class BotBowlEnv(gym.Env):
 
         return spatial_obs, non_spatial_obs, action_mask
 
-    def step(self, action_idx: Optional[int], skip_observation: bool = False) -> EnvStepReturn:
-        # Convert to Action object
-        action_objects = self._compute_action(action_idx)
+    def step(self, action_idx: Optional[Union[int, Action]], skip_observation: bool = False) -> EnvStepReturn:
+        # Scripted engine Actions can include setup operations with no v4 index.
+        action_objects = [action_idx] if isinstance(action_idx, Action) else self._compute_action(action_idx)
 
         for action in action_objects:
             self.game.step(action)
@@ -373,6 +240,8 @@ class BotBowlEnv(gym.Env):
 
     def render(self, mode='human', feature_layers=False):
         if self._renderer is None:
+            from botbowl.ai.env_render import EnvRenderer
+
             self._renderer = EnvRenderer(self, feature_layers)
         self._renderer.render()
 
@@ -395,7 +264,8 @@ class BotBowlEnv(gym.Env):
             return self.get_state()
 
     def close(self):
-        pass
+        if self.game is not None:
+            self.game.close()
 
     def seed(self, seed=None):
         if seed is not None:
@@ -483,7 +353,7 @@ class BotBowlWrapper:
     def get_state(self) -> EnvObs:
         return self.env.get_state()
 
-    def step(self, action: Optional[int], skip_observation: bool = False) -> EnvStepReturn:
+    def step(self, action: Optional[Union[int, Action]], skip_observation: bool = False) -> EnvStepReturn:
         return self.env.step(action, skip_observation)
 
     def render(self, mode='human'):
@@ -535,12 +405,13 @@ class RewardWrapper(BotBowlWrapper):
         self.home_reward_func = home_reward_func
         self.away_reward_func = away_reward_func
 
-    def step(self, action: int, skip_observation: bool = False):
+    def step(self, action: Optional[Union[int, Action]], skip_observation: bool = False):
+        acting_team = self.game.active_team
         obs, reward, done, info = self.env.step(action, skip_observation)
         game = self.game
-        if game.active_team == game.state.home_team:
+        if acting_team == game.state.home_team:
             reward += self.home_reward_func(game)
-        elif game.active_team == game.state.away_team and self.away_reward_func is not None:
+        elif acting_team == game.state.away_team and self.away_reward_func is not None:
             reward += self.away_reward_func(game)
         return obs, reward, done, info
 
@@ -549,24 +420,34 @@ class ScriptedActionWrapper(BotBowlWrapper):
     def __init__(self, env, scripted_func: Callable[[Game], Optional[Action]]):
         super().__init__(env)
         self.scripted_func = scripted_func
+        self.reset_transitions = []
+        self._reset_reward = 0.0
 
-    def step(self, action: int, skip_observation: bool = False) -> EnvStepReturn:
-        self.env.step(action, skip_observation=True)
-        self.do_scripted_actions()
-        return self.root_env.get_step_return(skip_observation)
+    def step(self, action: Optional[Union[int, Action]], skip_observation: bool = False) -> EnvStepReturn:
+        first = self.env.step(action, skip_observation=False)
+        transitions = [first] + self.do_scripted_actions()
+        obs, _, done, info = transitions[-1]
+        reward = self._reset_reward + sum(t[1] for t in transitions)
+        self._reset_reward = 0.0
+        return ((None, None, None) if skip_observation else obs,
+                reward, done,
+                {**info, 'transitions': transitions})
 
     def reset(self) -> EnvObs:
         self.env.reset()
-        self.do_scripted_actions()
-        return self.root_env.get_state()
+        self.reset_transitions = self.do_scripted_actions()
+        self._reset_reward = sum(t[1] for t in self.reset_transitions)
+        return self.root_env.get_step_return(False)[0]
 
-    def do_scripted_actions(self) -> None:
+    def do_scripted_actions(self) -> list:
         game = self.game
+        transitions = []
         while not game.state.game_over and len(game.state.stack.items) > 0:
             action = self.scripted_func(game)
             if action is None:
                 break
-            game.step(action)
+            transitions.append(self.env.step(action))
+        return transitions
 
 
 class PPCGWrapper(BotBowlWrapper):
@@ -576,10 +457,11 @@ class PPCGWrapper(BotBowlWrapper):
         super().__init__(env)
         self.difficulty = difficulty
 
-    def step(self, action: int, skip_observation: bool = False) -> EnvStepReturn:
-        self.env.step(action, skip_observation=True)
+    def step(self, action: Optional[Union[int, Action]], skip_observation: bool = False) -> EnvStepReturn:
+        first = self.env.step(action, skip_observation=False)
+        transitions = [first]
 
-        if self.difficulty < 1.0:
+        if not first[2] and self.difficulty < 1.0:
             game = self.game
             ball_carrier = game.get_ball_carrier()
             if ball_carrier and ball_carrier.team == game.state.home_team:
@@ -588,6 +470,19 @@ class PPCGWrapper(BotBowlWrapper):
                 if distance_to_endzone <= extra_endzone_squares:
                     game.state.stack.push(procedures.Touchdown(game, ball_carrier))
                     game.set_available_actions()
-                    self.env.step(None, skip_observation=True)  # process the Touchdown-procedure
+                    transitions.append(self.env.step(None))  # process the Touchdown-procedure
 
-        return self.root_env.get_step_return(skip_observation=skip_observation)
+        obs, _, done, info = transitions[-1]
+        return ((None, None, None) if skip_observation else obs,
+                sum(t[1] for t in transitions), done,
+                {**info, 'transitions': transitions})
+
+
+# Explicitly importing the RL adapter also supports an uninstalled source
+LegacyV4Env = BotBowlEnv
+
+# Explicitly importing the RL adapter also supports an uninstalled source
+# checkout. Installed distributions register through Gym's plugin entry point.
+from botbowl.ai import register_envs as _register_envs
+
+_register_envs()

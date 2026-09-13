@@ -5,6 +5,14 @@ import botbowl.core.procedure as procedure
 from examples.scripted_bot_example import MyScriptedBot
 
 
+def validate_action_mask(mask):
+    """Fail before sampling/softmax on an invalid episode; works without torch."""
+    if len(mask.shape) != 2 or not mask.shape[1] or not ((mask == 0) | (mask == 1)).all():
+        raise ValueError("Expected a binary batch of action masks")
+    if not mask.any(-1).all():
+        raise ValueError("Empty action mask: reset ended episodes before sampling")
+
+
 class A2C_Reward:
     # --- Reward function ---
     rewards_own = {
@@ -29,17 +37,25 @@ class A2C_Reward:
     }
     ball_progression_reward = 0.005
 
-    def __init__(self):
+    def __init__(self, team="home"):
+        if team not in ("home", "away"):
+            raise ValueError("team must be home or away")
+        self.team = team
+        self.reset()
+
+    def reset(self):
+        self.game = None
         self.last_report_idx = 0
         self.last_ball_x = None
         self.last_ball_team = None
 
     def __call__(self, game: Game):
-        if len(game.state.reports) < self.last_report_idx:
-            self.last_report_idx = 0
+        if game is not self.game or len(game.state.reports) < self.last_report_idx:
+            self.reset()
+            self.game = game
 
         r = 0.0
-        own_team = game.active_team
+        own_team = game.state.home_team if self.team == "home" else game.state.away_team
         opp_team = game.get_opp_team(own_team)
 
         for outcome in game.state.reports[self.last_report_idx:]:

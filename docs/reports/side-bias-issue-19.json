@@ -1,0 +1,6611 @@
+{
+  "base": "5a74bf68a4f37aa0f1386b72896962de12840038",
+  "cells": [
+    {
+      "config": {
+        "arena": "ff-pitch-11.txt",
+        "competition_mode": false,
+        "debug_mode": false,
+        "defensive_formations": [
+          {
+            "name": "Spread",
+            "rows": [
+              "-------------",
+              "--------x----",
+              "---------x---",
+              "-------------",
+              "---------S---",
+              "------------0",
+              "-------------",
+              "-------x-x--0",
+              "-------------",
+              "------------0",
+              "---------S---",
+              "-------------",
+              "---------x---",
+              "--------x----",
+              "-------------"
+            ]
+          },
+          {
+            "name": "Zone",
+            "rows": [
+              "-------------",
+              "--------x-b--",
+              "-------------",
+              "-------------",
+              "--------x-S--",
+              "------------0",
+              "-------------",
+              "------------0",
+              "-------------",
+              "------------0",
+              "--------x-S--",
+              "-------------",
+              "-------------",
+              "--------x-b--",
+              "-------------"
+            ]
+          }
+        ],
+        "dungeon": false,
+        "fast_mode": true,
+        "kick_off_table": true,
+        "kick_scatter_dice": "d6",
+        "kick_scatter_distance": "d6",
+        "name": "Bot Bowl",
+        "offensive_formations": [
+          {
+            "name": "Wedge",
+            "rows": [
+              "-------------",
+              "-------------",
+              "----------m--",
+              "-----------x-",
+              "-------------",
+              "------------S",
+              "------------x",
+              "-----s---0--S",
+              "------------x",
+              "------------S",
+              "-------------",
+              "-----------x-",
+              "----------m--",
+              "-------------",
+              "-------------"
+            ]
+          },
+          {
+            "name": "Line",
+            "rows": [
+              "-------------",
+              "-------------",
+              "-----------m-",
+              "-------------",
+              "------------x",
+              "------------S",
+              "------------x",
+              "-----s---0--S",
+              "------------x",
+              "------------S",
+              "------------x",
+              "-------------",
+              "-----------m-",
+              "-------------",
+              "-------------"
+            ]
+          }
+        ],
+        "pathfinding_directly_to_adjacent": true,
+        "pathfinding_enabled": false,
+        "pitch_max": 11,
+        "pitch_min": 3,
+        "roster_size": 16,
+        "rounds": 8,
+        "ruleset": "BB2016",
+        "scrimmage_min": 3,
+        "throw_in_dice": "2d6",
+        "time_limits": {
+          "end": 10,
+          "init": 20,
+          "secondary": 5,
+          "turn": 120
+        },
+        "wing_max": 2
+      },
+      "environment": {
+        "backend": "botbowl.core.pathfinding.cython_pathfinding",
+        "numpy": "2.4.6",
+        "python": "3.11.16",
+        "revision": "da354736ec8edc2acc32a57716e0c76a6a980a42",
+        "source_sha256": {
+          "examples/scripted_bot_example.py": "46501a0168b740d5586a41cc037e455dd89fb6379999ac419c18cddfbbd6ce06",
+          "examples/side_bias.py": "e78104ace2e47c2827d3dbcb6fee41b09abed69fdddc58e98f1444baed848f3c"
+        }
+      },
+      "event_counts": {
+        "ACCURATE_PASS": 1,
+        "ACTION_SELECT_DIE": 108,
+        "ARMOR_BROKEN": 36,
+        "ARMOR_NOT_BROKEN": 107,
+        "AWAY_RECEIVE": 8,
+        "BADLY_HURT": 5,
+        "BALL_BOUNCED": 23,
+        "BALL_BOUNCE_GROUND": 21,
+        "BALL_BOUNCE_PLAYER": 1,
+        "BALL_HIT_GROUND": 20,
+        "BALL_HIT_PLAYER": 3,
+        "BALL_PLACED": 32,
+        "BALL_SCATTER": 32,
+        "BLITZ_ACTION_STARTED": 272,
+        "BLITZ_START": 5,
+        "BLOCK_ACTION_STARTED": 276,
+        "BLOCK_ROLL": 161,
+        "BRILLIANT_COACHING_ROLL": 4,
+        "CASUALTY": 16,
+        "CHEERING_FANS_ROLL": 2,
+        "DEAD": 1,
+        "END_OF_BLITZ": 5,
+        "END_OF_FIRST_HALF": 16,
+        "END_OF_GAME_DRAW": 16,
+        "END_OF_QUICK_SNAP": 2,
+        "END_OF_SECOND_HALF": 16,
+        "END_OF_TURN": 424,
+        "END_PLAYER_TURN": 1061,
+        "EXTRA_BRIBE": 2,
+        "EXTRA_REROLL": 3,
+        "FAILED_CATCH": 1,
+        "FAILED_DODGE": 92,
+        "FAILED_GFI": 1,
+        "FAILED_INTERCEPTION": 1,
+        "FAME": 32,
+        "FOLLOW_UP": 43,
+        "FOUL": 8,
+        "FOUL_ACTION_STARTED": 266,
+        "FUMBLE": 1,
+        "GAME_STARTED": 16,
+        "GENTLE_GUST_IN_BOUNDS": 1,
+        "GENTLE_GUST_OUT_OF_BOUNDS": 1,
+        "HANDOFF": 1,
+        "HANDOFF_ACTION_STARTED": 273,
+        "HEADS_LOSS": 2,
+        "HEADS_WON": 7,
+        "HIT_BY_ROCK": 4,
+        "HOME_RECEIVE": 8,
+        "KICKOFF_BLITZ": 5,
+        "KICKOFF_BRILLIANT_COACHING": 2,
+        "KICKOFF_CHANGING_WHEATHER": 10,
+        "KICKOFF_CHEERING_FANS": 1,
+        "KICKOFF_GET_THE_REF": 1,
+        "KICKOFF_HIGH_KICK": 4,
+        "KICKOFF_PITCH_INVASION": 2,
+        "KICKOFF_QUICK_SNAP": 2,
+        "KICKOFF_RIOT": 3,
+        "KICKOFF_THROW_A_ROCK": 2,
+        "KICK_IN_BOUNDS": 24,
+        "KICK_OPP_HALF": 4,
+        "KICK_OUT_OF_BOUNDS": 4,
+        "KNOCKED_DOWN": 139,
+        "KNOCKED_OUT": 12,
+        "MISS_NEXT_GAME": 2,
+        "MOVE_ACTION_STARTED": 399,
+        "PASS_ACTION_STARTED": 275,
+        "PLAYER_EJECTED": 1,
+        "PLAYER_NOT_READY": 2,
+        "PLAYER_PLACED": 704,
+        "PLAYER_PLACED_HIGH_KICK": 1,
+        "PLAYER_READY": 33,
+        "PUSHED": 79,
+        "QUICK_SNAP_START": 2,
+        "REROLL_USED": 87,
+        "SETUP_DONE": 64,
+        "SKILL_USED": 3,
+        "SPECTATORS": 16,
+        "STAND_UP": 38,
+        "STUNNED": 32,
+        "STUNNED_TURNED": 512,
+        "SUCCESSFUL_CATCH": 4,
+        "SUCCESSFUL_DODGE": 89,
+        "SUCCESSFUL_GFI": 7,
+        "TAILS_LOSS": 4,
+        "TAILS_WON": 3,
+        "TEAM_SPECTATORS": 32,
+        "THROW_A_ROCK_ROLL": 4,
+        "TOUCHBACK": 10,
+        "TOUCHBACK_BALL_PLACED": 10,
+        "TURNOVER": 88,
+        "TURN_SKIPPED": 3,
+        "TURN_START": 512,
+        "WEATHER_NICE": 23,
+        "WEATHER_VERY_SUNNY": 3
+      },
+      "name": "final-native-random-legal-off",
+      "summary": {
+        "attempted": 16,
+        "backend": "botbowl.core.pathfinding.cython_pathfinding",
+        "end_causes": {
+          "completed": 16
+        },
+        "excluded_episodes": 0,
+        "kickoff": true,
+        "pathfinding": false,
+        "policy_a": "random-legal",
+        "policy_b": "random-legal",
+        "rounds": 8,
+        "size": 11,
+        "strata": {
+          "all": {
+            "away_wins": 0,
+            "draws": 16,
+            "episodes": 16,
+            "hoeffding95": [
+              0.019838604340039645,
+              0.9801613956599604
+            ],
+            "home_points": 0.5,
+            "home_wins": 0,
+            "pairs": 8
+          },
+          "receive-away": {
+            "away_wins": 0,
+            "draws": 8,
+            "episodes": 8,
+            "hoeffding95": [
+              0.019838604340039645,
+              0.9801613956599604
+            ],
+            "home_points": 0.5,
+            "home_wins": 0,
+            "pairs": 8
+          },
+          "receive-home": {
+            "away_wins": 0,
+            "draws": 8,
+            "episodes": 8,
+            "hoeffding95": [
+              0.019838604340039645,
+              0.9801613956599604
+            ],
+            "home_points": 0.5,
+            "home_wins": 0,
+            "pairs": 8
+          }
+        }
+      }
+    },
+    {
+      "config": {
+        "arena": "ff-pitch-11.txt",
+        "competition_mode": false,
+        "debug_mode": false,
+        "defensive_formations": [
+          {
+            "name": "Spread",
+            "rows": [
+              "-------------",
+              "--------x----",
+              "---------x---",
+              "-------------",
+              "---------S---",
+              "------------0",
+              "-------------",
+              "-------x-x--0",
+              "-------------",
+              "------------0",
+              "---------S---",
+              "-------------",
+              "---------x---",
+              "--------x----",
+              "-------------"
+            ]
+          },
+          {
+            "name": "Zone",
+            "rows": [
+              "-------------",
+              "--------x-b--",
+              "-------------",
+              "-------------",
+              "--------x-S--",
+              "------------0",
+              "-------------",
+              "------------0",
+              "-------------",
+              "------------0",
+              "--------x-S--",
+              "-------------",
+              "-------------",
+              "--------x-b--",
+              "-------------"
+            ]
+          }
+        ],
+        "dungeon": false,
+        "fast_mode": true,
+        "kick_off_table": true,
+        "kick_scatter_dice": "d6",
+        "kick_scatter_distance": "d6",
+        "name": "Bot Bowl",
+        "offensive_formations": [
+          {
+            "name": "Wedge",
+            "rows": [
+              "-------------",
+              "-------------",
+              "----------m--",
+              "-----------x-",
+              "-------------",
+              "------------S",
+              "------------x",
+              "-----s---0--S",
+              "------------x",
+              "------------S",
+              "-------------",
+              "-----------x-",
+              "----------m--",
+              "-------------",
+              "-------------"
+            ]
+          },
+          {
+            "name": "Line",
+            "rows": [
+              "-------------",
+              "-------------",
+              "-----------m-",
+              "-------------",
+              "------------x",
+              "------------S",
+              "------------x",
+              "-----s---0--S",
+              "------------x",
+              "------------S",
+              "------------x",
+              "-------------",
+              "-----------m-",
+              "-------------",
+              "-------------"
+            ]
+          }
+        ],
+        "pathfinding_directly_to_adjacent": true,
+        "pathfinding_enabled": true,
+        "pitch_max": 11,
+        "pitch_min": 3,
+        "roster_size": 16,
+        "rounds": 8,
+        "ruleset": "BB2016",
+        "scrimmage_min": 3,
+        "throw_in_dice": "2d6",
+        "time_limits": {
+          "end": 10,
+          "init": 20,
+          "secondary": 5,
+          "turn": 120
+        },
+        "wing_max": 2
+      },
+      "environment": {
+        "backend": "botbowl.core.pathfinding.cython_pathfinding",
+        "numpy": "2.4.6",
+        "python": "3.11.16",
+        "revision": "da354736ec8edc2acc32a57716e0c76a6a980a42",
+        "source_sha256": {
+          "examples/scripted_bot_example.py": "46501a0168b740d5586a41cc037e455dd89fb6379999ac419c18cddfbbd6ce06",
+          "examples/side_bias.py": "e78104ace2e47c2827d3dbcb6fee41b09abed69fdddc58e98f1444baed848f3c"
+        }
+      },
+      "event_counts": {
+        "ACTION_SELECT_DIE": 117,
+        "ARMOR_BROKEN": 70,
+        "ARMOR_NOT_BROKEN": 204,
+        "AWAY_RECEIVE": 8,
+        "BADLY_HURT": 7,
+        "BALL_BOUNCED": 34,
+        "BALL_BOUNCE_GROUND": 27,
+        "BALL_BOUNCE_PLAYER": 6,
+        "BALL_HIT_GROUND": 21,
+        "BALL_HIT_PLAYER": 3,
+        "BALL_PLACED": 32,
+        "BALL_SCATTER": 32,
+        "BLITZ_ACTION_STARTED": 260,
+        "BLITZ_START": 2,
+        "BLOCK_ACTION_STARTED": 246,
+        "BLOCK_ROLL": 172,
+        "BRILLIANT_COACHING_ROLL": 4,
+        "CASUALTY": 24,
+        "CHEERING_FANS_ROLL": 2,
+        "DEAD": 1,
+        "END_OF_BLITZ": 2,
+        "END_OF_FIRST_HALF": 16,
+        "END_OF_GAME_DRAW": 16,
+        "END_OF_QUICK_SNAP": 2,
+        "END_OF_SECOND_HALF": 16,
+        "END_OF_TURN": 323,
+        "END_PLAYER_TURN": 906,
+        "EXTRA_REROLL": 4,
+        "FAILED_CATCH": 7,
+        "FAILED_DODGE": 145,
+        "FAILED_GFI": 97,
+        "FAILED_PICKUP": 1,
+        "FAME": 32,
+        "FOLLOW_UP": 46,
+        "FOUL": 34,
+        "FOUL_ACTION_STARTED": 250,
+        "FUMBLE": 5,
+        "GAME_STARTED": 16,
+        "GENTLE_GUST_IN_BOUNDS": 1,
+        "HANDOFF": 1,
+        "HANDOFF_ACTION_STARTED": 275,
+        "HEADS_LOSS": 2,
+        "HEADS_WON": 7,
+        "HIT_BY_ROCK": 5,
+        "HOME_RECEIVE": 8,
+        "KICKOFF_BLITZ": 2,
+        "KICKOFF_BRILLIANT_COACHING": 2,
+        "KICKOFF_CHANGING_WHEATHER": 8,
+        "KICKOFF_CHEERING_FANS": 1,
+        "KICKOFF_HIGH_KICK": 5,
+        "KICKOFF_PERFECT_DEFENSE": 3,
+        "KICKOFF_PITCH_INVASION": 2,
+        "KICKOFF_QUICK_SNAP": 2,
+        "KICKOFF_RIOT": 4,
+        "KICKOFF_THROW_A_ROCK": 3,
+        "KICK_IN_BOUNDS": 24,
+        "KICK_OPP_HALF": 4,
+        "KICK_OUT_OF_BOUNDS": 4,
+        "KNOCKED_DOWN": 245,
+        "KNOCKED_OUT": 25,
+        "MISS_NEXT_GAME": 4,
+        "MOVE_ACTION_STARTED": 375,
+        "PASS_ACTION_STARTED": 251,
+        "PLAYER_EJECTED": 5,
+        "PLAYER_NOT_READY": 12,
+        "PLAYER_PLACED": 699,
+        "PLAYER_READY": 37,
+        "PUSHED": 81,
+        "QUICK_SNAP_START": 2,
+        "REROLL_USED": 131,
+        "SETUP_DONE": 67,
+        "SKILL_USED": 23,
+        "SPECTATORS": 16,
+        "STAND_UP": 82,
+        "STUNNED": 50,
+        "STUNNED_TURNED": 512,
+        "SUCCESSFUL_CATCH": 3,
+        "SUCCESSFUL_DODGE": 223,
+        "SUCCESSFUL_GFI": 421,
+        "SUCCESSFUL_PICKUP": 2,
+        "TAILS_LOSS": 4,
+        "TAILS_WON": 3,
+        "TEAM_SPECTATORS": 32,
+        "THROW_A_ROCK_ROLL": 6,
+        "TOUCHBACK": 9,
+        "TOUCHBACK_BALL_PLACED": 9,
+        "TURNOVER": 189,
+        "TURN_SKIPPED": 4,
+        "TURN_START": 512,
+        "WEATHER_NICE": 22,
+        "WEATHER_VERY_SUNNY": 2
+      },
+      "name": "final-native-random-legal-on",
+      "summary": {
+        "attempted": 16,
+        "backend": "botbowl.core.pathfinding.cython_pathfinding",
+        "end_causes": {
+          "completed": 16
+        },
+        "excluded_episodes": 0,
+        "kickoff": true,
+        "pathfinding": true,
+        "policy_a": "random-legal",
+        "policy_b": "random-legal",
+        "rounds": 8,
+        "size": 11,
+        "strata": {
+          "all": {
+            "away_wins": 0,
+            "draws": 16,
+            "episodes": 16,
+            "hoeffding95": [
+              0.019838604340039645,
+              0.9801613956599604
+            ],
+            "home_points": 0.5,
+            "home_wins": 0,
+            "pairs": 8
+          },
+          "receive-away": {
+            "away_wins": 0,
+            "draws": 8,
+            "episodes": 8,
+            "hoeffding95": [
+              0.019838604340039645,
+              0.9801613956599604
+            ],
+            "home_points": 0.5,
+            "home_wins": 0,
+            "pairs": 8
+          },
+          "receive-home": {
+            "away_wins": 0,
+            "draws": 8,
+            "episodes": 8,
+            "hoeffding95": [
+              0.019838604340039645,
+              0.9801613956599604
+            ],
+            "home_points": 0.5,
+            "home_wins": 0,
+            "pairs": 8
+          }
+        }
+      }
+    },
+    {
+      "config": {
+        "arena": "ff-pitch-11.txt",
+        "competition_mode": false,
+        "debug_mode": false,
+        "defensive_formations": [
+          {
+            "name": "Spread",
+            "rows": [
+              "-------------",
+              "--------x----",
+              "---------x---",
+              "-------------",
+              "---------S---",
+              "------------0",
+              "-------------",
+              "-------x-x--0",
+              "-------------",
+              "------------0",
+              "---------S---",
+              "-------------",
+              "---------x---",
+              "--------x----",
+              "-------------"
+            ]
+          },
+          {
+            "name": "Zone",
+            "rows": [
+              "-------------",
+              "--------x-b--",
+              "-------------",
+              "-------------",
+              "--------x-S--",
+              "------------0",
+              "-------------",
+              "------------0",
+              "-------------",
+              "------------0",
+              "--------x-S--",
+              "-------------",
+              "-------------",
+              "--------x-b--",
+              "-------------"
+            ]
+          }
+        ],
+        "dungeon": false,
+        "fast_mode": true,
+        "kick_off_table": true,
+        "kick_scatter_dice": "d6",
+        "kick_scatter_distance": "d6",
+        "name": "Bot Bowl",
+        "offensive_formations": [
+          {
+            "name": "Wedge",
+            "rows": [
+              "-------------",
+              "-------------",
+              "----------m--",
+              "-----------x-",
+              "-------------",
+              "------------S",
+              "------------x",
+              "-----s---0--S",
+              "------------x",
+              "------------S",
+              "-------------",
+              "-----------x-",
+              "----------m--",
+              "-------------",
+              "-------------"
+            ]
+          },
+          {
+            "name": "Line",
+            "rows": [
+              "-------------",
+              "-------------",
+              "-----------m-",
+              "-------------",
+              "------------x",
+              "------------S",
+              "------------x",
+              "-----s---0--S",
+              "------------x",
+              "------------S",
+              "------------x",
+              "-------------",
+              "-----------m-",
+              "-------------",
+              "-------------"
+            ]
+          }
+        ],
+        "pathfinding_directly_to_adjacent": true,
+        "pathfinding_enabled": false,
+        "pitch_max": 11,
+        "pitch_min": 3,
+        "roster_size": 16,
+        "rounds": 8,
+        "ruleset": "BB2016",
+        "scrimmage_min": 3,
+        "throw_in_dice": "2d6",
+        "time_limits": {
+          "end": 10,
+          "init": 20,
+          "secondary": 5,
+          "turn": 120
+        },
+        "wing_max": 2
+      },
+      "environment": {
+        "backend": "botbowl.core.pathfinding.cython_pathfinding",
+        "numpy": "2.4.6",
+        "python": "3.11.16",
+        "revision": "da354736ec8edc2acc32a57716e0c76a6a980a42",
+        "source_sha256": {
+          "examples/scripted_bot_example.py": "46501a0168b740d5586a41cc037e455dd89fb6379999ac419c18cddfbbd6ce06",
+          "examples/side_bias.py": "e78104ace2e47c2827d3dbcb6fee41b09abed69fdddc58e98f1444baed848f3c"
+        }
+      },
+      "event_counts": {
+        "ACTION_SELECT_DIE": 1563,
+        "ARMOR_BROKEN": 300,
+        "ARMOR_NOT_BROKEN": 740,
+        "AWAY_RECEIVE": 8,
+        "BADLY_HURT": 37,
+        "BALL_BOUNCED": 157,
+        "BALL_BOUNCE_GROUND": 101,
+        "BALL_BOUNCE_PLAYER": 55,
+        "BALL_HIT_GROUND": 50,
+        "BALL_HIT_PLAYER": 1,
+        "BALL_OUT_OF_BOUNDS": 1,
+        "BALL_PLACED": 51,
+        "BALL_SCATTER": 51,
+        "BLITZ_ACTION_STARTED": 155,
+        "BLITZ_START": 5,
+        "BLOCK_ACTION_STARTED": 1408,
+        "BLOCK_ROLL": 1691,
+        "BRILLIANT_COACHING_ROLL": 4,
+        "CASUALTY": 134,
+        "CHEERING_FANS_ROLL": 12,
+        "DEAD": 10,
+        "END_OF_BLITZ": 5,
+        "END_OF_FIRST_HALF": 16,
+        "END_OF_GAME_DRAW": 5,
+        "END_OF_GAME_WINNER": 11,
+        "END_OF_QUICK_SNAP": 5,
+        "END_OF_SECOND_HALF": 16,
+        "END_OF_TURN": 371,
+        "END_PLAYER_TURN": 3988,
+        "EXTRA_REROLL": 10,
+        "FAILED_CATCH": 40,
+        "FAILED_DODGE": 38,
+        "FAILED_GFI": 14,
+        "FAILED_PICKUP": 43,
+        "FAME": 32,
+        "FOLLOW_UP": 1363,
+        "FUMBLE": 50,
+        "GAME_STARTED": 16,
+        "GENTLE_GUST_IN_BOUNDS": 7,
+        "HANDOFF": 3,
+        "HANDOFF_ACTION_STARTED": 3,
+        "HEADS_LOSS": 6,
+        "HIT_BY_ROCK": 6,
+        "HOME_RECEIVE": 8,
+        "KICKOFF_BLITZ": 5,
+        "KICKOFF_BRILLIANT_COACHING": 2,
+        "KICKOFF_CHANGING_WHEATHER": 9,
+        "KICKOFF_CHEERING_FANS": 6,
+        "KICKOFF_HIGH_KICK": 8,
+        "KICKOFF_PERFECT_DEFENSE": 5,
+        "KICKOFF_PITCH_INVASION": 4,
+        "KICKOFF_QUICK_SNAP": 5,
+        "KICKOFF_RIOT": 4,
+        "KICKOFF_THROW_A_ROCK": 3,
+        "KICK_IN_BOUNDS": 51,
+        "KNOCKED_DOWN": 1064,
+        "KNOCKED_OUT": 75,
+        "MISS_NEXT_GAME": 20,
+        "MOVE_ACTION_STARTED": 2563,
+        "PLAYER_NOT_READY": 34,
+        "PLAYER_PLACED": 1083,
+        "PLAYER_READY": 101,
+        "PUSHED": 1399,
+        "PUSHED_INTO_CROWD": 18,
+        "QUICK_SNAP_START": 5,
+        "REROLL_USED": 167,
+        "SETUP_DONE": 107,
+        "SKILL_USED": 152,
+        "SPECTATORS": 16,
+        "STAND_UP": 807,
+        "STUNNED": 203,
+        "STUNNED_TURNED": 512,
+        "SUCCESSFUL_CATCH": 23,
+        "SUCCESSFUL_DODGE": 43,
+        "SUCCESSFUL_GFI": 50,
+        "SUCCESSFUL_PICKUP": 74,
+        "TAILS_WON": 10,
+        "TEAM_SPECTATORS": 32,
+        "THROW_A_ROCK_ROLL": 6,
+        "THROW_IN": 3,
+        "TOUCHDOWN": 20,
+        "TURNOVER": 121,
+        "TURN_SKIPPED": 4,
+        "TURN_START": 512,
+        "WEATHER_NICE": 23,
+        "WEATHER_VERY_SUNNY": 2
+      },
+      "name": "final-native-scripted-off",
+      "summary": {
+        "attempted": 16,
+        "backend": "botbowl.core.pathfinding.cython_pathfinding",
+        "end_causes": {
+          "completed": 16
+        },
+        "excluded_episodes": 0,
+        "kickoff": true,
+        "pathfinding": false,
+        "policy_a": "scripted",
+        "policy_b": "scripted",
+        "rounds": 8,
+        "size": 11,
+        "strata": {
+          "all": {
+            "away_wins": 8,
+            "draws": 5,
+            "episodes": 16,
+            "hoeffding95": [
+              0,
+              0.8239113956599604
+            ],
+            "home_points": 0.34375,
+            "home_wins": 3,
+            "pairs": 8
+          },
+          "receive-away": {
+            "away_wins": 4,
+            "draws": 2,
+            "episodes": 8,
+            "hoeffding95": [
+              0,
+              0.8551613956599604
+            ],
+            "home_points": 0.375,
+            "home_wins": 2,
+            "pairs": 8
+          },
+          "receive-home": {
+            "away_wins": 4,
+            "draws": 3,
+            "episodes": 8,
+            "hoeffding95": [
+              0,
+              0.7926613956599604
+            ],
+            "home_points": 0.3125,
+            "home_wins": 1,
+            "pairs": 8
+          }
+        }
+      }
+    },
+    {
+      "config": {
+        "arena": "ff-pitch-11.txt",
+        "competition_mode": false,
+        "debug_mode": false,
+        "defensive_formations": [
+          {
+            "name": "Spread",
+            "rows": [
+              "-------------",
+              "--------x----",
+              "---------x---",
+              "-------------",
+              "---------S---",
+              "------------0",
+              "-------------",
+              "-------x-x--0",
+              "-------------",
+              "------------0",
+              "---------S---",
+              "-------------",
+              "---------x---",
+              "--------x----",
+              "-------------"
+            ]
+          },
+          {
+            "name": "Zone",
+            "rows": [
+              "-------------",
+              "--------x-b--",
+              "-------------",
+              "-------------",
+              "--------x-S--",
+              "------------0",
+              "-------------",
+              "------------0",
+              "-------------",
+              "------------0",
+              "--------x-S--",
+              "-------------",
+              "-------------",
+              "--------x-b--",
+              "-------------"
+            ]
+          }
+        ],
+        "dungeon": false,
+        "fast_mode": true,
+        "kick_off_table": true,
+        "kick_scatter_dice": "d6",
+        "kick_scatter_distance": "d6",
+        "name": "Bot Bowl",
+        "offensive_formations": [
+          {
+            "name": "Wedge",
+            "rows": [
+              "-------------",
+              "-------------",
+              "----------m--",
+              "-----------x-",
+              "-------------",
+              "------------S",
+              "------------x",
+              "-----s---0--S",
+              "------------x",
+              "------------S",
+              "-------------",
+              "-----------x-",
+              "----------m--",
+              "-------------",
+              "-------------"
+            ]
+          },
+          {
+            "name": "Line",
+            "rows": [
+              "-------------",
+              "-------------",
+              "-----------m-",
+              "-------------",
+              "------------x",
+              "------------S",
+              "------------x",
+              "-----s---0--S",
+              "------------x",
+              "------------S",
+              "------------x",
+              "-------------",
+              "-----------m-",
+              "-------------",
+              "-------------"
+            ]
+          }
+        ],
+        "pathfinding_directly_to_adjacent": true,
+        "pathfinding_enabled": true,
+        "pitch_max": 11,
+        "pitch_min": 3,
+        "roster_size": 16,
+        "rounds": 8,
+        "ruleset": "BB2016",
+        "scrimmage_min": 3,
+        "throw_in_dice": "2d6",
+        "time_limits": {
+          "end": 10,
+          "init": 20,
+          "secondary": 5,
+          "turn": 120
+        },
+        "wing_max": 2
+      },
+      "environment": {
+        "backend": "botbowl.core.pathfinding.cython_pathfinding",
+        "numpy": "2.4.6",
+        "python": "3.11.16",
+        "revision": "da354736ec8edc2acc32a57716e0c76a6a980a42",
+        "source_sha256": {
+          "examples/scripted_bot_example.py": "46501a0168b740d5586a41cc037e455dd89fb6379999ac419c18cddfbbd6ce06",
+          "examples/side_bias.py": "e78104ace2e47c2827d3dbcb6fee41b09abed69fdddc58e98f1444baed848f3c"
+        }
+      },
+      "event_counts": {
+        "ACTION_SELECT_DIE": 1563,
+        "ARMOR_BROKEN": 300,
+        "ARMOR_NOT_BROKEN": 740,
+        "AWAY_RECEIVE": 8,
+        "BADLY_HURT": 37,
+        "BALL_BOUNCED": 157,
+        "BALL_BOUNCE_GROUND": 101,
+        "BALL_BOUNCE_PLAYER": 55,
+        "BALL_HIT_GROUND": 50,
+        "BALL_HIT_PLAYER": 1,
+        "BALL_OUT_OF_BOUNDS": 1,
+        "BALL_PLACED": 51,
+        "BALL_SCATTER": 51,
+        "BLITZ_ACTION_STARTED": 155,
+        "BLITZ_START": 5,
+        "BLOCK_ACTION_STARTED": 1408,
+        "BLOCK_ROLL": 1691,
+        "BRILLIANT_COACHING_ROLL": 4,
+        "CASUALTY": 134,
+        "CHEERING_FANS_ROLL": 12,
+        "DEAD": 10,
+        "END_OF_BLITZ": 5,
+        "END_OF_FIRST_HALF": 16,
+        "END_OF_GAME_DRAW": 5,
+        "END_OF_GAME_WINNER": 11,
+        "END_OF_QUICK_SNAP": 5,
+        "END_OF_SECOND_HALF": 16,
+        "END_OF_TURN": 371,
+        "END_PLAYER_TURN": 3988,
+        "EXTRA_REROLL": 10,
+        "FAILED_CATCH": 40,
+        "FAILED_DODGE": 38,
+        "FAILED_GFI": 14,
+        "FAILED_PICKUP": 43,
+        "FAME": 32,
+        "FOLLOW_UP": 1363,
+        "FUMBLE": 50,
+        "GAME_STARTED": 16,
+        "GENTLE_GUST_IN_BOUNDS": 7,
+        "HANDOFF": 3,
+        "HANDOFF_ACTION_STARTED": 3,
+        "HEADS_LOSS": 6,
+        "HIT_BY_ROCK": 6,
+        "HOME_RECEIVE": 8,
+        "KICKOFF_BLITZ": 5,
+        "KICKOFF_BRILLIANT_COACHING": 2,
+        "KICKOFF_CHANGING_WHEATHER": 9,
+        "KICKOFF_CHEERING_FANS": 6,
+        "KICKOFF_HIGH_KICK": 8,
+        "KICKOFF_PERFECT_DEFENSE": 5,
+        "KICKOFF_PITCH_INVASION": 4,
+        "KICKOFF_QUICK_SNAP": 5,
+        "KICKOFF_RIOT": 4,
+        "KICKOFF_THROW_A_ROCK": 3,
+        "KICK_IN_BOUNDS": 51,
+        "KNOCKED_DOWN": 1064,
+        "KNOCKED_OUT": 75,
+        "MISS_NEXT_GAME": 20,
+        "MOVE_ACTION_STARTED": 2563,
+        "PLAYER_NOT_READY": 34,
+        "PLAYER_PLACED": 1083,
+        "PLAYER_READY": 101,
+        "PUSHED": 1399,
+        "PUSHED_INTO_CROWD": 18,
+        "QUICK_SNAP_START": 5,
+        "REROLL_USED": 167,
+        "SETUP_DONE": 107,
+        "SKILL_USED": 152,
+        "SPECTATORS": 16,
+        "STAND_UP": 807,
+        "STUNNED": 203,
+        "STUNNED_TURNED": 512,
+        "SUCCESSFUL_CATCH": 23,
+        "SUCCESSFUL_DODGE": 43,
+        "SUCCESSFUL_GFI": 50,
+        "SUCCESSFUL_PICKUP": 74,
+        "TAILS_WON": 10,
+        "TEAM_SPECTATORS": 32,
+        "THROW_A_ROCK_ROLL": 6,
+        "THROW_IN": 3,
+        "TOUCHDOWN": 20,
+        "TURNOVER": 121,
+        "TURN_SKIPPED": 4,
+        "TURN_START": 512,
+        "WEATHER_NICE": 23,
+        "WEATHER_VERY_SUNNY": 2
+      },
+      "name": "final-native-scripted-on",
+      "summary": {
+        "attempted": 16,
+        "backend": "botbowl.core.pathfinding.cython_pathfinding",
+        "end_causes": {
+          "completed": 16
+        },
+        "excluded_episodes": 0,
+        "kickoff": true,
+        "pathfinding": true,
+        "policy_a": "scripted",
+        "policy_b": "scripted",
+        "rounds": 8,
+        "size": 11,
+        "strata": {
+          "all": {
+            "away_wins": 8,
+            "draws": 5,
+            "episodes": 16,
+            "hoeffding95": [
+              0,
+              0.8239113956599604
+            ],
+            "home_points": 0.34375,
+            "home_wins": 3,
+            "pairs": 8
+          },
+          "receive-away": {
+            "away_wins": 4,
+            "draws": 2,
+            "episodes": 8,
+            "hoeffding95": [
+              0,
+              0.8551613956599604
+            ],
+            "home_points": 0.375,
+            "home_wins": 2,
+            "pairs": 8
+          },
+          "receive-home": {
+            "away_wins": 4,
+            "draws": 3,
+            "episodes": 8,
+            "hoeffding95": [
+              0,
+              0.7926613956599604
+            ],
+            "home_points": 0.3125,
+            "home_wins": 1,
+            "pairs": 8
+          }
+        }
+      }
+    },
+    {
+      "config": {
+        "arena": "ff-pitch-11.txt",
+        "competition_mode": false,
+        "debug_mode": false,
+        "defensive_formations": [
+          {
+            "name": "Spread",
+            "rows": [
+              "-------------",
+              "--------x----",
+              "---------x---",
+              "-------------",
+              "---------S---",
+              "------------0",
+              "-------------",
+              "-------x-x--0",
+              "-------------",
+              "------------0",
+              "---------S---",
+              "-------------",
+              "---------x---",
+              "--------x----",
+              "-------------"
+            ]
+          },
+          {
+            "name": "Zone",
+            "rows": [
+              "-------------",
+              "--------x-b--",
+              "-------------",
+              "-------------",
+              "--------x-S--",
+              "------------0",
+              "-------------",
+              "------------0",
+              "-------------",
+              "------------0",
+              "--------x-S--",
+              "-------------",
+              "-------------",
+              "--------x-b--",
+              "-------------"
+            ]
+          }
+        ],
+        "dungeon": false,
+        "fast_mode": true,
+        "kick_off_table": true,
+        "kick_scatter_dice": "d6",
+        "kick_scatter_distance": "d6",
+        "name": "Bot Bowl",
+        "offensive_formations": [
+          {
+            "name": "Wedge",
+            "rows": [
+              "-------------",
+              "-------------",
+              "----------m--",
+              "-----------x-",
+              "-------------",
+              "------------S",
+              "------------x",
+              "-----s---0--S",
+              "------------x",
+              "------------S",
+              "-------------",
+              "-----------x-",
+              "----------m--",
+              "-------------",
+              "-------------"
+            ]
+          },
+          {
+            "name": "Line",
+            "rows": [
+              "-------------",
+              "-------------",
+              "-----------m-",
+              "-------------",
+              "------------x",
+              "------------S",
+              "------------x",
+              "-----s---0--S",
+              "------------x",
+              "------------S",
+              "------------x",
+              "-------------",
+              "-----------m-",
+              "-------------",
+              "-------------"
+            ]
+          }
+        ],
+        "pathfinding_directly_to_adjacent": true,
+        "pathfinding_enabled": false,
+        "pitch_max": 11,
+        "pitch_min": 3,
+        "roster_size": 16,
+        "rounds": 8,
+        "ruleset": "BB2016",
+        "scrimmage_min": 3,
+        "throw_in_dice": "2d6",
+        "time_limits": {
+          "end": 10,
+          "init": 20,
+          "secondary": 5,
+          "turn": 120
+        },
+        "wing_max": 2
+      },
+      "environment": {
+        "backend": "botbowl.core.pathfinding.cython_pathfinding",
+        "numpy": "2.4.6",
+        "python": "3.11.16",
+        "revision": "da354736ec8edc2acc32a57716e0c76a6a980a42",
+        "source_sha256": {
+          "examples/scripted_bot_example.py": "46501a0168b740d5586a41cc037e455dd89fb6379999ac419c18cddfbbd6ce06",
+          "examples/side_bias.py": "e78104ace2e47c2827d3dbcb6fee41b09abed69fdddc58e98f1444baed848f3c"
+        }
+      },
+      "event_counts": {
+        "ACTION_SELECT_DIE": 1503,
+        "ARMOR_BROKEN": 281,
+        "ARMOR_NOT_BROKEN": 703,
+        "AWAY_RECEIVE": 8,
+        "BADLY_HURT": 35,
+        "BALL_BOUNCED": 145,
+        "BALL_BOUNCE_GROUND": 103,
+        "BALL_BOUNCE_PLAYER": 39,
+        "BALL_HIT_GROUND": 52,
+        "BALL_HIT_PLAYER": 2,
+        "BALL_OUT_OF_BOUNDS": 3,
+        "BALL_PLACED": 54,
+        "BALL_SCATTER": 54,
+        "BLITZ_ACTION_STARTED": 158,
+        "BLITZ_START": 5,
+        "BLOCK_ACTION_STARTED": 1345,
+        "BLOCK_ROLL": 1607,
+        "BRILLIANT_COACHING_ROLL": 4,
+        "CASUALTY": 142,
+        "CHEERING_FANS_ROLL": 6,
+        "DEAD": 13,
+        "END_OF_BLITZ": 5,
+        "END_OF_FIRST_HALF": 16,
+        "END_OF_GAME_DRAW": 6,
+        "END_OF_GAME_WINNER": 10,
+        "END_OF_QUICK_SNAP": 6,
+        "END_OF_SECOND_HALF": 16,
+        "END_OF_TURN": 365,
+        "END_PLAYER_TURN": 3869,
+        "EXTRA_REROLL": 7,
+        "FAILED_CATCH": 33,
+        "FAILED_DODGE": 71,
+        "FAILED_GFI": 11,
+        "FAILED_PICKUP": 42,
+        "FAME": 32,
+        "FOLLOW_UP": 1316,
+        "FUMBLE": 50,
+        "GAME_STARTED": 16,
+        "GENTLE_GUST_IN_BOUNDS": 9,
+        "HEADS_LOSS": 6,
+        "HIT_BY_ROCK": 7,
+        "HOME_RECEIVE": 8,
+        "KICKOFF_BLITZ": 5,
+        "KICKOFF_BRILLIANT_COACHING": 2,
+        "KICKOFF_CHANGING_WHEATHER": 16,
+        "KICKOFF_CHEERING_FANS": 3,
+        "KICKOFF_HIGH_KICK": 7,
+        "KICKOFF_PERFECT_DEFENSE": 3,
+        "KICKOFF_PITCH_INVASION": 3,
+        "KICKOFF_QUICK_SNAP": 6,
+        "KICKOFF_RIOT": 4,
+        "KICKOFF_THROW_A_ROCK": 5,
+        "KICK_IN_BOUNDS": 54,
+        "KNOCKED_DOWN": 1018,
+        "KNOCKED_OUT": 74,
+        "MISS_NEXT_GAME": 23,
+        "MOVE_ACTION_STARTED": 2513,
+        "PLAYER_NOT_READY": 39,
+        "PLAYER_PLACED": 1123,
+        "PLAYER_READY": 80,
+        "PUSHED": 1339,
+        "PUSHED_INTO_CROWD": 27,
+        "QUICK_SNAP_START": 6,
+        "REROLL_USED": 153,
+        "SETUP_DONE": 111,
+        "SKILL_USED": 161,
+        "SPECTATORS": 16,
+        "STAND_UP": 764,
+        "STUNNED": 186,
+        "STUNNED_TURNED": 512,
+        "SUCCESSFUL_CATCH": 18,
+        "SUCCESSFUL_DODGE": 61,
+        "SUCCESSFUL_GFI": 88,
+        "SUCCESSFUL_PICKUP": 80,
+        "TAILS_WON": 10,
+        "TEAM_SPECTATORS": 32,
+        "THROW_A_ROCK_ROLL": 10,
+        "THROW_IN": 6,
+        "TOUCHDOWN": 23,
+        "TURNOVER": 124,
+        "TURN_ADDED": 1,
+        "TURN_SKIPPED": 3,
+        "TURN_START": 512,
+        "WEATHER_BLIZZARD": 2,
+        "WEATHER_NICE": 25,
+        "WEATHER_POURING_RAIN": 2,
+        "WEATHER_VERY_SUNNY": 3
+      },
+      "name": "final-native-scripted-mirrored-off",
+      "summary": {
+        "attempted": 16,
+        "backend": "botbowl.core.pathfinding.cython_pathfinding",
+        "end_causes": {
+          "completed": 16
+        },
+        "excluded_episodes": 0,
+        "kickoff": true,
+        "pathfinding": false,
+        "policy_a": "scripted-mirrored",
+        "policy_b": "scripted-mirrored",
+        "rounds": 8,
+        "size": 11,
+        "strata": {
+          "all": {
+            "away_wins": 4,
+            "draws": 6,
+            "episodes": 16,
+            "hoeffding95": [
+              0.08233860434003965,
+              1
+            ],
+            "home_points": 0.5625,
+            "home_wins": 6,
+            "pairs": 8
+          },
+          "receive-away": {
+            "away_wins": 4,
+            "draws": 2,
+            "episodes": 8,
+            "hoeffding95": [
+              0,
+              0.8551613956599604
+            ],
+            "home_points": 0.375,
+            "home_wins": 2,
+            "pairs": 8
+          },
+          "receive-home": {
+            "away_wins": 0,
+            "draws": 4,
+            "episodes": 8,
+            "hoeffding95": [
+              0.26983860434003965,
+              1
+            ],
+            "home_points": 0.75,
+            "home_wins": 4,
+            "pairs": 8
+          }
+        }
+      }
+    },
+    {
+      "config": {
+        "arena": "ff-pitch-11.txt",
+        "competition_mode": false,
+        "debug_mode": false,
+        "defensive_formations": [
+          {
+            "name": "Spread",
+            "rows": [
+              "-------------",
+              "--------x----",
+              "---------x---",
+              "-------------",
+              "---------S---",
+              "------------0",
+              "-------------",
+              "-------x-x--0",
+              "-------------",
+              "------------0",
+              "---------S---",
+              "-------------",
+              "---------x---",
+              "--------x----",
+              "-------------"
+            ]
+          },
+          {
+            "name": "Zone",
+            "rows": [
+              "-------------",
+              "--------x-b--",
+              "-------------",
+              "-------------",
+              "--------x-S--",
+              "------------0",
+              "-------------",
+              "------------0",
+              "-------------",
+              "------------0",
+              "--------x-S--",
+              "-------------",
+              "-------------",
+              "--------x-b--",
+              "-------------"
+            ]
+          }
+        ],
+        "dungeon": false,
+        "fast_mode": true,
+        "kick_off_table": true,
+        "kick_scatter_dice": "d6",
+        "kick_scatter_distance": "d6",
+        "name": "Bot Bowl",
+        "offensive_formations": [
+          {
+            "name": "Wedge",
+            "rows": [
+              "-------------",
+              "-------------",
+              "----------m--",
+              "-----------x-",
+              "-------------",
+              "------------S",
+              "------------x",
+              "-----s---0--S",
+              "------------x",
+              "------------S",
+              "-------------",
+              "-----------x-",
+              "----------m--",
+              "-------------",
+              "-------------"
+            ]
+          },
+          {
+            "name": "Line",
+            "rows": [
+              "-------------",
+              "-------------",
+              "-----------m-",
+              "-------------",
+              "------------x",
+              "------------S",
+              "------------x",
+              "-----s---0--S",
+              "------------x",
+              "------------S",
+              "------------x",
+              "-------------",
+              "-----------m-",
+              "-------------",
+              "-------------"
+            ]
+          }
+        ],
+        "pathfinding_directly_to_adjacent": true,
+        "pathfinding_enabled": true,
+        "pitch_max": 11,
+        "pitch_min": 3,
+        "roster_size": 16,
+        "rounds": 8,
+        "ruleset": "BB2016",
+        "scrimmage_min": 3,
+        "throw_in_dice": "2d6",
+        "time_limits": {
+          "end": 10,
+          "init": 20,
+          "secondary": 5,
+          "turn": 120
+        },
+        "wing_max": 2
+      },
+      "environment": {
+        "backend": "botbowl.core.pathfinding.cython_pathfinding",
+        "numpy": "2.4.6",
+        "python": "3.11.16",
+        "revision": "da354736ec8edc2acc32a57716e0c76a6a980a42",
+        "source_sha256": {
+          "examples/scripted_bot_example.py": "46501a0168b740d5586a41cc037e455dd89fb6379999ac419c18cddfbbd6ce06",
+          "examples/side_bias.py": "e78104ace2e47c2827d3dbcb6fee41b09abed69fdddc58e98f1444baed848f3c"
+        }
+      },
+      "event_counts": {
+        "ACTION_SELECT_DIE": 1503,
+        "ARMOR_BROKEN": 281,
+        "ARMOR_NOT_BROKEN": 703,
+        "AWAY_RECEIVE": 8,
+        "BADLY_HURT": 35,
+        "BALL_BOUNCED": 145,
+        "BALL_BOUNCE_GROUND": 103,
+        "BALL_BOUNCE_PLAYER": 39,
+        "BALL_HIT_GROUND": 52,
+        "BALL_HIT_PLAYER": 2,
+        "BALL_OUT_OF_BOUNDS": 3,
+        "BALL_PLACED": 54,
+        "BALL_SCATTER": 54,
+        "BLITZ_ACTION_STARTED": 158,
+        "BLITZ_START": 5,
+        "BLOCK_ACTION_STARTED": 1345,
+        "BLOCK_ROLL": 1607,
+        "BRILLIANT_COACHING_ROLL": 4,
+        "CASUALTY": 142,
+        "CHEERING_FANS_ROLL": 6,
+        "DEAD": 13,
+        "END_OF_BLITZ": 5,
+        "END_OF_FIRST_HALF": 16,
+        "END_OF_GAME_DRAW": 6,
+        "END_OF_GAME_WINNER": 10,
+        "END_OF_QUICK_SNAP": 6,
+        "END_OF_SECOND_HALF": 16,
+        "END_OF_TURN": 365,
+        "END_PLAYER_TURN": 3869,
+        "EXTRA_REROLL": 7,
+        "FAILED_CATCH": 33,
+        "FAILED_DODGE": 71,
+        "FAILED_GFI": 11,
+        "FAILED_PICKUP": 42,
+        "FAME": 32,
+        "FOLLOW_UP": 1316,
+        "FUMBLE": 50,
+        "GAME_STARTED": 16,
+        "GENTLE_GUST_IN_BOUNDS": 9,
+        "HEADS_LOSS": 6,
+        "HIT_BY_ROCK": 7,
+        "HOME_RECEIVE": 8,
+        "KICKOFF_BLITZ": 5,
+        "KICKOFF_BRILLIANT_COACHING": 2,
+        "KICKOFF_CHANGING_WHEATHER": 16,
+        "KICKOFF_CHEERING_FANS": 3,
+        "KICKOFF_HIGH_KICK": 7,
+        "KICKOFF_PERFECT_DEFENSE": 3,
+        "KICKOFF_PITCH_INVASION": 3,
+        "KICKOFF_QUICK_SNAP": 6,
+        "KICKOFF_RIOT": 4,
+        "KICKOFF_THROW_A_ROCK": 5,
+        "KICK_IN_BOUNDS": 54,
+        "KNOCKED_DOWN": 1018,
+        "KNOCKED_OUT": 74,
+        "MISS_NEXT_GAME": 23,
+        "MOVE_ACTION_STARTED": 2513,
+        "PLAYER_NOT_READY": 39,
+        "PLAYER_PLACED": 1123,
+        "PLAYER_READY": 80,
+        "PUSHED": 1339,
+        "PUSHED_INTO_CROWD": 27,
+        "QUICK_SNAP_START": 6,
+        "REROLL_USED": 153,
+        "SETUP_DONE": 111,
+        "SKILL_USED": 161,
+        "SPECTATORS": 16,
+        "STAND_UP": 764,
+        "STUNNED": 186,
+        "STUNNED_TURNED": 512,
+        "SUCCESSFUL_CATCH": 18,
+        "SUCCESSFUL_DODGE": 61,
+        "SUCCESSFUL_GFI": 88,
+        "SUCCESSFUL_PICKUP": 80,
+        "TAILS_WON": 10,
+        "TEAM_SPECTATORS": 32,
+        "THROW_A_ROCK_ROLL": 10,
+        "THROW_IN": 6,
+        "TOUCHDOWN": 23,
+        "TURNOVER": 124,
+        "TURN_ADDED": 1,
+        "TURN_SKIPPED": 3,
+        "TURN_START": 512,
+        "WEATHER_BLIZZARD": 2,
+        "WEATHER_NICE": 25,
+        "WEATHER_POURING_RAIN": 2,
+        "WEATHER_VERY_SUNNY": 3
+      },
+      "name": "final-native-scripted-mirrored-on",
+      "summary": {
+        "attempted": 16,
+        "backend": "botbowl.core.pathfinding.cython_pathfinding",
+        "end_causes": {
+          "completed": 16
+        },
+        "excluded_episodes": 0,
+        "kickoff": true,
+        "pathfinding": true,
+        "policy_a": "scripted-mirrored",
+        "policy_b": "scripted-mirrored",
+        "rounds": 8,
+        "size": 11,
+        "strata": {
+          "all": {
+            "away_wins": 4,
+            "draws": 6,
+            "episodes": 16,
+            "hoeffding95": [
+              0.08233860434003965,
+              1
+            ],
+            "home_points": 0.5625,
+            "home_wins": 6,
+            "pairs": 8
+          },
+          "receive-away": {
+            "away_wins": 4,
+            "draws": 2,
+            "episodes": 8,
+            "hoeffding95": [
+              0,
+              0.8551613956599604
+            ],
+            "home_points": 0.375,
+            "home_wins": 2,
+            "pairs": 8
+          },
+          "receive-home": {
+            "away_wins": 0,
+            "draws": 4,
+            "episodes": 8,
+            "hoeffding95": [
+              0.26983860434003965,
+              1
+            ],
+            "home_points": 0.75,
+            "home_wins": 4,
+            "pairs": 8
+          }
+        }
+      }
+    }
+  ],
+  "episodes": [
+    {
+      "away": "B",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 342,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "A",
+      "first_receiver_side": "home",
+      "home": "A",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_RIOT",
+          "half": 1,
+          "receiver": "A",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 2,
+          "receiver": "B",
+          "side": "away"
+        }
+      ],
+      "outcome": "draw",
+      "policy_seeds": {
+        "A": 2127152064,
+        "B": 364638252
+      },
+      "score": [
+        0,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 0,
+        "max_decisions": 20000,
+        "pair": 0,
+        "pathfinding": false,
+        "policy_a": "random-legal",
+        "policy_b": "random-legal",
+        "receiver": "A",
+        "rounds": 8,
+        "seed": 19000,
+        "size": 11
+      },
+      "trace_sha256": "ee5ff1c4217398a019f88dfbeb8b6606a3d10c9a5c8269bc21d50d03b44b75d0"
+    },
+    {
+      "away": "A",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 326,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "A",
+      "first_receiver_side": "away",
+      "home": "B",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_RIOT",
+          "half": 1,
+          "receiver": "A",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_QUICK_SNAP",
+          "half": 2,
+          "receiver": "B",
+          "side": "home"
+        }
+      ],
+      "outcome": "draw",
+      "policy_seeds": {
+        "A": 2127152064,
+        "B": 364638252
+      },
+      "score": [
+        0,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 1,
+        "max_decisions": 20000,
+        "pair": 0,
+        "pathfinding": false,
+        "policy_a": "random-legal",
+        "policy_b": "random-legal",
+        "receiver": "A",
+        "rounds": 8,
+        "seed": 19000,
+        "size": 11
+      },
+      "trace_sha256": "a1559fdd4646d8e54aa1bdc59dd35c6fb1ddb6b6186804e2ba164b40f903001c"
+    },
+    {
+      "away": "B",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 364,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "B",
+      "first_receiver_side": "away",
+      "home": "A",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_THROW_A_ROCK",
+          "half": 1,
+          "receiver": "B",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 2,
+          "receiver": "A",
+          "side": "home"
+        }
+      ],
+      "outcome": "draw",
+      "policy_seeds": {
+        "A": 2738778239,
+        "B": 3209935254
+      },
+      "score": [
+        0,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 0,
+        "max_decisions": 20000,
+        "pair": 1,
+        "pathfinding": false,
+        "policy_a": "random-legal",
+        "policy_b": "random-legal",
+        "receiver": "B",
+        "rounds": 8,
+        "seed": 19001,
+        "size": 11
+      },
+      "trace_sha256": "a98efe68720dd0908d4695ecca4ad0383ca63dbd6595cd0d119c7b503c68c605"
+    },
+    {
+      "away": "A",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 346,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "B",
+      "first_receiver_side": "home",
+      "home": "B",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_THROW_A_ROCK",
+          "half": 1,
+          "receiver": "B",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_BRILLIANT_COACHING",
+          "half": 2,
+          "receiver": "A",
+          "side": "away"
+        }
+      ],
+      "outcome": "draw",
+      "policy_seeds": {
+        "A": 2738778239,
+        "B": 3209935254
+      },
+      "score": [
+        0,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 1,
+        "max_decisions": 20000,
+        "pair": 1,
+        "pathfinding": false,
+        "policy_a": "random-legal",
+        "policy_b": "random-legal",
+        "receiver": "B",
+        "rounds": 8,
+        "seed": 19001,
+        "size": 11
+      },
+      "trace_sha256": "dda949a7176209d1ccf3bcf809ab6952cc8be4bb7d2d5b96bc18f31d014aae59"
+    },
+    {
+      "away": "B",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 290,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "A",
+      "first_receiver_side": "home",
+      "home": "A",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 1,
+          "receiver": "A",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_RIOT",
+          "half": 2,
+          "receiver": "B",
+          "side": "away"
+        }
+      ],
+      "outcome": "draw",
+      "policy_seeds": {
+        "A": 4216719800,
+        "B": 4060940726
+      },
+      "score": [
+        0,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 0,
+        "max_decisions": 20000,
+        "pair": 2,
+        "pathfinding": false,
+        "policy_a": "random-legal",
+        "policy_b": "random-legal",
+        "receiver": "A",
+        "rounds": 8,
+        "seed": 19002,
+        "size": 11
+      },
+      "trace_sha256": "23c4a4c8434942509d859a3ffafd127ddc17b818f4086b2c4c8fd933860dd458"
+    },
+    {
+      "away": "A",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 250,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "A",
+      "first_receiver_side": "away",
+      "home": "B",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 1,
+          "receiver": "A",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 2,
+          "receiver": "B",
+          "side": "home"
+        }
+      ],
+      "outcome": "draw",
+      "policy_seeds": {
+        "A": 4216719800,
+        "B": 4060940726
+      },
+      "score": [
+        0,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 1,
+        "max_decisions": 20000,
+        "pair": 2,
+        "pathfinding": false,
+        "policy_a": "random-legal",
+        "policy_b": "random-legal",
+        "receiver": "A",
+        "rounds": 8,
+        "seed": 19002,
+        "size": 11
+      },
+      "trace_sha256": "eb9d7c5dbb7abd8b7c4d9f7859a33a6e59260f8ec3f029c617df1a765d7ba9fb"
+    },
+    {
+      "away": "B",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 323,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "B",
+      "first_receiver_side": "away",
+      "home": "A",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_HIGH_KICK",
+          "half": 1,
+          "receiver": "B",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_HIGH_KICK",
+          "half": 2,
+          "receiver": "A",
+          "side": "home"
+        }
+      ],
+      "outcome": "draw",
+      "policy_seeds": {
+        "A": 332541983,
+        "B": 1489913209
+      },
+      "score": [
+        0,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 0,
+        "max_decisions": 20000,
+        "pair": 3,
+        "pathfinding": false,
+        "policy_a": "random-legal",
+        "policy_b": "random-legal",
+        "receiver": "B",
+        "rounds": 8,
+        "seed": 19003,
+        "size": 11
+      },
+      "trace_sha256": "2dc9dbbac4382707bcc0827149e8c8d388a546f5d45a61b4751b9ac417809d28"
+    },
+    {
+      "away": "A",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 397,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "B",
+      "first_receiver_side": "home",
+      "home": "B",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_HIGH_KICK",
+          "half": 1,
+          "receiver": "B",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_QUICK_SNAP",
+          "half": 2,
+          "receiver": "A",
+          "side": "away"
+        }
+      ],
+      "outcome": "draw",
+      "policy_seeds": {
+        "A": 332541983,
+        "B": 1489913209
+      },
+      "score": [
+        0,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 1,
+        "max_decisions": 20000,
+        "pair": 3,
+        "pathfinding": false,
+        "policy_a": "random-legal",
+        "policy_b": "random-legal",
+        "receiver": "B",
+        "rounds": 8,
+        "seed": 19003,
+        "size": 11
+      },
+      "trace_sha256": "907b2f2309425975bbc37642c15198b95d0a4b9f62ee8aa9b6feeecf86915757"
+    },
+    {
+      "away": "B",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 253,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "A",
+      "first_receiver_side": "home",
+      "home": "A",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_PITCH_INVASION",
+          "half": 1,
+          "receiver": "A",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_BLITZ",
+          "half": 2,
+          "receiver": "B",
+          "side": "away"
+        }
+      ],
+      "outcome": "draw",
+      "policy_seeds": {
+        "A": 2323665948,
+        "B": 3126238163
+      },
+      "score": [
+        0,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 0,
+        "max_decisions": 20000,
+        "pair": 4,
+        "pathfinding": false,
+        "policy_a": "random-legal",
+        "policy_b": "random-legal",
+        "receiver": "A",
+        "rounds": 8,
+        "seed": 19004,
+        "size": 11
+      },
+      "trace_sha256": "a2e71e6e4e53211ccc715cd4994d55b6ce57d11d8e7f7066aa7f763aa9397747"
+    },
+    {
+      "away": "A",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 325,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "A",
+      "first_receiver_side": "away",
+      "home": "B",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_PITCH_INVASION",
+          "half": 1,
+          "receiver": "A",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_BLITZ",
+          "half": 2,
+          "receiver": "B",
+          "side": "home"
+        }
+      ],
+      "outcome": "draw",
+      "policy_seeds": {
+        "A": 2323665948,
+        "B": 3126238163
+      },
+      "score": [
+        0,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 1,
+        "max_decisions": 20000,
+        "pair": 4,
+        "pathfinding": false,
+        "policy_a": "random-legal",
+        "policy_b": "random-legal",
+        "receiver": "A",
+        "rounds": 8,
+        "seed": 19004,
+        "size": 11
+      },
+      "trace_sha256": "b46dfcb10ad6f0508ec080e7542e63d7b7a7b1bd2dd114e0a420eedc5437bd07"
+    },
+    {
+      "away": "B",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 356,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "B",
+      "first_receiver_side": "away",
+      "home": "A",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 1,
+          "receiver": "B",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 2,
+          "receiver": "A",
+          "side": "home"
+        }
+      ],
+      "outcome": "draw",
+      "policy_seeds": {
+        "A": 258811970,
+        "B": 3080225989
+      },
+      "score": [
+        0,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 0,
+        "max_decisions": 20000,
+        "pair": 5,
+        "pathfinding": false,
+        "policy_a": "random-legal",
+        "policy_b": "random-legal",
+        "receiver": "B",
+        "rounds": 8,
+        "seed": 19005,
+        "size": 11
+      },
+      "trace_sha256": "da9f83cf570ed0fc985d001afa1b06e33af5723103d2c90545fdfacea01c7a7a"
+    },
+    {
+      "away": "A",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 383,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "B",
+      "first_receiver_side": "home",
+      "home": "B",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 1,
+          "receiver": "B",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_BRILLIANT_COACHING",
+          "half": 2,
+          "receiver": "A",
+          "side": "away"
+        }
+      ],
+      "outcome": "draw",
+      "policy_seeds": {
+        "A": 258811970,
+        "B": 3080225989
+      },
+      "score": [
+        0,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 1,
+        "max_decisions": 20000,
+        "pair": 5,
+        "pathfinding": false,
+        "policy_a": "random-legal",
+        "policy_b": "random-legal",
+        "receiver": "B",
+        "rounds": 8,
+        "seed": 19005,
+        "size": 11
+      },
+      "trace_sha256": "bec1ac548255f170301848e210701b9d751b3e81aec0a2d7cfe5047a970ec3b1"
+    },
+    {
+      "away": "B",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 408,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "A",
+      "first_receiver_side": "home",
+      "home": "A",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 1,
+          "receiver": "A",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_CHEERING_FANS",
+          "half": 2,
+          "receiver": "B",
+          "side": "away"
+        }
+      ],
+      "outcome": "draw",
+      "policy_seeds": {
+        "A": 1838770335,
+        "B": 960630298
+      },
+      "score": [
+        0,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 0,
+        "max_decisions": 20000,
+        "pair": 6,
+        "pathfinding": false,
+        "policy_a": "random-legal",
+        "policy_b": "random-legal",
+        "receiver": "A",
+        "rounds": 8,
+        "seed": 19006,
+        "size": 11
+      },
+      "trace_sha256": "38c815d2ab608e7ac3e52b22374ba30cf5c93cce969b456c38a7dbeba081827d"
+    },
+    {
+      "away": "A",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 325,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "A",
+      "first_receiver_side": "away",
+      "home": "B",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 1,
+          "receiver": "A",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_GET_THE_REF",
+          "half": 2,
+          "receiver": "B",
+          "side": "home"
+        }
+      ],
+      "outcome": "draw",
+      "policy_seeds": {
+        "A": 1838770335,
+        "B": 960630298
+      },
+      "score": [
+        0,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 1,
+        "max_decisions": 20000,
+        "pair": 6,
+        "pathfinding": false,
+        "policy_a": "random-legal",
+        "policy_b": "random-legal",
+        "receiver": "A",
+        "rounds": 8,
+        "seed": 19006,
+        "size": 11
+      },
+      "trace_sha256": "aeaee676a51da3297859550ab4423f5603c35015ad4b895f9f6302323ab92896"
+    },
+    {
+      "away": "B",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 410,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "B",
+      "first_receiver_side": "away",
+      "home": "A",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_BLITZ",
+          "half": 1,
+          "receiver": "B",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_BLITZ",
+          "half": 2,
+          "receiver": "A",
+          "side": "home"
+        }
+      ],
+      "outcome": "draw",
+      "policy_seeds": {
+        "A": 3818381494,
+        "B": 3078631649
+      },
+      "score": [
+        0,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 0,
+        "max_decisions": 20000,
+        "pair": 7,
+        "pathfinding": false,
+        "policy_a": "random-legal",
+        "policy_b": "random-legal",
+        "receiver": "B",
+        "rounds": 8,
+        "seed": 19007,
+        "size": 11
+      },
+      "trace_sha256": "24d4b653144eaff0d1e8613758a634a8d7c62be0c522081af229c1038303b32d"
+    },
+    {
+      "away": "A",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 363,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "B",
+      "first_receiver_side": "home",
+      "home": "B",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_BLITZ",
+          "half": 1,
+          "receiver": "B",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_HIGH_KICK",
+          "half": 2,
+          "receiver": "A",
+          "side": "away"
+        }
+      ],
+      "outcome": "draw",
+      "policy_seeds": {
+        "A": 3818381494,
+        "B": 3078631649
+      },
+      "score": [
+        0,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 1,
+        "max_decisions": 20000,
+        "pair": 7,
+        "pathfinding": false,
+        "policy_a": "random-legal",
+        "policy_b": "random-legal",
+        "receiver": "B",
+        "rounds": 8,
+        "seed": 19007,
+        "size": 11
+      },
+      "trace_sha256": "816311e3b3ad79d404929c331fedfae5d149437b4e547fdea7d459ad3ed2e7ef"
+    },
+    {
+      "away": "B",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 329,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "A",
+      "first_receiver_side": "home",
+      "home": "A",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_RIOT",
+          "half": 1,
+          "receiver": "A",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_RIOT",
+          "half": 2,
+          "receiver": "B",
+          "side": "away"
+        }
+      ],
+      "outcome": "draw",
+      "policy_seeds": {
+        "A": 2127152064,
+        "B": 364638252
+      },
+      "score": [
+        0,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 0,
+        "max_decisions": 20000,
+        "pair": 0,
+        "pathfinding": true,
+        "policy_a": "random-legal",
+        "policy_b": "random-legal",
+        "receiver": "A",
+        "rounds": 8,
+        "seed": 19000,
+        "size": 11
+      },
+      "trace_sha256": "908dfa8443cb1fd616fe74115a33b40c75e70b00e49d6ebb2ef6b5d0b4548c2d"
+    },
+    {
+      "away": "A",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 309,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "A",
+      "first_receiver_side": "away",
+      "home": "B",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_RIOT",
+          "half": 1,
+          "receiver": "A",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_QUICK_SNAP",
+          "half": 2,
+          "receiver": "B",
+          "side": "home"
+        }
+      ],
+      "outcome": "draw",
+      "policy_seeds": {
+        "A": 2127152064,
+        "B": 364638252
+      },
+      "score": [
+        0,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 1,
+        "max_decisions": 20000,
+        "pair": 0,
+        "pathfinding": true,
+        "policy_a": "random-legal",
+        "policy_b": "random-legal",
+        "receiver": "A",
+        "rounds": 8,
+        "seed": 19000,
+        "size": 11
+      },
+      "trace_sha256": "23bc66a2eeefd63c8f04f622f666afc3a89cb1ff2ea30ea17f83f870893b7d8c"
+    },
+    {
+      "away": "B",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 363,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "B",
+      "first_receiver_side": "away",
+      "home": "A",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_THROW_A_ROCK",
+          "half": 1,
+          "receiver": "B",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_HIGH_KICK",
+          "half": 2,
+          "receiver": "A",
+          "side": "home"
+        }
+      ],
+      "outcome": "draw",
+      "policy_seeds": {
+        "A": 2738778239,
+        "B": 3209935254
+      },
+      "score": [
+        0,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 0,
+        "max_decisions": 20000,
+        "pair": 1,
+        "pathfinding": true,
+        "policy_a": "random-legal",
+        "policy_b": "random-legal",
+        "receiver": "B",
+        "rounds": 8,
+        "seed": 19001,
+        "size": 11
+      },
+      "trace_sha256": "58f71681c8c024483391726a9839d97d018a248edfba2ad6cfaf73d3a47efff5"
+    },
+    {
+      "away": "A",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 329,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "B",
+      "first_receiver_side": "home",
+      "home": "B",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_THROW_A_ROCK",
+          "half": 1,
+          "receiver": "B",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_CHEERING_FANS",
+          "half": 2,
+          "receiver": "A",
+          "side": "away"
+        }
+      ],
+      "outcome": "draw",
+      "policy_seeds": {
+        "A": 2738778239,
+        "B": 3209935254
+      },
+      "score": [
+        0,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 1,
+        "max_decisions": 20000,
+        "pair": 1,
+        "pathfinding": true,
+        "policy_a": "random-legal",
+        "policy_b": "random-legal",
+        "receiver": "B",
+        "rounds": 8,
+        "seed": 19001,
+        "size": 11
+      },
+      "trace_sha256": "01c2fb79bc30d90596b564f959c1ad28d379f4b46ea17b8619d322c222168981"
+    },
+    {
+      "away": "B",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 308,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "A",
+      "first_receiver_side": "home",
+      "home": "A",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 1,
+          "receiver": "A",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_PERFECT_DEFENSE",
+          "half": 2,
+          "receiver": "B",
+          "side": "away"
+        }
+      ],
+      "outcome": "draw",
+      "policy_seeds": {
+        "A": 4216719800,
+        "B": 4060940726
+      },
+      "score": [
+        0,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 0,
+        "max_decisions": 20000,
+        "pair": 2,
+        "pathfinding": true,
+        "policy_a": "random-legal",
+        "policy_b": "random-legal",
+        "receiver": "A",
+        "rounds": 8,
+        "seed": 19002,
+        "size": 11
+      },
+      "trace_sha256": "3ce8b12005dde1fc67acc61f1ccd18d8f718af1e9c0fd829fbf84ec2348bfb3f"
+    },
+    {
+      "away": "A",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 273,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "A",
+      "first_receiver_side": "away",
+      "home": "B",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 1,
+          "receiver": "A",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_BRILLIANT_COACHING",
+          "half": 2,
+          "receiver": "B",
+          "side": "home"
+        }
+      ],
+      "outcome": "draw",
+      "policy_seeds": {
+        "A": 4216719800,
+        "B": 4060940726
+      },
+      "score": [
+        0,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 1,
+        "max_decisions": 20000,
+        "pair": 2,
+        "pathfinding": true,
+        "policy_a": "random-legal",
+        "policy_b": "random-legal",
+        "receiver": "A",
+        "rounds": 8,
+        "seed": 19002,
+        "size": 11
+      },
+      "trace_sha256": "75c63e93f8d58cd66f80c27c5455718565b311c07e495850a211fcbf22dc5556"
+    },
+    {
+      "away": "B",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 340,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "B",
+      "first_receiver_side": "away",
+      "home": "A",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_HIGH_KICK",
+          "half": 1,
+          "receiver": "B",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_QUICK_SNAP",
+          "half": 2,
+          "receiver": "A",
+          "side": "home"
+        }
+      ],
+      "outcome": "draw",
+      "policy_seeds": {
+        "A": 332541983,
+        "B": 1489913209
+      },
+      "score": [
+        0,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 0,
+        "max_decisions": 20000,
+        "pair": 3,
+        "pathfinding": true,
+        "policy_a": "random-legal",
+        "policy_b": "random-legal",
+        "receiver": "B",
+        "rounds": 8,
+        "seed": 19003,
+        "size": 11
+      },
+      "trace_sha256": "a66724e9c61e85b5bd718bd39d1c4ef4bc41f40f95bfcc3b87d8f9007a675876"
+    },
+    {
+      "away": "A",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 268,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "B",
+      "first_receiver_side": "home",
+      "home": "B",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_HIGH_KICK",
+          "half": 1,
+          "receiver": "B",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_HIGH_KICK",
+          "half": 2,
+          "receiver": "A",
+          "side": "away"
+        }
+      ],
+      "outcome": "draw",
+      "policy_seeds": {
+        "A": 332541983,
+        "B": 1489913209
+      },
+      "score": [
+        0,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 1,
+        "max_decisions": 20000,
+        "pair": 3,
+        "pathfinding": true,
+        "policy_a": "random-legal",
+        "policy_b": "random-legal",
+        "receiver": "B",
+        "rounds": 8,
+        "seed": 19003,
+        "size": 11
+      },
+      "trace_sha256": "a4a4e007d95ef39316422a576ea1b8d922dde1000eea22b14d0563d2d902eea5"
+    },
+    {
+      "away": "B",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 300,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "A",
+      "first_receiver_side": "home",
+      "home": "A",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_PITCH_INVASION",
+          "half": 1,
+          "receiver": "A",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_THROW_A_ROCK",
+          "half": 2,
+          "receiver": "B",
+          "side": "away"
+        }
+      ],
+      "outcome": "draw",
+      "policy_seeds": {
+        "A": 2323665948,
+        "B": 3126238163
+      },
+      "score": [
+        0,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 0,
+        "max_decisions": 20000,
+        "pair": 4,
+        "pathfinding": true,
+        "policy_a": "random-legal",
+        "policy_b": "random-legal",
+        "receiver": "A",
+        "rounds": 8,
+        "seed": 19004,
+        "size": 11
+      },
+      "trace_sha256": "dd4a30e7f187e6aa8d1c877a38d192e9adb5551a23c7c25380c3627bd2089fc6"
+    },
+    {
+      "away": "A",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 253,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "A",
+      "first_receiver_side": "away",
+      "home": "B",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_PITCH_INVASION",
+          "half": 1,
+          "receiver": "A",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 2,
+          "receiver": "B",
+          "side": "home"
+        }
+      ],
+      "outcome": "draw",
+      "policy_seeds": {
+        "A": 2323665948,
+        "B": 3126238163
+      },
+      "score": [
+        0,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 1,
+        "max_decisions": 20000,
+        "pair": 4,
+        "pathfinding": true,
+        "policy_a": "random-legal",
+        "policy_b": "random-legal",
+        "receiver": "A",
+        "rounds": 8,
+        "seed": 19004,
+        "size": 11
+      },
+      "trace_sha256": "e52afa5c21117f9042e5605f6b8538a0733850bc8a7345b0d05c1f8903a30a39"
+    },
+    {
+      "away": "B",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 354,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "B",
+      "first_receiver_side": "away",
+      "home": "A",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 1,
+          "receiver": "B",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_BRILLIANT_COACHING",
+          "half": 2,
+          "receiver": "A",
+          "side": "home"
+        }
+      ],
+      "outcome": "draw",
+      "policy_seeds": {
+        "A": 258811970,
+        "B": 3080225989
+      },
+      "score": [
+        0,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 0,
+        "max_decisions": 20000,
+        "pair": 5,
+        "pathfinding": true,
+        "policy_a": "random-legal",
+        "policy_b": "random-legal",
+        "receiver": "B",
+        "rounds": 8,
+        "seed": 19005,
+        "size": 11
+      },
+      "trace_sha256": "01c95120571fbc1fe799f865bb56c5643341f39c91142909829cbd788e08737f"
+    },
+    {
+      "away": "A",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 322,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "B",
+      "first_receiver_side": "home",
+      "home": "B",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 1,
+          "receiver": "B",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_HIGH_KICK",
+          "half": 2,
+          "receiver": "A",
+          "side": "away"
+        }
+      ],
+      "outcome": "draw",
+      "policy_seeds": {
+        "A": 258811970,
+        "B": 3080225989
+      },
+      "score": [
+        0,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 1,
+        "max_decisions": 20000,
+        "pair": 5,
+        "pathfinding": true,
+        "policy_a": "random-legal",
+        "policy_b": "random-legal",
+        "receiver": "B",
+        "rounds": 8,
+        "seed": 19005,
+        "size": 11
+      },
+      "trace_sha256": "84ffb5e02b315f8efa8bc5da5e8bce651963b5d8b715c76c7a35e9fcedf46c71"
+    },
+    {
+      "away": "B",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 251,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "A",
+      "first_receiver_side": "home",
+      "home": "A",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 1,
+          "receiver": "A",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 2,
+          "receiver": "B",
+          "side": "away"
+        }
+      ],
+      "outcome": "draw",
+      "policy_seeds": {
+        "A": 1838770335,
+        "B": 960630298
+      },
+      "score": [
+        0,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 0,
+        "max_decisions": 20000,
+        "pair": 6,
+        "pathfinding": true,
+        "policy_a": "random-legal",
+        "policy_b": "random-legal",
+        "receiver": "A",
+        "rounds": 8,
+        "seed": 19006,
+        "size": 11
+      },
+      "trace_sha256": "5882bcafb43cb5d9444a3c7d1a59ee8a99fbd380f634fbd042ead56f266b02d3"
+    },
+    {
+      "away": "A",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 242,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "A",
+      "first_receiver_side": "away",
+      "home": "B",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 1,
+          "receiver": "A",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_PERFECT_DEFENSE",
+          "half": 2,
+          "receiver": "B",
+          "side": "home"
+        }
+      ],
+      "outcome": "draw",
+      "policy_seeds": {
+        "A": 1838770335,
+        "B": 960630298
+      },
+      "score": [
+        0,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 1,
+        "max_decisions": 20000,
+        "pair": 6,
+        "pathfinding": true,
+        "policy_a": "random-legal",
+        "policy_b": "random-legal",
+        "receiver": "A",
+        "rounds": 8,
+        "seed": 19006,
+        "size": 11
+      },
+      "trace_sha256": "ef6ab6698c010633c79ba60a4259abba9e6ea174744f8cacb16e9ad0eeab6d3f"
+    },
+    {
+      "away": "B",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 404,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "B",
+      "first_receiver_side": "away",
+      "home": "A",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_BLITZ",
+          "half": 1,
+          "receiver": "B",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_RIOT",
+          "half": 2,
+          "receiver": "A",
+          "side": "home"
+        }
+      ],
+      "outcome": "draw",
+      "policy_seeds": {
+        "A": 3818381494,
+        "B": 3078631649
+      },
+      "score": [
+        0,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 0,
+        "max_decisions": 20000,
+        "pair": 7,
+        "pathfinding": true,
+        "policy_a": "random-legal",
+        "policy_b": "random-legal",
+        "receiver": "B",
+        "rounds": 8,
+        "seed": 19007,
+        "size": 11
+      },
+      "trace_sha256": "c89d47f2315fa60086f2a95ffab87cb8e51721f165c433bdfb2c6618804b4bd5"
+    },
+    {
+      "away": "A",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 288,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "B",
+      "first_receiver_side": "home",
+      "home": "B",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_BLITZ",
+          "half": 1,
+          "receiver": "B",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_PERFECT_DEFENSE",
+          "half": 2,
+          "receiver": "A",
+          "side": "away"
+        }
+      ],
+      "outcome": "draw",
+      "policy_seeds": {
+        "A": 3818381494,
+        "B": 3078631649
+      },
+      "score": [
+        0,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 1,
+        "max_decisions": 20000,
+        "pair": 7,
+        "pathfinding": true,
+        "policy_a": "random-legal",
+        "policy_b": "random-legal",
+        "receiver": "B",
+        "rounds": 8,
+        "seed": 19007,
+        "size": 11
+      },
+      "trace_sha256": "9df65f02222392e24ec8a65923149a745722b083d98408591e12b1ba76e13db0"
+    },
+    {
+      "away": "B",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1282,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "A",
+      "first_receiver_side": "home",
+      "home": "A",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_RIOT",
+          "half": 1,
+          "receiver": "A",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 2,
+          "receiver": "B",
+          "side": "away"
+        }
+      ],
+      "outcome": "draw",
+      "policy_seeds": {
+        "A": 2127152064,
+        "B": 364638252
+      },
+      "score": [
+        0,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 0,
+        "max_decisions": 20000,
+        "pair": 0,
+        "pathfinding": false,
+        "policy_a": "scripted-mirrored",
+        "policy_b": "scripted-mirrored",
+        "receiver": "A",
+        "rounds": 8,
+        "seed": 19000,
+        "size": 11
+      },
+      "trace_sha256": "bba797bf8b77df19fe23cc55fdf41b03a52d3b3408543ee0d61e35b275912836"
+    },
+    {
+      "away": "A",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1461,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "A",
+      "first_receiver_side": "away",
+      "home": "B",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_RIOT",
+          "half": 1,
+          "receiver": "A",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 2,
+          "receiver": "B",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_RIOT",
+          "half": 2,
+          "receiver": "A",
+          "side": "away"
+        }
+      ],
+      "outcome": "home",
+      "policy_seeds": {
+        "A": 2127152064,
+        "B": 364638252
+      },
+      "score": [
+        1,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 1,
+        "max_decisions": 20000,
+        "pair": 0,
+        "pathfinding": false,
+        "policy_a": "scripted-mirrored",
+        "policy_b": "scripted-mirrored",
+        "receiver": "A",
+        "rounds": 8,
+        "seed": 19000,
+        "size": 11
+      },
+      "trace_sha256": "763f85a11ea9ac1f03fa15924ccc97b0db6b41eb1dec34ed40b6bd59d3a9c923"
+    },
+    {
+      "away": "B",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1389,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "B",
+      "first_receiver_side": "away",
+      "home": "A",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_THROW_A_ROCK",
+          "half": 1,
+          "receiver": "B",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_HIGH_KICK",
+          "half": 1,
+          "receiver": "A",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_BRILLIANT_COACHING",
+          "half": 2,
+          "receiver": "A",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 2,
+          "receiver": "A",
+          "side": "home"
+        }
+      ],
+      "outcome": "away",
+      "policy_seeds": {
+        "A": 2738778239,
+        "B": 3209935254
+      },
+      "score": [
+        0,
+        2
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 0,
+        "max_decisions": 20000,
+        "pair": 1,
+        "pathfinding": false,
+        "policy_a": "scripted-mirrored",
+        "policy_b": "scripted-mirrored",
+        "receiver": "B",
+        "rounds": 8,
+        "seed": 19001,
+        "size": 11
+      },
+      "trace_sha256": "62e4b3a72a589a8bc5aef7017ed4281fc23f85a4f6a72c2dec819067643e248b"
+    },
+    {
+      "away": "A",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1366,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "B",
+      "first_receiver_side": "home",
+      "home": "B",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_THROW_A_ROCK",
+          "half": 1,
+          "receiver": "B",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_QUICK_SNAP",
+          "half": 1,
+          "receiver": "A",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_BRILLIANT_COACHING",
+          "half": 2,
+          "receiver": "A",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_HIGH_KICK",
+          "half": 2,
+          "receiver": "B",
+          "side": "home"
+        }
+      ],
+      "outcome": "draw",
+      "policy_seeds": {
+        "A": 2738778239,
+        "B": 3209935254
+      },
+      "score": [
+        1,
+        1
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 1,
+        "max_decisions": 20000,
+        "pair": 1,
+        "pathfinding": false,
+        "policy_a": "scripted-mirrored",
+        "policy_b": "scripted-mirrored",
+        "receiver": "B",
+        "rounds": 8,
+        "seed": 19001,
+        "size": 11
+      },
+      "trace_sha256": "2ed5010e5da251fdf17ca8fe61eb0e32f043e4de009aaa08ea0deab7f310d7fa"
+    },
+    {
+      "away": "B",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1687,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "A",
+      "first_receiver_side": "home",
+      "home": "A",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 1,
+          "receiver": "A",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 1,
+          "receiver": "B",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_QUICK_SNAP",
+          "half": 2,
+          "receiver": "B",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_HIGH_KICK",
+          "half": 2,
+          "receiver": "A",
+          "side": "home"
+        }
+      ],
+      "outcome": "home",
+      "policy_seeds": {
+        "A": 4216719800,
+        "B": 4060940726
+      },
+      "score": [
+        2,
+        1
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 0,
+        "max_decisions": 20000,
+        "pair": 2,
+        "pathfinding": false,
+        "policy_a": "scripted-mirrored",
+        "policy_b": "scripted-mirrored",
+        "receiver": "A",
+        "rounds": 8,
+        "seed": 19002,
+        "size": 11
+      },
+      "trace_sha256": "63a255059b00b955aab52d0036a775030e665e33f82a6aa387ee4117682eb92c"
+    },
+    {
+      "away": "A",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1596,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "A",
+      "first_receiver_side": "away",
+      "home": "B",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 1,
+          "receiver": "A",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_CHEERING_FANS",
+          "half": 1,
+          "receiver": "B",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_BLITZ",
+          "half": 2,
+          "receiver": "B",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 2,
+          "receiver": "B",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_THROW_A_ROCK",
+          "half": 2,
+          "receiver": "A",
+          "side": "away"
+        }
+      ],
+      "outcome": "away",
+      "policy_seeds": {
+        "A": 4216719800,
+        "B": 4060940726
+      },
+      "score": [
+        1,
+        2
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 1,
+        "max_decisions": 20000,
+        "pair": 2,
+        "pathfinding": false,
+        "policy_a": "scripted-mirrored",
+        "policy_b": "scripted-mirrored",
+        "receiver": "A",
+        "rounds": 8,
+        "seed": 19002,
+        "size": 11
+      },
+      "trace_sha256": "52971a05d1ac9c8b077f206da22e5718d9fc18b8b12ff3784e03b33f320fd546"
+    },
+    {
+      "away": "B",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1512,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "B",
+      "first_receiver_side": "away",
+      "home": "A",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_HIGH_KICK",
+          "half": 1,
+          "receiver": "B",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_THROW_A_ROCK",
+          "half": 1,
+          "receiver": "A",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_RIOT",
+          "half": 2,
+          "receiver": "A",
+          "side": "home"
+        }
+      ],
+      "outcome": "away",
+      "policy_seeds": {
+        "A": 332541983,
+        "B": 1489913209
+      },
+      "score": [
+        0,
+        1
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 0,
+        "max_decisions": 20000,
+        "pair": 3,
+        "pathfinding": false,
+        "policy_a": "scripted-mirrored",
+        "policy_b": "scripted-mirrored",
+        "receiver": "B",
+        "rounds": 8,
+        "seed": 19003,
+        "size": 11
+      },
+      "trace_sha256": "0d3c1d89cd94d3e4aa4dcbcfe0c34cd5a5691467dbe624a38fbd4ff2d8778f3c"
+    },
+    {
+      "away": "A",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1484,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "B",
+      "first_receiver_side": "home",
+      "home": "B",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_HIGH_KICK",
+          "half": 1,
+          "receiver": "B",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 1,
+          "receiver": "A",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_QUICK_SNAP",
+          "half": 2,
+          "receiver": "A",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 2,
+          "receiver": "A",
+          "side": "away"
+        }
+      ],
+      "outcome": "home",
+      "policy_seeds": {
+        "A": 332541983,
+        "B": 1489913209
+      },
+      "score": [
+        2,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 1,
+        "max_decisions": 20000,
+        "pair": 3,
+        "pathfinding": false,
+        "policy_a": "scripted-mirrored",
+        "policy_b": "scripted-mirrored",
+        "receiver": "B",
+        "rounds": 8,
+        "seed": 19003,
+        "size": 11
+      },
+      "trace_sha256": "ce6173f8070eae58ecb7bf08c442ac7f77e134a3686653d82496b04b4dab911a"
+    },
+    {
+      "away": "B",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1645,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "A",
+      "first_receiver_side": "home",
+      "home": "A",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_PITCH_INVASION",
+          "half": 1,
+          "receiver": "A",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_QUICK_SNAP",
+          "half": 1,
+          "receiver": "B",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_CHEERING_FANS",
+          "half": 2,
+          "receiver": "B",
+          "side": "away"
+        }
+      ],
+      "outcome": "home",
+      "policy_seeds": {
+        "A": 2323665948,
+        "B": 3126238163
+      },
+      "score": [
+        1,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 0,
+        "max_decisions": 20000,
+        "pair": 4,
+        "pathfinding": false,
+        "policy_a": "scripted-mirrored",
+        "policy_b": "scripted-mirrored",
+        "receiver": "A",
+        "rounds": 8,
+        "seed": 19004,
+        "size": 11
+      },
+      "trace_sha256": "17290a874677831f448686a6012ec882113c27b290b51c1e1970e8845aae035c"
+    },
+    {
+      "away": "A",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1531,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "A",
+      "first_receiver_side": "away",
+      "home": "B",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_PITCH_INVASION",
+          "half": 1,
+          "receiver": "A",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_BLITZ",
+          "half": 1,
+          "receiver": "B",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_HIGH_KICK",
+          "half": 2,
+          "receiver": "B",
+          "side": "home"
+        }
+      ],
+      "outcome": "away",
+      "policy_seeds": {
+        "A": 2323665948,
+        "B": 3126238163
+      },
+      "score": [
+        0,
+        1
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 1,
+        "max_decisions": 20000,
+        "pair": 4,
+        "pathfinding": false,
+        "policy_a": "scripted-mirrored",
+        "policy_b": "scripted-mirrored",
+        "receiver": "A",
+        "rounds": 8,
+        "seed": 19004,
+        "size": 11
+      },
+      "trace_sha256": "f5443d44c37a37c465d4a3315867a49e81ee1825e2c37e9a10b35df3bf5ec360"
+    },
+    {
+      "away": "B",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1629,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "B",
+      "first_receiver_side": "away",
+      "home": "A",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 1,
+          "receiver": "B",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_THROW_A_ROCK",
+          "half": 1,
+          "receiver": "B",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_BLITZ",
+          "half": 2,
+          "receiver": "A",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 2,
+          "receiver": "B",
+          "side": "away"
+        }
+      ],
+      "outcome": "home",
+      "policy_seeds": {
+        "A": 258811970,
+        "B": 3080225989
+      },
+      "score": [
+        2,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 0,
+        "max_decisions": 20000,
+        "pair": 5,
+        "pathfinding": false,
+        "policy_a": "scripted-mirrored",
+        "policy_b": "scripted-mirrored",
+        "receiver": "B",
+        "rounds": 8,
+        "seed": 19005,
+        "size": 11
+      },
+      "trace_sha256": "c8c77ec312c4313f84e19f31d08effb71ab28c72ec8e135b47c06144a158c727"
+    },
+    {
+      "away": "A",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1560,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "B",
+      "first_receiver_side": "home",
+      "home": "B",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 1,
+          "receiver": "B",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_QUICK_SNAP",
+          "half": 2,
+          "receiver": "A",
+          "side": "away"
+        }
+      ],
+      "outcome": "draw",
+      "policy_seeds": {
+        "A": 258811970,
+        "B": 3080225989
+      },
+      "score": [
+        0,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 1,
+        "max_decisions": 20000,
+        "pair": 5,
+        "pathfinding": false,
+        "policy_a": "scripted-mirrored",
+        "policy_b": "scripted-mirrored",
+        "receiver": "B",
+        "rounds": 8,
+        "seed": 19005,
+        "size": 11
+      },
+      "trace_sha256": "1118cd0a26177c9b2acff57c66e4e40d34c8b1b33cdb06a8c9314ce6bba2cff4"
+    },
+    {
+      "away": "B",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1540,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "A",
+      "first_receiver_side": "home",
+      "home": "A",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 1,
+          "receiver": "A",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_PERFECT_DEFENSE",
+          "half": 1,
+          "receiver": "B",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_PERFECT_DEFENSE",
+          "half": 2,
+          "receiver": "B",
+          "side": "away"
+        }
+      ],
+      "outcome": "home",
+      "policy_seeds": {
+        "A": 1838770335,
+        "B": 960630298
+      },
+      "score": [
+        1,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 0,
+        "max_decisions": 20000,
+        "pair": 6,
+        "pathfinding": false,
+        "policy_a": "scripted-mirrored",
+        "policy_b": "scripted-mirrored",
+        "receiver": "A",
+        "rounds": 8,
+        "seed": 19006,
+        "size": 11
+      },
+      "trace_sha256": "f3abc20597bd801ca8c41a222c6a177d4614c1ca89892c9fad2f54dcd6da9141"
+    },
+    {
+      "away": "A",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1373,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "A",
+      "first_receiver_side": "away",
+      "home": "B",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 1,
+          "receiver": "A",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_HIGH_KICK",
+          "half": 2,
+          "receiver": "B",
+          "side": "home"
+        }
+      ],
+      "outcome": "draw",
+      "policy_seeds": {
+        "A": 1838770335,
+        "B": 960630298
+      },
+      "score": [
+        0,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 1,
+        "max_decisions": 20000,
+        "pair": 6,
+        "pathfinding": false,
+        "policy_a": "scripted-mirrored",
+        "policy_b": "scripted-mirrored",
+        "receiver": "A",
+        "rounds": 8,
+        "seed": 19006,
+        "size": 11
+      },
+      "trace_sha256": "b4315d7ebed72fdba0061a9e9e20f6512c8bed80dd9fef5419ac3a1cbf958bc3"
+    },
+    {
+      "away": "B",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1652,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "B",
+      "first_receiver_side": "away",
+      "home": "A",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_BLITZ",
+          "half": 1,
+          "receiver": "B",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_QUICK_SNAP",
+          "half": 1,
+          "receiver": "A",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_CHEERING_FANS",
+          "half": 2,
+          "receiver": "A",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 2,
+          "receiver": "B",
+          "side": "away"
+        }
+      ],
+      "outcome": "draw",
+      "policy_seeds": {
+        "A": 3818381494,
+        "B": 3078631649
+      },
+      "score": [
+        1,
+        1
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 0,
+        "max_decisions": 20000,
+        "pair": 7,
+        "pathfinding": false,
+        "policy_a": "scripted-mirrored",
+        "policy_b": "scripted-mirrored",
+        "receiver": "B",
+        "rounds": 8,
+        "seed": 19007,
+        "size": 11
+      },
+      "trace_sha256": "024537de74e0bc19b9391b63c060d440b90b4a2019acc6fd2ff2a7137ea997d9"
+    },
+    {
+      "away": "A",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1584,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "B",
+      "first_receiver_side": "home",
+      "home": "B",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_BLITZ",
+          "half": 1,
+          "receiver": "B",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 1,
+          "receiver": "B",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_PERFECT_DEFENSE",
+          "half": 2,
+          "receiver": "A",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_PITCH_INVASION",
+          "half": 2,
+          "receiver": "A",
+          "side": "away"
+        }
+      ],
+      "outcome": "draw",
+      "policy_seeds": {
+        "A": 3818381494,
+        "B": 3078631649
+      },
+      "score": [
+        1,
+        1
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 1,
+        "max_decisions": 20000,
+        "pair": 7,
+        "pathfinding": false,
+        "policy_a": "scripted-mirrored",
+        "policy_b": "scripted-mirrored",
+        "receiver": "B",
+        "rounds": 8,
+        "seed": 19007,
+        "size": 11
+      },
+      "trace_sha256": "0165fb20463470b816413e28f3d24403154c09942d340d5042fd847b5412eefd"
+    },
+    {
+      "away": "B",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1282,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "A",
+      "first_receiver_side": "home",
+      "home": "A",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_RIOT",
+          "half": 1,
+          "receiver": "A",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 2,
+          "receiver": "B",
+          "side": "away"
+        }
+      ],
+      "outcome": "draw",
+      "policy_seeds": {
+        "A": 2127152064,
+        "B": 364638252
+      },
+      "score": [
+        0,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 0,
+        "max_decisions": 20000,
+        "pair": 0,
+        "pathfinding": true,
+        "policy_a": "scripted-mirrored",
+        "policy_b": "scripted-mirrored",
+        "receiver": "A",
+        "rounds": 8,
+        "seed": 19000,
+        "size": 11
+      },
+      "trace_sha256": "bba797bf8b77df19fe23cc55fdf41b03a52d3b3408543ee0d61e35b275912836"
+    },
+    {
+      "away": "A",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1461,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "A",
+      "first_receiver_side": "away",
+      "home": "B",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_RIOT",
+          "half": 1,
+          "receiver": "A",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 2,
+          "receiver": "B",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_RIOT",
+          "half": 2,
+          "receiver": "A",
+          "side": "away"
+        }
+      ],
+      "outcome": "home",
+      "policy_seeds": {
+        "A": 2127152064,
+        "B": 364638252
+      },
+      "score": [
+        1,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 1,
+        "max_decisions": 20000,
+        "pair": 0,
+        "pathfinding": true,
+        "policy_a": "scripted-mirrored",
+        "policy_b": "scripted-mirrored",
+        "receiver": "A",
+        "rounds": 8,
+        "seed": 19000,
+        "size": 11
+      },
+      "trace_sha256": "763f85a11ea9ac1f03fa15924ccc97b0db6b41eb1dec34ed40b6bd59d3a9c923"
+    },
+    {
+      "away": "B",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1389,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "B",
+      "first_receiver_side": "away",
+      "home": "A",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_THROW_A_ROCK",
+          "half": 1,
+          "receiver": "B",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_HIGH_KICK",
+          "half": 1,
+          "receiver": "A",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_BRILLIANT_COACHING",
+          "half": 2,
+          "receiver": "A",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 2,
+          "receiver": "A",
+          "side": "home"
+        }
+      ],
+      "outcome": "away",
+      "policy_seeds": {
+        "A": 2738778239,
+        "B": 3209935254
+      },
+      "score": [
+        0,
+        2
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 0,
+        "max_decisions": 20000,
+        "pair": 1,
+        "pathfinding": true,
+        "policy_a": "scripted-mirrored",
+        "policy_b": "scripted-mirrored",
+        "receiver": "B",
+        "rounds": 8,
+        "seed": 19001,
+        "size": 11
+      },
+      "trace_sha256": "62e4b3a72a589a8bc5aef7017ed4281fc23f85a4f6a72c2dec819067643e248b"
+    },
+    {
+      "away": "A",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1366,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "B",
+      "first_receiver_side": "home",
+      "home": "B",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_THROW_A_ROCK",
+          "half": 1,
+          "receiver": "B",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_QUICK_SNAP",
+          "half": 1,
+          "receiver": "A",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_BRILLIANT_COACHING",
+          "half": 2,
+          "receiver": "A",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_HIGH_KICK",
+          "half": 2,
+          "receiver": "B",
+          "side": "home"
+        }
+      ],
+      "outcome": "draw",
+      "policy_seeds": {
+        "A": 2738778239,
+        "B": 3209935254
+      },
+      "score": [
+        1,
+        1
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 1,
+        "max_decisions": 20000,
+        "pair": 1,
+        "pathfinding": true,
+        "policy_a": "scripted-mirrored",
+        "policy_b": "scripted-mirrored",
+        "receiver": "B",
+        "rounds": 8,
+        "seed": 19001,
+        "size": 11
+      },
+      "trace_sha256": "2ed5010e5da251fdf17ca8fe61eb0e32f043e4de009aaa08ea0deab7f310d7fa"
+    },
+    {
+      "away": "B",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1687,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "A",
+      "first_receiver_side": "home",
+      "home": "A",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 1,
+          "receiver": "A",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 1,
+          "receiver": "B",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_QUICK_SNAP",
+          "half": 2,
+          "receiver": "B",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_HIGH_KICK",
+          "half": 2,
+          "receiver": "A",
+          "side": "home"
+        }
+      ],
+      "outcome": "home",
+      "policy_seeds": {
+        "A": 4216719800,
+        "B": 4060940726
+      },
+      "score": [
+        2,
+        1
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 0,
+        "max_decisions": 20000,
+        "pair": 2,
+        "pathfinding": true,
+        "policy_a": "scripted-mirrored",
+        "policy_b": "scripted-mirrored",
+        "receiver": "A",
+        "rounds": 8,
+        "seed": 19002,
+        "size": 11
+      },
+      "trace_sha256": "63a255059b00b955aab52d0036a775030e665e33f82a6aa387ee4117682eb92c"
+    },
+    {
+      "away": "A",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1596,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "A",
+      "first_receiver_side": "away",
+      "home": "B",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 1,
+          "receiver": "A",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_CHEERING_FANS",
+          "half": 1,
+          "receiver": "B",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_BLITZ",
+          "half": 2,
+          "receiver": "B",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 2,
+          "receiver": "B",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_THROW_A_ROCK",
+          "half": 2,
+          "receiver": "A",
+          "side": "away"
+        }
+      ],
+      "outcome": "away",
+      "policy_seeds": {
+        "A": 4216719800,
+        "B": 4060940726
+      },
+      "score": [
+        1,
+        2
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 1,
+        "max_decisions": 20000,
+        "pair": 2,
+        "pathfinding": true,
+        "policy_a": "scripted-mirrored",
+        "policy_b": "scripted-mirrored",
+        "receiver": "A",
+        "rounds": 8,
+        "seed": 19002,
+        "size": 11
+      },
+      "trace_sha256": "52971a05d1ac9c8b077f206da22e5718d9fc18b8b12ff3784e03b33f320fd546"
+    },
+    {
+      "away": "B",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1512,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "B",
+      "first_receiver_side": "away",
+      "home": "A",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_HIGH_KICK",
+          "half": 1,
+          "receiver": "B",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_THROW_A_ROCK",
+          "half": 1,
+          "receiver": "A",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_RIOT",
+          "half": 2,
+          "receiver": "A",
+          "side": "home"
+        }
+      ],
+      "outcome": "away",
+      "policy_seeds": {
+        "A": 332541983,
+        "B": 1489913209
+      },
+      "score": [
+        0,
+        1
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 0,
+        "max_decisions": 20000,
+        "pair": 3,
+        "pathfinding": true,
+        "policy_a": "scripted-mirrored",
+        "policy_b": "scripted-mirrored",
+        "receiver": "B",
+        "rounds": 8,
+        "seed": 19003,
+        "size": 11
+      },
+      "trace_sha256": "0d3c1d89cd94d3e4aa4dcbcfe0c34cd5a5691467dbe624a38fbd4ff2d8778f3c"
+    },
+    {
+      "away": "A",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1484,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "B",
+      "first_receiver_side": "home",
+      "home": "B",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_HIGH_KICK",
+          "half": 1,
+          "receiver": "B",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 1,
+          "receiver": "A",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_QUICK_SNAP",
+          "half": 2,
+          "receiver": "A",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 2,
+          "receiver": "A",
+          "side": "away"
+        }
+      ],
+      "outcome": "home",
+      "policy_seeds": {
+        "A": 332541983,
+        "B": 1489913209
+      },
+      "score": [
+        2,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 1,
+        "max_decisions": 20000,
+        "pair": 3,
+        "pathfinding": true,
+        "policy_a": "scripted-mirrored",
+        "policy_b": "scripted-mirrored",
+        "receiver": "B",
+        "rounds": 8,
+        "seed": 19003,
+        "size": 11
+      },
+      "trace_sha256": "ce6173f8070eae58ecb7bf08c442ac7f77e134a3686653d82496b04b4dab911a"
+    },
+    {
+      "away": "B",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1645,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "A",
+      "first_receiver_side": "home",
+      "home": "A",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_PITCH_INVASION",
+          "half": 1,
+          "receiver": "A",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_QUICK_SNAP",
+          "half": 1,
+          "receiver": "B",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_CHEERING_FANS",
+          "half": 2,
+          "receiver": "B",
+          "side": "away"
+        }
+      ],
+      "outcome": "home",
+      "policy_seeds": {
+        "A": 2323665948,
+        "B": 3126238163
+      },
+      "score": [
+        1,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 0,
+        "max_decisions": 20000,
+        "pair": 4,
+        "pathfinding": true,
+        "policy_a": "scripted-mirrored",
+        "policy_b": "scripted-mirrored",
+        "receiver": "A",
+        "rounds": 8,
+        "seed": 19004,
+        "size": 11
+      },
+      "trace_sha256": "17290a874677831f448686a6012ec882113c27b290b51c1e1970e8845aae035c"
+    },
+    {
+      "away": "A",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1531,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "A",
+      "first_receiver_side": "away",
+      "home": "B",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_PITCH_INVASION",
+          "half": 1,
+          "receiver": "A",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_BLITZ",
+          "half": 1,
+          "receiver": "B",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_HIGH_KICK",
+          "half": 2,
+          "receiver": "B",
+          "side": "home"
+        }
+      ],
+      "outcome": "away",
+      "policy_seeds": {
+        "A": 2323665948,
+        "B": 3126238163
+      },
+      "score": [
+        0,
+        1
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 1,
+        "max_decisions": 20000,
+        "pair": 4,
+        "pathfinding": true,
+        "policy_a": "scripted-mirrored",
+        "policy_b": "scripted-mirrored",
+        "receiver": "A",
+        "rounds": 8,
+        "seed": 19004,
+        "size": 11
+      },
+      "trace_sha256": "f5443d44c37a37c465d4a3315867a49e81ee1825e2c37e9a10b35df3bf5ec360"
+    },
+    {
+      "away": "B",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1629,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "B",
+      "first_receiver_side": "away",
+      "home": "A",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 1,
+          "receiver": "B",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_THROW_A_ROCK",
+          "half": 1,
+          "receiver": "B",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_BLITZ",
+          "half": 2,
+          "receiver": "A",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 2,
+          "receiver": "B",
+          "side": "away"
+        }
+      ],
+      "outcome": "home",
+      "policy_seeds": {
+        "A": 258811970,
+        "B": 3080225989
+      },
+      "score": [
+        2,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 0,
+        "max_decisions": 20000,
+        "pair": 5,
+        "pathfinding": true,
+        "policy_a": "scripted-mirrored",
+        "policy_b": "scripted-mirrored",
+        "receiver": "B",
+        "rounds": 8,
+        "seed": 19005,
+        "size": 11
+      },
+      "trace_sha256": "c8c77ec312c4313f84e19f31d08effb71ab28c72ec8e135b47c06144a158c727"
+    },
+    {
+      "away": "A",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1560,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "B",
+      "first_receiver_side": "home",
+      "home": "B",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 1,
+          "receiver": "B",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_QUICK_SNAP",
+          "half": 2,
+          "receiver": "A",
+          "side": "away"
+        }
+      ],
+      "outcome": "draw",
+      "policy_seeds": {
+        "A": 258811970,
+        "B": 3080225989
+      },
+      "score": [
+        0,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 1,
+        "max_decisions": 20000,
+        "pair": 5,
+        "pathfinding": true,
+        "policy_a": "scripted-mirrored",
+        "policy_b": "scripted-mirrored",
+        "receiver": "B",
+        "rounds": 8,
+        "seed": 19005,
+        "size": 11
+      },
+      "trace_sha256": "1118cd0a26177c9b2acff57c66e4e40d34c8b1b33cdb06a8c9314ce6bba2cff4"
+    },
+    {
+      "away": "B",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1540,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "A",
+      "first_receiver_side": "home",
+      "home": "A",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 1,
+          "receiver": "A",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_PERFECT_DEFENSE",
+          "half": 1,
+          "receiver": "B",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_PERFECT_DEFENSE",
+          "half": 2,
+          "receiver": "B",
+          "side": "away"
+        }
+      ],
+      "outcome": "home",
+      "policy_seeds": {
+        "A": 1838770335,
+        "B": 960630298
+      },
+      "score": [
+        1,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 0,
+        "max_decisions": 20000,
+        "pair": 6,
+        "pathfinding": true,
+        "policy_a": "scripted-mirrored",
+        "policy_b": "scripted-mirrored",
+        "receiver": "A",
+        "rounds": 8,
+        "seed": 19006,
+        "size": 11
+      },
+      "trace_sha256": "f3abc20597bd801ca8c41a222c6a177d4614c1ca89892c9fad2f54dcd6da9141"
+    },
+    {
+      "away": "A",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1373,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "A",
+      "first_receiver_side": "away",
+      "home": "B",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 1,
+          "receiver": "A",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_HIGH_KICK",
+          "half": 2,
+          "receiver": "B",
+          "side": "home"
+        }
+      ],
+      "outcome": "draw",
+      "policy_seeds": {
+        "A": 1838770335,
+        "B": 960630298
+      },
+      "score": [
+        0,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 1,
+        "max_decisions": 20000,
+        "pair": 6,
+        "pathfinding": true,
+        "policy_a": "scripted-mirrored",
+        "policy_b": "scripted-mirrored",
+        "receiver": "A",
+        "rounds": 8,
+        "seed": 19006,
+        "size": 11
+      },
+      "trace_sha256": "b4315d7ebed72fdba0061a9e9e20f6512c8bed80dd9fef5419ac3a1cbf958bc3"
+    },
+    {
+      "away": "B",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1652,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "B",
+      "first_receiver_side": "away",
+      "home": "A",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_BLITZ",
+          "half": 1,
+          "receiver": "B",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_QUICK_SNAP",
+          "half": 1,
+          "receiver": "A",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_CHEERING_FANS",
+          "half": 2,
+          "receiver": "A",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 2,
+          "receiver": "B",
+          "side": "away"
+        }
+      ],
+      "outcome": "draw",
+      "policy_seeds": {
+        "A": 3818381494,
+        "B": 3078631649
+      },
+      "score": [
+        1,
+        1
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 0,
+        "max_decisions": 20000,
+        "pair": 7,
+        "pathfinding": true,
+        "policy_a": "scripted-mirrored",
+        "policy_b": "scripted-mirrored",
+        "receiver": "B",
+        "rounds": 8,
+        "seed": 19007,
+        "size": 11
+      },
+      "trace_sha256": "024537de74e0bc19b9391b63c060d440b90b4a2019acc6fd2ff2a7137ea997d9"
+    },
+    {
+      "away": "A",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1584,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "B",
+      "first_receiver_side": "home",
+      "home": "B",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_BLITZ",
+          "half": 1,
+          "receiver": "B",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 1,
+          "receiver": "B",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_PERFECT_DEFENSE",
+          "half": 2,
+          "receiver": "A",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_PITCH_INVASION",
+          "half": 2,
+          "receiver": "A",
+          "side": "away"
+        }
+      ],
+      "outcome": "draw",
+      "policy_seeds": {
+        "A": 3818381494,
+        "B": 3078631649
+      },
+      "score": [
+        1,
+        1
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 1,
+        "max_decisions": 20000,
+        "pair": 7,
+        "pathfinding": true,
+        "policy_a": "scripted-mirrored",
+        "policy_b": "scripted-mirrored",
+        "receiver": "B",
+        "rounds": 8,
+        "seed": 19007,
+        "size": 11
+      },
+      "trace_sha256": "0165fb20463470b816413e28f3d24403154c09942d340d5042fd847b5412eefd"
+    },
+    {
+      "away": "B",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1771,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "A",
+      "first_receiver_side": "home",
+      "home": "A",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_RIOT",
+          "half": 1,
+          "receiver": "A",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_CHEERING_FANS",
+          "half": 1,
+          "receiver": "B",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 2,
+          "receiver": "B",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_PITCH_INVASION",
+          "half": 2,
+          "receiver": "B",
+          "side": "away"
+        }
+      ],
+      "outcome": "home",
+      "policy_seeds": {
+        "A": 2127152064,
+        "B": 364638252
+      },
+      "score": [
+        2,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 0,
+        "max_decisions": 20000,
+        "pair": 0,
+        "pathfinding": false,
+        "policy_a": "scripted",
+        "policy_b": "scripted",
+        "receiver": "A",
+        "rounds": 8,
+        "seed": 19000,
+        "size": 11
+      },
+      "trace_sha256": "1f01f4f54a763187d363e6354773eddcd9fe823aa8da511ac93db6bf7fbb485b"
+    },
+    {
+      "away": "A",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1500,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "A",
+      "first_receiver_side": "away",
+      "home": "B",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_RIOT",
+          "half": 1,
+          "receiver": "A",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_QUICK_SNAP",
+          "half": 2,
+          "receiver": "B",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_QUICK_SNAP",
+          "half": 2,
+          "receiver": "A",
+          "side": "away"
+        }
+      ],
+      "outcome": "home",
+      "policy_seeds": {
+        "A": 2127152064,
+        "B": 364638252
+      },
+      "score": [
+        1,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 1,
+        "max_decisions": 20000,
+        "pair": 0,
+        "pathfinding": false,
+        "policy_a": "scripted",
+        "policy_b": "scripted",
+        "receiver": "A",
+        "rounds": 8,
+        "seed": 19000,
+        "size": 11
+      },
+      "trace_sha256": "72d034e44069a0da3d331b1df3e1d9536b0130e95864609d023b5a88c5aef62c"
+    },
+    {
+      "away": "B",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1384,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "B",
+      "first_receiver_side": "away",
+      "home": "A",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_THROW_A_ROCK",
+          "half": 1,
+          "receiver": "B",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_THROW_A_ROCK",
+          "half": 2,
+          "receiver": "A",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_QUICK_SNAP",
+          "half": 2,
+          "receiver": "A",
+          "side": "home"
+        }
+      ],
+      "outcome": "away",
+      "policy_seeds": {
+        "A": 2738778239,
+        "B": 3209935254
+      },
+      "score": [
+        0,
+        1
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 0,
+        "max_decisions": 20000,
+        "pair": 1,
+        "pathfinding": false,
+        "policy_a": "scripted",
+        "policy_b": "scripted",
+        "receiver": "B",
+        "rounds": 8,
+        "seed": 19001,
+        "size": 11
+      },
+      "trace_sha256": "6621db784334a32c4331ee358c6051c100863dd978b73041eb78f1df189b9a58"
+    },
+    {
+      "away": "A",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1588,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "B",
+      "first_receiver_side": "home",
+      "home": "B",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_THROW_A_ROCK",
+          "half": 1,
+          "receiver": "B",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_HIGH_KICK",
+          "half": 1,
+          "receiver": "A",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_BLITZ",
+          "half": 2,
+          "receiver": "A",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_QUICK_SNAP",
+          "half": 2,
+          "receiver": "B",
+          "side": "home"
+        }
+      ],
+      "outcome": "draw",
+      "policy_seeds": {
+        "A": 2738778239,
+        "B": 3209935254
+      },
+      "score": [
+        1,
+        1
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 1,
+        "max_decisions": 20000,
+        "pair": 1,
+        "pathfinding": false,
+        "policy_a": "scripted",
+        "policy_b": "scripted",
+        "receiver": "B",
+        "rounds": 8,
+        "seed": 19001,
+        "size": 11
+      },
+      "trace_sha256": "596b1c573a24fee81fba30bb603c60bca9e8fe21a361bc98b137df08426dccdb"
+    },
+    {
+      "away": "B",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1622,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "A",
+      "first_receiver_side": "home",
+      "home": "A",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 1,
+          "receiver": "A",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_PITCH_INVASION",
+          "half": 1,
+          "receiver": "A",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 2,
+          "receiver": "B",
+          "side": "away"
+        }
+      ],
+      "outcome": "away",
+      "policy_seeds": {
+        "A": 4216719800,
+        "B": 4060940726
+      },
+      "score": [
+        0,
+        1
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 0,
+        "max_decisions": 20000,
+        "pair": 2,
+        "pathfinding": false,
+        "policy_a": "scripted",
+        "policy_b": "scripted",
+        "receiver": "A",
+        "rounds": 8,
+        "seed": 19002,
+        "size": 11
+      },
+      "trace_sha256": "318d13115e28972f4aa9fddf93648bea58e6d92103f623d309efa1290698c09e"
+    },
+    {
+      "away": "A",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1566,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "A",
+      "first_receiver_side": "away",
+      "home": "B",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 1,
+          "receiver": "A",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_HIGH_KICK",
+          "half": 2,
+          "receiver": "B",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_CHEERING_FANS",
+          "half": 2,
+          "receiver": "B",
+          "side": "home"
+        }
+      ],
+      "outcome": "draw",
+      "policy_seeds": {
+        "A": 4216719800,
+        "B": 4060940726
+      },
+      "score": [
+        1,
+        1
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 1,
+        "max_decisions": 20000,
+        "pair": 2,
+        "pathfinding": false,
+        "policy_a": "scripted",
+        "policy_b": "scripted",
+        "receiver": "A",
+        "rounds": 8,
+        "seed": 19002,
+        "size": 11
+      },
+      "trace_sha256": "89dac6719c72a9955295237e2d47e5a218bfeec5f1aacfda9cab74da99e469d6"
+    },
+    {
+      "away": "B",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1541,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "B",
+      "first_receiver_side": "away",
+      "home": "A",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_HIGH_KICK",
+          "half": 1,
+          "receiver": "B",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_BRILLIANT_COACHING",
+          "half": 1,
+          "receiver": "A",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_RIOT",
+          "half": 2,
+          "receiver": "A",
+          "side": "home"
+        }
+      ],
+      "outcome": "away",
+      "policy_seeds": {
+        "A": 332541983,
+        "B": 1489913209
+      },
+      "score": [
+        0,
+        1
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 0,
+        "max_decisions": 20000,
+        "pair": 3,
+        "pathfinding": false,
+        "policy_a": "scripted",
+        "policy_b": "scripted",
+        "receiver": "B",
+        "rounds": 8,
+        "seed": 19003,
+        "size": 11
+      },
+      "trace_sha256": "621a061a9a0ed0db332fb63018f69c939369a94295be3cc7930e2295c836d949"
+    },
+    {
+      "away": "A",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1668,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "B",
+      "first_receiver_side": "home",
+      "home": "B",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_HIGH_KICK",
+          "half": 1,
+          "receiver": "B",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_QUICK_SNAP",
+          "half": 2,
+          "receiver": "A",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_HIGH_KICK",
+          "half": 2,
+          "receiver": "B",
+          "side": "home"
+        }
+      ],
+      "outcome": "away",
+      "policy_seeds": {
+        "A": 332541983,
+        "B": 1489913209
+      },
+      "score": [
+        0,
+        1
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 1,
+        "max_decisions": 20000,
+        "pair": 3,
+        "pathfinding": false,
+        "policy_a": "scripted",
+        "policy_b": "scripted",
+        "receiver": "B",
+        "rounds": 8,
+        "seed": 19003,
+        "size": 11
+      },
+      "trace_sha256": "9631fd0e9d8398aca7344e12c17d3544ad2ddc77322dc83873aaf01e23a2cad4"
+    },
+    {
+      "away": "B",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1418,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "A",
+      "first_receiver_side": "home",
+      "home": "A",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_PITCH_INVASION",
+          "half": 1,
+          "receiver": "A",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_CHEERING_FANS",
+          "half": 2,
+          "receiver": "B",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_BLITZ",
+          "half": 2,
+          "receiver": "A",
+          "side": "home"
+        }
+      ],
+      "outcome": "away",
+      "policy_seeds": {
+        "A": 2323665948,
+        "B": 3126238163
+      },
+      "score": [
+        0,
+        1
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 0,
+        "max_decisions": 20000,
+        "pair": 4,
+        "pathfinding": false,
+        "policy_a": "scripted",
+        "policy_b": "scripted",
+        "receiver": "A",
+        "rounds": 8,
+        "seed": 19004,
+        "size": 11
+      },
+      "trace_sha256": "a407e42273b20f66791fdc019ed4ab8cafbd81e066570122a856c359a416a8b0"
+    },
+    {
+      "away": "A",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1424,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "A",
+      "first_receiver_side": "away",
+      "home": "B",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_PITCH_INVASION",
+          "half": 1,
+          "receiver": "A",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_CHEERING_FANS",
+          "half": 1,
+          "receiver": "B",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_CHEERING_FANS",
+          "half": 2,
+          "receiver": "B",
+          "side": "home"
+        }
+      ],
+      "outcome": "away",
+      "policy_seeds": {
+        "A": 2323665948,
+        "B": 3126238163
+      },
+      "score": [
+        0,
+        1
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 1,
+        "max_decisions": 20000,
+        "pair": 4,
+        "pathfinding": false,
+        "policy_a": "scripted",
+        "policy_b": "scripted",
+        "receiver": "A",
+        "rounds": 8,
+        "seed": 19004,
+        "size": 11
+      },
+      "trace_sha256": "b3ac582a5a678639a13a2b888568e2a7d300f33442740d666ce4d0a29b3e5e02"
+    },
+    {
+      "away": "B",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1561,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "B",
+      "first_receiver_side": "away",
+      "home": "A",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 1,
+          "receiver": "B",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_BLITZ",
+          "half": 1,
+          "receiver": "B",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_HIGH_KICK",
+          "half": 2,
+          "receiver": "A",
+          "side": "home"
+        }
+      ],
+      "outcome": "home",
+      "policy_seeds": {
+        "A": 258811970,
+        "B": 3080225989
+      },
+      "score": [
+        1,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 0,
+        "max_decisions": 20000,
+        "pair": 5,
+        "pathfinding": false,
+        "policy_a": "scripted",
+        "policy_b": "scripted",
+        "receiver": "B",
+        "rounds": 8,
+        "seed": 19005,
+        "size": 11
+      },
+      "trace_sha256": "95510e75795e5e0ff30a93465734330fb2372ce89facf0d093e0e0a94cb4ed10"
+    },
+    {
+      "away": "A",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1677,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "B",
+      "first_receiver_side": "home",
+      "home": "B",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 1,
+          "receiver": "B",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_PERFECT_DEFENSE",
+          "half": 1,
+          "receiver": "B",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_PERFECT_DEFENSE",
+          "half": 2,
+          "receiver": "A",
+          "side": "away"
+        }
+      ],
+      "outcome": "away",
+      "policy_seeds": {
+        "A": 258811970,
+        "B": 3080225989
+      },
+      "score": [
+        0,
+        1
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 1,
+        "max_decisions": 20000,
+        "pair": 5,
+        "pathfinding": false,
+        "policy_a": "scripted",
+        "policy_b": "scripted",
+        "receiver": "B",
+        "rounds": 8,
+        "seed": 19005,
+        "size": 11
+      },
+      "trace_sha256": "be286242c871a4821ee26341920cd17ad150873f67fd9c7df05f6d25bd41ed01"
+    },
+    {
+      "away": "B",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1330,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "A",
+      "first_receiver_side": "home",
+      "home": "A",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 1,
+          "receiver": "A",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_BRILLIANT_COACHING",
+          "half": 2,
+          "receiver": "B",
+          "side": "away"
+        }
+      ],
+      "outcome": "draw",
+      "policy_seeds": {
+        "A": 1838770335,
+        "B": 960630298
+      },
+      "score": [
+        0,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 0,
+        "max_decisions": 20000,
+        "pair": 6,
+        "pathfinding": false,
+        "policy_a": "scripted",
+        "policy_b": "scripted",
+        "receiver": "A",
+        "rounds": 8,
+        "seed": 19006,
+        "size": 11
+      },
+      "trace_sha256": "0f11c5be612bda5af5a745cdaa14c313dfed8db178c47a027db245632792dd14"
+    },
+    {
+      "away": "A",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1467,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "A",
+      "first_receiver_side": "away",
+      "home": "B",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 1,
+          "receiver": "A",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_PERFECT_DEFENSE",
+          "half": 1,
+          "receiver": "A",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_HIGH_KICK",
+          "half": 2,
+          "receiver": "B",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_PERFECT_DEFENSE",
+          "half": 2,
+          "receiver": "B",
+          "side": "home"
+        }
+      ],
+      "outcome": "draw",
+      "policy_seeds": {
+        "A": 1838770335,
+        "B": 960630298
+      },
+      "score": [
+        1,
+        1
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 1,
+        "max_decisions": 20000,
+        "pair": 6,
+        "pathfinding": false,
+        "policy_a": "scripted",
+        "policy_b": "scripted",
+        "receiver": "A",
+        "rounds": 8,
+        "seed": 19006,
+        "size": 11
+      },
+      "trace_sha256": "99ea316db3e373cf94a3ddc39230aaa7d8c66a88b075147547873618332e1fb3"
+    },
+    {
+      "away": "B",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1522,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "B",
+      "first_receiver_side": "away",
+      "home": "A",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_BLITZ",
+          "half": 1,
+          "receiver": "B",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_HIGH_KICK",
+          "half": 1,
+          "receiver": "A",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 2,
+          "receiver": "A",
+          "side": "home"
+        }
+      ],
+      "outcome": "away",
+      "policy_seeds": {
+        "A": 3818381494,
+        "B": 3078631649
+      },
+      "score": [
+        0,
+        1
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 0,
+        "max_decisions": 20000,
+        "pair": 7,
+        "pathfinding": false,
+        "policy_a": "scripted",
+        "policy_b": "scripted",
+        "receiver": "B",
+        "rounds": 8,
+        "seed": 19007,
+        "size": 11
+      },
+      "trace_sha256": "9017ab07cf638f3505e0598619ac8926fffc7f6d2254dcd706ed09fa381446f7"
+    },
+    {
+      "away": "A",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1620,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "B",
+      "first_receiver_side": "home",
+      "home": "B",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_BLITZ",
+          "half": 1,
+          "receiver": "B",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_PERFECT_DEFENSE",
+          "half": 2,
+          "receiver": "A",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_RIOT",
+          "half": 2,
+          "receiver": "B",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_CHEERING_FANS",
+          "half": 2,
+          "receiver": "A",
+          "side": "away"
+        }
+      ],
+      "outcome": "draw",
+      "policy_seeds": {
+        "A": 3818381494,
+        "B": 3078631649
+      },
+      "score": [
+        1,
+        1
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 1,
+        "max_decisions": 20000,
+        "pair": 7,
+        "pathfinding": false,
+        "policy_a": "scripted",
+        "policy_b": "scripted",
+        "receiver": "B",
+        "rounds": 8,
+        "seed": 19007,
+        "size": 11
+      },
+      "trace_sha256": "1f0ed7abd74388f004a338ac312e0991db597d84054f1410080562f2a57e7cc4"
+    },
+    {
+      "away": "B",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1771,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "A",
+      "first_receiver_side": "home",
+      "home": "A",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_RIOT",
+          "half": 1,
+          "receiver": "A",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_CHEERING_FANS",
+          "half": 1,
+          "receiver": "B",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 2,
+          "receiver": "B",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_PITCH_INVASION",
+          "half": 2,
+          "receiver": "B",
+          "side": "away"
+        }
+      ],
+      "outcome": "home",
+      "policy_seeds": {
+        "A": 2127152064,
+        "B": 364638252
+      },
+      "score": [
+        2,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 0,
+        "max_decisions": 20000,
+        "pair": 0,
+        "pathfinding": true,
+        "policy_a": "scripted",
+        "policy_b": "scripted",
+        "receiver": "A",
+        "rounds": 8,
+        "seed": 19000,
+        "size": 11
+      },
+      "trace_sha256": "1f01f4f54a763187d363e6354773eddcd9fe823aa8da511ac93db6bf7fbb485b"
+    },
+    {
+      "away": "A",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1500,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "A",
+      "first_receiver_side": "away",
+      "home": "B",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_RIOT",
+          "half": 1,
+          "receiver": "A",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_QUICK_SNAP",
+          "half": 2,
+          "receiver": "B",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_QUICK_SNAP",
+          "half": 2,
+          "receiver": "A",
+          "side": "away"
+        }
+      ],
+      "outcome": "home",
+      "policy_seeds": {
+        "A": 2127152064,
+        "B": 364638252
+      },
+      "score": [
+        1,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 1,
+        "max_decisions": 20000,
+        "pair": 0,
+        "pathfinding": true,
+        "policy_a": "scripted",
+        "policy_b": "scripted",
+        "receiver": "A",
+        "rounds": 8,
+        "seed": 19000,
+        "size": 11
+      },
+      "trace_sha256": "72d034e44069a0da3d331b1df3e1d9536b0130e95864609d023b5a88c5aef62c"
+    },
+    {
+      "away": "B",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1384,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "B",
+      "first_receiver_side": "away",
+      "home": "A",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_THROW_A_ROCK",
+          "half": 1,
+          "receiver": "B",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_THROW_A_ROCK",
+          "half": 2,
+          "receiver": "A",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_QUICK_SNAP",
+          "half": 2,
+          "receiver": "A",
+          "side": "home"
+        }
+      ],
+      "outcome": "away",
+      "policy_seeds": {
+        "A": 2738778239,
+        "B": 3209935254
+      },
+      "score": [
+        0,
+        1
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 0,
+        "max_decisions": 20000,
+        "pair": 1,
+        "pathfinding": true,
+        "policy_a": "scripted",
+        "policy_b": "scripted",
+        "receiver": "B",
+        "rounds": 8,
+        "seed": 19001,
+        "size": 11
+      },
+      "trace_sha256": "6621db784334a32c4331ee358c6051c100863dd978b73041eb78f1df189b9a58"
+    },
+    {
+      "away": "A",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1588,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "B",
+      "first_receiver_side": "home",
+      "home": "B",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_THROW_A_ROCK",
+          "half": 1,
+          "receiver": "B",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_HIGH_KICK",
+          "half": 1,
+          "receiver": "A",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_BLITZ",
+          "half": 2,
+          "receiver": "A",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_QUICK_SNAP",
+          "half": 2,
+          "receiver": "B",
+          "side": "home"
+        }
+      ],
+      "outcome": "draw",
+      "policy_seeds": {
+        "A": 2738778239,
+        "B": 3209935254
+      },
+      "score": [
+        1,
+        1
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 1,
+        "max_decisions": 20000,
+        "pair": 1,
+        "pathfinding": true,
+        "policy_a": "scripted",
+        "policy_b": "scripted",
+        "receiver": "B",
+        "rounds": 8,
+        "seed": 19001,
+        "size": 11
+      },
+      "trace_sha256": "596b1c573a24fee81fba30bb603c60bca9e8fe21a361bc98b137df08426dccdb"
+    },
+    {
+      "away": "B",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1622,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "A",
+      "first_receiver_side": "home",
+      "home": "A",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 1,
+          "receiver": "A",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_PITCH_INVASION",
+          "half": 1,
+          "receiver": "A",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 2,
+          "receiver": "B",
+          "side": "away"
+        }
+      ],
+      "outcome": "away",
+      "policy_seeds": {
+        "A": 4216719800,
+        "B": 4060940726
+      },
+      "score": [
+        0,
+        1
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 0,
+        "max_decisions": 20000,
+        "pair": 2,
+        "pathfinding": true,
+        "policy_a": "scripted",
+        "policy_b": "scripted",
+        "receiver": "A",
+        "rounds": 8,
+        "seed": 19002,
+        "size": 11
+      },
+      "trace_sha256": "318d13115e28972f4aa9fddf93648bea58e6d92103f623d309efa1290698c09e"
+    },
+    {
+      "away": "A",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1566,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "A",
+      "first_receiver_side": "away",
+      "home": "B",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 1,
+          "receiver": "A",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_HIGH_KICK",
+          "half": 2,
+          "receiver": "B",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_CHEERING_FANS",
+          "half": 2,
+          "receiver": "B",
+          "side": "home"
+        }
+      ],
+      "outcome": "draw",
+      "policy_seeds": {
+        "A": 4216719800,
+        "B": 4060940726
+      },
+      "score": [
+        1,
+        1
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 1,
+        "max_decisions": 20000,
+        "pair": 2,
+        "pathfinding": true,
+        "policy_a": "scripted",
+        "policy_b": "scripted",
+        "receiver": "A",
+        "rounds": 8,
+        "seed": 19002,
+        "size": 11
+      },
+      "trace_sha256": "89dac6719c72a9955295237e2d47e5a218bfeec5f1aacfda9cab74da99e469d6"
+    },
+    {
+      "away": "B",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1541,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "B",
+      "first_receiver_side": "away",
+      "home": "A",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_HIGH_KICK",
+          "half": 1,
+          "receiver": "B",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_BRILLIANT_COACHING",
+          "half": 1,
+          "receiver": "A",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_RIOT",
+          "half": 2,
+          "receiver": "A",
+          "side": "home"
+        }
+      ],
+      "outcome": "away",
+      "policy_seeds": {
+        "A": 332541983,
+        "B": 1489913209
+      },
+      "score": [
+        0,
+        1
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 0,
+        "max_decisions": 20000,
+        "pair": 3,
+        "pathfinding": true,
+        "policy_a": "scripted",
+        "policy_b": "scripted",
+        "receiver": "B",
+        "rounds": 8,
+        "seed": 19003,
+        "size": 11
+      },
+      "trace_sha256": "621a061a9a0ed0db332fb63018f69c939369a94295be3cc7930e2295c836d949"
+    },
+    {
+      "away": "A",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1668,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "B",
+      "first_receiver_side": "home",
+      "home": "B",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_HIGH_KICK",
+          "half": 1,
+          "receiver": "B",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_QUICK_SNAP",
+          "half": 2,
+          "receiver": "A",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_HIGH_KICK",
+          "half": 2,
+          "receiver": "B",
+          "side": "home"
+        }
+      ],
+      "outcome": "away",
+      "policy_seeds": {
+        "A": 332541983,
+        "B": 1489913209
+      },
+      "score": [
+        0,
+        1
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 1,
+        "max_decisions": 20000,
+        "pair": 3,
+        "pathfinding": true,
+        "policy_a": "scripted",
+        "policy_b": "scripted",
+        "receiver": "B",
+        "rounds": 8,
+        "seed": 19003,
+        "size": 11
+      },
+      "trace_sha256": "9631fd0e9d8398aca7344e12c17d3544ad2ddc77322dc83873aaf01e23a2cad4"
+    },
+    {
+      "away": "B",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1418,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "A",
+      "first_receiver_side": "home",
+      "home": "A",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_PITCH_INVASION",
+          "half": 1,
+          "receiver": "A",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_CHEERING_FANS",
+          "half": 2,
+          "receiver": "B",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_BLITZ",
+          "half": 2,
+          "receiver": "A",
+          "side": "home"
+        }
+      ],
+      "outcome": "away",
+      "policy_seeds": {
+        "A": 2323665948,
+        "B": 3126238163
+      },
+      "score": [
+        0,
+        1
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 0,
+        "max_decisions": 20000,
+        "pair": 4,
+        "pathfinding": true,
+        "policy_a": "scripted",
+        "policy_b": "scripted",
+        "receiver": "A",
+        "rounds": 8,
+        "seed": 19004,
+        "size": 11
+      },
+      "trace_sha256": "a407e42273b20f66791fdc019ed4ab8cafbd81e066570122a856c359a416a8b0"
+    },
+    {
+      "away": "A",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1424,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "A",
+      "first_receiver_side": "away",
+      "home": "B",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_PITCH_INVASION",
+          "half": 1,
+          "receiver": "A",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_CHEERING_FANS",
+          "half": 1,
+          "receiver": "B",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_CHEERING_FANS",
+          "half": 2,
+          "receiver": "B",
+          "side": "home"
+        }
+      ],
+      "outcome": "away",
+      "policy_seeds": {
+        "A": 2323665948,
+        "B": 3126238163
+      },
+      "score": [
+        0,
+        1
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 1,
+        "max_decisions": 20000,
+        "pair": 4,
+        "pathfinding": true,
+        "policy_a": "scripted",
+        "policy_b": "scripted",
+        "receiver": "A",
+        "rounds": 8,
+        "seed": 19004,
+        "size": 11
+      },
+      "trace_sha256": "b3ac582a5a678639a13a2b888568e2a7d300f33442740d666ce4d0a29b3e5e02"
+    },
+    {
+      "away": "B",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1561,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "B",
+      "first_receiver_side": "away",
+      "home": "A",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 1,
+          "receiver": "B",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_BLITZ",
+          "half": 1,
+          "receiver": "B",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_HIGH_KICK",
+          "half": 2,
+          "receiver": "A",
+          "side": "home"
+        }
+      ],
+      "outcome": "home",
+      "policy_seeds": {
+        "A": 258811970,
+        "B": 3080225989
+      },
+      "score": [
+        1,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 0,
+        "max_decisions": 20000,
+        "pair": 5,
+        "pathfinding": true,
+        "policy_a": "scripted",
+        "policy_b": "scripted",
+        "receiver": "B",
+        "rounds": 8,
+        "seed": 19005,
+        "size": 11
+      },
+      "trace_sha256": "95510e75795e5e0ff30a93465734330fb2372ce89facf0d093e0e0a94cb4ed10"
+    },
+    {
+      "away": "A",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1677,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "B",
+      "first_receiver_side": "home",
+      "home": "B",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 1,
+          "receiver": "B",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_PERFECT_DEFENSE",
+          "half": 1,
+          "receiver": "B",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_PERFECT_DEFENSE",
+          "half": 2,
+          "receiver": "A",
+          "side": "away"
+        }
+      ],
+      "outcome": "away",
+      "policy_seeds": {
+        "A": 258811970,
+        "B": 3080225989
+      },
+      "score": [
+        0,
+        1
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 1,
+        "max_decisions": 20000,
+        "pair": 5,
+        "pathfinding": true,
+        "policy_a": "scripted",
+        "policy_b": "scripted",
+        "receiver": "B",
+        "rounds": 8,
+        "seed": 19005,
+        "size": 11
+      },
+      "trace_sha256": "be286242c871a4821ee26341920cd17ad150873f67fd9c7df05f6d25bd41ed01"
+    },
+    {
+      "away": "B",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1330,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "A",
+      "first_receiver_side": "home",
+      "home": "A",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 1,
+          "receiver": "A",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_BRILLIANT_COACHING",
+          "half": 2,
+          "receiver": "B",
+          "side": "away"
+        }
+      ],
+      "outcome": "draw",
+      "policy_seeds": {
+        "A": 1838770335,
+        "B": 960630298
+      },
+      "score": [
+        0,
+        0
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 0,
+        "max_decisions": 20000,
+        "pair": 6,
+        "pathfinding": true,
+        "policy_a": "scripted",
+        "policy_b": "scripted",
+        "receiver": "A",
+        "rounds": 8,
+        "seed": 19006,
+        "size": 11
+      },
+      "trace_sha256": "0f11c5be612bda5af5a745cdaa14c313dfed8db178c47a027db245632792dd14"
+    },
+    {
+      "away": "A",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1467,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "A",
+      "first_receiver_side": "away",
+      "home": "B",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 1,
+          "receiver": "A",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_PERFECT_DEFENSE",
+          "half": 1,
+          "receiver": "A",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_HIGH_KICK",
+          "half": 2,
+          "receiver": "B",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_PERFECT_DEFENSE",
+          "half": 2,
+          "receiver": "B",
+          "side": "home"
+        }
+      ],
+      "outcome": "draw",
+      "policy_seeds": {
+        "A": 1838770335,
+        "B": 960630298
+      },
+      "score": [
+        1,
+        1
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 1,
+        "max_decisions": 20000,
+        "pair": 6,
+        "pathfinding": true,
+        "policy_a": "scripted",
+        "policy_b": "scripted",
+        "receiver": "A",
+        "rounds": 8,
+        "seed": 19006,
+        "size": 11
+      },
+      "trace_sha256": "99ea316db3e373cf94a3ddc39230aaa7d8c66a88b075147547873618332e1fb3"
+    },
+    {
+      "away": "B",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1522,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "B",
+      "first_receiver_side": "away",
+      "home": "A",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_BLITZ",
+          "half": 1,
+          "receiver": "B",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_HIGH_KICK",
+          "half": 1,
+          "receiver": "A",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_CHANGING_WHEATHER",
+          "half": 2,
+          "receiver": "A",
+          "side": "home"
+        }
+      ],
+      "outcome": "away",
+      "policy_seeds": {
+        "A": 3818381494,
+        "B": 3078631649
+      },
+      "score": [
+        0,
+        1
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 0,
+        "max_decisions": 20000,
+        "pair": 7,
+        "pathfinding": true,
+        "policy_a": "scripted",
+        "policy_b": "scripted",
+        "receiver": "B",
+        "rounds": 8,
+        "seed": 19007,
+        "size": 11
+      },
+      "trace_sha256": "9017ab07cf638f3505e0598619ac8926fffc7f6d2254dcd706ed09fa381446f7"
+    },
+    {
+      "away": "A",
+      "backend": "botbowl.core.pathfinding.cython_pathfinding",
+      "decisions": 1620,
+      "end_cause": "completed",
+      "error": null,
+      "first_receiver": "B",
+      "first_receiver_side": "home",
+      "home": "B",
+      "kickoffs": [
+        {
+          "event": "KICKOFF_BLITZ",
+          "half": 1,
+          "receiver": "B",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_PERFECT_DEFENSE",
+          "half": 2,
+          "receiver": "A",
+          "side": "away"
+        },
+        {
+          "event": "KICKOFF_RIOT",
+          "half": 2,
+          "receiver": "B",
+          "side": "home"
+        },
+        {
+          "event": "KICKOFF_CHEERING_FANS",
+          "half": 2,
+          "receiver": "A",
+          "side": "away"
+        }
+      ],
+      "outcome": "draw",
+      "policy_seeds": {
+        "A": 3818381494,
+        "B": 3078631649
+      },
+      "score": [
+        1,
+        1
+      ],
+      "spec": {
+        "kickoff": true,
+        "leg": 1,
+        "max_decisions": 20000,
+        "pair": 7,
+        "pathfinding": true,
+        "policy_a": "scripted",
+        "policy_b": "scripted",
+        "receiver": "B",
+        "rounds": 8,
+        "seed": 19007,
+        "size": 11
+      },
+      "trace_sha256": "1f0ed7abd74388f004a338ac312e0991db597d84054f1410080562f2a57e7cc4"
+    }
+  ],
+  "measured_revision": "da354736ec8edc2acc32a57716e0c76a6a980a42"
+}

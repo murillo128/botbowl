@@ -1,0 +1,2 @@
+# Bounded public API check only; no runtime or optional-extra dependency.
+mypy==2.3.1

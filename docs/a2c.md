@@ -1,4 +1,8 @@
 # Reinforcement Learning II: A2C
+
+This historical training tutorial and its model encoding remain v4. For the
+Gymnasium adapter, reward ownership and a bounded CPU worker example, see
+[the v5 migration guide](gymnasium.md).
 In this tutorial we will train a reinforcement learning agent to play Blood Bowl using the synchronous advantage actor-critic 
 (A2C) algorithm, which is a simpler variant of A3C (Asynchronous Advantage Actor-Critic). This tutorial will be hard to follow without 
 a basic understanding of deep reinforcement learning, including concepts such as neural networks, convolution, back-propagation, gradient descent,

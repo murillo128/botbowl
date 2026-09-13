@@ -6,6 +6,8 @@ Year: 2019
 This module contains a competition class to handle a competition between two bots.
 """
 import tabulate
+import time
+from contextlib import ExitStack
 from itertools import combinations
 from typing import Callable, Optional, Any, List
 from botbowl.ai.competition.result_structures import (
@@ -17,6 +19,7 @@ from botbowl.core.model import Team
 from botbowl.core import (
     Game,
     InvalidActionError,
+    StepBudget,
     Agent,
     Configuration,
     RuleSet,
@@ -53,8 +56,10 @@ class Competition:
         arena: Optional[TwoPlayerArena],
         n: int = 2,
         record=False,
+        max_steps=100000,
     ):
-        assert n % 2 == 0, "Number of games must be even"
+        if type(n) is not int or n < 0 or n % 2 != 0:
+            raise ValueError("Number of games must be a nonnegative even integer")
         self.agent_a = agent_a
         self.agent_b = agent_b
         self.team_a = team_a
@@ -67,6 +72,8 @@ class Competition:
         self.results = None
         self.ruleset = ruleset
         self.record = record
+        StepBudget(max_steps)  # Validate before running games or callbacks.
+        self.max_steps = max_steps
 
     def run(self):
         results: List[GameResult] = []
@@ -100,25 +107,34 @@ class Competition:
         return self.results
 
     def _run_game(self, game: Game):
-        assert not game.is_started()
+        if game.is_started():
+            raise ValueError("Competition requires an unstarted game")
+        budget = StepBudget(self.max_steps)
         try:
             # game will finish or throw exception
-            game.init()
+            game.init(max_steps=budget)
         except InvalidActionError as e:
             print(e)
 
         while not game.state.game_over:
+            budget.consume(game)
             time_left = game.get_seconds_left()
             if time_left is None or time_left > 0:
                 try:
                     assert game.actor is not None
-                    action = game.actor.act(game)  # Allow actor to try again
-                    game.step(action)
+                    game.last_request_time = time.time()
+                    try:
+                        action = game._safe_act()  # Allow actor to try again.
+                    finally:
+                        game.last_action_time = time.time()
+                    if game._check_clocks(max_steps=budget):
+                        continue  # A late retry belongs to the expired decision.
+                    game.step(action, max_steps=budget)
                 except InvalidActionError as e:
                     print(e)
             else:
                 print("Using forced action")
-                game.step(game._forced_action())
+                game.step(game._forced_action(), max_steps=budget)
 
 
 AgentCreator = Callable[[], Agent]
@@ -159,6 +175,8 @@ class MultiAgentCompetition:
         self.ruleset = ruleset
         self.arena = arena
         self.record = record
+        if type(number_of_games) is not int or number_of_games < 0 or number_of_games % 2 != 0:
+            raise ValueError("Number of games must be a nonnegative even integer")
         self.number_of_games = number_of_games
 
         self.results = []
@@ -169,36 +187,49 @@ class MultiAgentCompetition:
 
         names = set()
         for create_agent in self.agents:
-            agent = create_agent()
-            if "," in agent.name:
-                raise ValueError(
-                    f"Agent names must not contain commas, '{agent.name}' contains a comma"
-                )
-            if agent.name in names:
-                raise ValueError(
-                    f"Agent names must be unique, '{agent.name}' is used more than once"
-                )
-            names.add(agent.name)
+            with ExitStack() as resources:
+                agent = create_agent()
+                self._own_agent(resources, agent)
+                if "," in agent.name:
+                    raise ValueError(
+                        f"Agent names must not contain commas, '{agent.name}' contains a comma"
+                    )
+                if agent.name in names:
+                    raise ValueError(
+                        f"Agent names must be unique, '{agent.name}' is used more than once"
+                    )
+                names.add(agent.name)
+
+    @staticmethod
+    def _own_agent(resources, agent):
+        # Factories transfer ownership to the competition. Direct Competition
+        # callers retain ownership of their supplied agents.
+        close = getattr(agent, "close", None)
+        if callable(close):
+            resources.callback(close)
 
     def run(self):
         for create_agent_a, create_agent_b in self.matchups:
-            agent_a = create_agent_a()
-            agent_b = create_agent_b()
+            with ExitStack() as resources:
+                agent_a = create_agent_a()
+                self._own_agent(resources, agent_a)
+                agent_b = create_agent_b()
+                self._own_agent(resources, agent_b)
 
-            print(f"Running {agent_a.name} vs {agent_b.name}")
-            competition = Competition(
-                agent_a,
-                agent_b,
-                self.home_team,
-                self.away_team,
-                self.config,
-                self.ruleset,
-                self.arena,
-                self.number_of_games,
-                self.record,
-            )
-            result = competition.run()
-            self.results.append(result)
+                print(f"Running {agent_a.name} vs {agent_b.name}")
+                competition = Competition(
+                    agent_a,
+                    agent_b,
+                    self.home_team,
+                    self.away_team,
+                    self.config,
+                    self.ruleset,
+                    self.arena,
+                    self.number_of_games,
+                    self.record,
+                )
+                result = competition.run()
+                self.results.append(result)
 
     def get_game_results(self) -> List[GameResult]:
         results = []

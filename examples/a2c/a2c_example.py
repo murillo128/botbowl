@@ -1,7 +1,5 @@
 from functools import partial
-from multiprocessing import Process, Pipe
 import random
-from typing import Tuple, Iterable
 
 import matplotlib.pyplot as plt
 import torch
@@ -13,6 +11,7 @@ import botbowl
 from botbowl.ai.env import BotBowlEnv, RewardWrapper, EnvConf, ScriptedActionWrapper, BotBowlWrapper, PPCGWrapper
 from examples.a2c.a2c_agent import A2CAgent, CNNPolicy
 from examples.a2c.a2c_env import A2C_Reward, a2c_scripted_actions
+from examples.a2c.vec_env import VecEnv
 from botbowl.ai.layers import *
 
 # Environment
@@ -115,115 +114,22 @@ class Memory(object):
             self.returns[step] = self.returns[step + 1] * gamma * self.masks[step] + self.rewards[step]
 
 
-def worker(remote, parent_remote, env: BotBowlWrapper, worker_id):
-    parent_remote.close()
-
-    steps = 0
-    tds = 0
-    tds_opp = 0
-    next_opp = botbowl.make_bot('random')
-
-    ppcg_wrapper: Optional[PPCGWrapper] = env.get_wrapper_with_type(PPCGWrapper)
-
-    while True:
-        command, data = remote.recv()
-        if command == 'step':
-            steps += 1
-            action, dif = data[0], data[1]
-            if ppcg_wrapper is not None:
-                ppcg_wrapper.difficulty = dif
-
-            (spatial_obs, non_spatial_obs, action_mask), reward, done, info = env.step(action)
-
-            game = env.game
-            tds_scored = game.state.home_team.state.score - tds
-            tds_opp_scored = game.state.away_team.state.score - tds_opp
-            tds = game.state.home_team.state.score
-            tds_opp = game.state.away_team.state.score
-
-            if done or steps >= reset_steps:
-                # If we get stuck or something - reset the environment
-                if steps >= reset_steps:
-                    print("Max. number of steps exceeded! Consider increasing the number.")
-                done = True
-                env.root_env.away_agent = next_opp
-                spatial_obs, non_spatial_obs, action_mask = env.reset()
-                steps = 0
-                tds = 0
-                tds_opp = 0
-            remote.send((spatial_obs, non_spatial_obs, action_mask, reward, tds_scored, tds_opp_scored, done))
-
-        elif command == 'reset':
-            steps = 0
-            tds = 0
-            tds_opp = 0
-            env.root_env.away_agent = next_opp
-            spatial_obs, non_spatial_obs, action_mask = env.reset()
-            remote.send((spatial_obs, non_spatial_obs, action_mask, 0.0, 0, 0, False))
-
-        elif command == 'swap':
-            next_opp = data
-        elif command == 'close':
-            break
-
-
-class VecEnv:
-    def __init__(self, envs):
-        """
-        envs: list of botbowl environments to run in subprocesses
-        """
-        self.closed = False
-        nenvs = len(envs)
-        self.remotes, self.work_remotes = zip(*[Pipe() for _ in range(nenvs)])
-
-        self.ps = [Process(target=worker, args=(work_remote, remote, env, envs.index(env)))
-                   for (work_remote, remote, env) in zip(self.work_remotes, self.remotes, envs)]
-
-        for p in self.ps:
-            p.daemon = True  # If the main process crashes, we should not cause things to hang
-            p.start()
-        for remote in self.work_remotes:
-            remote.close()
-
-    def step(self, actions: Iterable[int], difficulty=1.0) -> Tuple[np.ndarray, ...]:
-        """
-        Takes one step in each environment, returns the results as stacked numpy arrays
-        """
-        for remote, action in zip(self.remotes, actions):
-            remote.send(('step', [action, difficulty]))
-        results = [remote.recv() for remote in self.remotes]
-        return tuple(map(np.stack, zip(*results)))
-
-    def reset(self, difficulty=1.0):
-        for remote in self.remotes:
-            remote.send(('reset', difficulty))
-        results = [remote.recv() for remote in self.remotes]
-        return tuple(map(np.stack, zip(*results)))
-
-    def swap(self, agent):
-        for remote in self.remotes:
-            remote.send(('swap', agent))
-
-    def close(self):
-        if self.closed:
-            return
-
-        for remote in self.remotes:
-            remote.send(('close', None))
-        for p in self.ps:
-            p.join()
-        self.closed = True
-
-    @property
-    def num_envs(self):
-        return len(self.remotes)
 
 
 def main():
-    envs = VecEnv([make_env() for _ in range(num_processes)])
+    envs = VecEnv([make_env() for _ in range(num_processes)], reset_steps=reset_steps)
+    try:
+        train(envs)
+    finally:
+        envs.close()
 
+
+def train(envs):
     env = make_env()
-    spat_obs, non_spat_obs, action_mask = env.reset()
+    try:
+        spat_obs, non_spat_obs, action_mask = env.reset()
+    finally:
+        env.close()
     spatial_obs_space = spat_obs.shape
     non_spatial_obs_space = non_spat_obs.shape[0]
     action_space = len(action_mask)
@@ -283,7 +189,7 @@ def main():
         selfplay_models += 1
 
     # Reset environments
-    spatial_obs, non_spatial_obs, action_masks, _, _, _, _ = map(torch.from_numpy, envs.reset(difficulty))
+    spatial_obs, non_spatial_obs, action_masks, _, _, _, _, _ = map(torch.from_numpy, envs.reset(difficulty))
 
     # Add first obs to memory
     non_spatial_obs = torch.unsqueeze(non_spatial_obs, dim=1)
@@ -301,16 +207,17 @@ def main():
 
             action_objects = (action[0] for action in actions.numpy())
 
-            spatial_obs, non_spatial_obs, action_masks, shaped_reward, tds_scored, tds_opp_scored, done = envs.step(action_objects, difficulty=difficulty)
+            spatial_obs, non_spatial_obs, action_masks, shaped_reward, tds_scored, tds_opp_scored, terminated, truncated = envs.step(action_objects, difficulty=difficulty)
 
             proc_rewards += shaped_reward
             proc_tds += tds_scored
             proc_tds_opp += tds_opp_scored
-            episodes += done.sum()
+            done = terminated | truncated
+            episodes += terminated.sum()
 
             # If done then clean the history of observations.
             for i in range(num_processes):
-                if done[i]:
+                if terminated[i]:
                     if proc_tds[i] > proc_tds_opp[i]:  # Win
                         wins.append(1)
                         difficulty += dif_delta
@@ -327,6 +234,7 @@ def main():
                     episode_rewards.append(proc_rewards[i])
                     episode_tds.append(proc_tds[i])
                     episode_tds_opp.append(proc_tds_opp[i])
+                if done[i]:
                     proc_rewards[i] = 0
                     proc_tds[i] = 0
                     proc_tds_opp[i] = 0
@@ -487,7 +395,6 @@ def main():
     model_name = f"{exp_id}.nn"
     model_path = os.path.join(model_dir, model_name)
     torch.save(ac_agent, model_path)
-    envs.close()
 
 
 if __name__ == "__main__":

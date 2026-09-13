@@ -1,0 +1,3099 @@
+{
+  "accepted_base": "a9a931a4618ea4b3cb45e92ccbffdf23e97bcc6b",
+  "ci_cost_collection": {
+    "challenges": {
+      "native": {
+        "artifact": {
+          "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection/native-challenges.log",
+          "sha256": "febc19a5ac1da9a709f59692c8639d081a687e9fc89d947e82afa56aa23914d2"
+        },
+        "attribution": "Executor replay of unchanged prior independent reviewer challenge; not a fresh independent review",
+        "backend": "botbowl.core.pathfinding.cython_pathfinding",
+        "counts": {
+          "alias_controls_detected": 12,
+          "configurations": 8,
+          "first_game_unchanged_checks": 45,
+          "independent_graph_pairs": 244,
+          "maximum_graph_size": 1542,
+          "nested_semantic_faults_detected": 13
+        },
+        "order": "loaders-first",
+        "script": {
+          "path": "/tmp/botbowl-issue20-ci-cost/challenge.py",
+          "sha256": "635ba0a3a44e9ed97d8f4c530352ad410dc3c5980a5ea278094d611d659d9d2b"
+        }
+      },
+      "python": {
+        "artifact": {
+          "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection/python-challenges.log",
+          "sha256": "dbf70fa2fe4b04d29f2fddcd8f672944dfe2208e30fbdf52009f3e32a8bc36c4"
+        },
+        "attribution": "Executor replay of unchanged prior independent reviewer challenge; not a fresh independent review",
+        "backend": "botbowl.core.pathfinding.python_pathfinding",
+        "counts": {
+          "alias_controls_detected": 12,
+          "configurations": 8,
+          "first_game_unchanged_checks": 45,
+          "independent_graph_pairs": 244,
+          "maximum_graph_size": 1542,
+          "nested_semantic_faults_detected": 13
+        },
+        "order": "loaders-first",
+        "script": {
+          "path": "/tmp/botbowl-issue20-ci-cost/challenge.py",
+          "sha256": "635ba0a3a44e9ed97d8f4c530352ad410dc3c5980a5ea278094d611d659d9d2b"
+        }
+      }
+    },
+    "collection_probe": {
+      "auto": {
+        "artifact": {
+          "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection-auto.json",
+          "sha256": "5540f3a968658fbbbee8aa0e9f282a769c4ce84a1258eebabd81ea6d53e462d8"
+        },
+        "result": {
+          "collected_at_end": 9452,
+          "gc_collections": {
+            "0": 13244,
+            "1": 1203,
+            "2": 62
+          },
+          "gc_enabled_restored": true,
+          "gc_seconds": {
+            "0": 0.2884295160838519,
+            "1": 0.2553182459596428,
+            "2": 2.916849248980725
+          },
+          "loader_calls": 300,
+          "mode": "auto",
+          "peak_rss_kib": 100692,
+          "seconds": 9.241337518000364
+        }
+      },
+      "deferred": {
+        "artifact": {
+          "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection-deferred.json",
+          "sha256": "d3ed3ad65274c54f2530ca9599bdf6e82f71b5ddb9791222d082818334cec3cc"
+        },
+        "result": {
+          "collected_at_end": 459388,
+          "gc_collections": {
+            "0": 0,
+            "1": 0,
+            "2": 1
+          },
+          "gc_enabled_restored": true,
+          "gc_seconds": {
+            "0": 0.0,
+            "1": 0.0,
+            "2": 0.2114450859990029
+          },
+          "loader_calls": 300,
+          "mode": "deferred",
+          "peak_rss_kib": 295200,
+          "seconds": 5.873226900002919
+        }
+      }
+    },
+    "controls": {
+      "native-consumer-side0": {
+        "artifact": {
+          "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection/native-consumer-side0.log",
+          "sha256": "6a0f6d813fa1ed78a2de32180afaed6d6dea3ce9ef564fb9f80ac6bfb25eea49"
+        },
+        "json_byte_identical_to_previous_evidence": true
+      },
+      "native-consumer-side1": {
+        "artifact": {
+          "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection/native-consumer-side1.log",
+          "sha256": "44b0485abb74182020f4ea6e2291824242b5f0598bb04bb7111a66239f6b2b58"
+        },
+        "json_byte_identical_to_previous_evidence": true
+      },
+      "native-helper": {
+        "artifact": {
+          "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection/native-helper.log",
+          "sha256": "dc0a34cf8134b3600932d1b09e83daa541f30f9e929ba09e36ea9b8305418e04"
+        },
+        "json_byte_identical_to_previous_evidence": true
+      },
+      "native-setup-side0": {
+        "artifact": {
+          "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection/native-setup-side0.log",
+          "sha256": "52dc8b83d19b4619aa8d7bbb17d635de93a7e3f6e7b83967bdc654fbc5427d44"
+        },
+        "json_byte_identical_to_previous_evidence": true
+      },
+      "native-setup-side1": {
+        "artifact": {
+          "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection/native-setup-side1.log",
+          "sha256": "8c8ccc48340ee7cabe3405be3180b170a041d35f5a29fe4a8ebaf94016cc8b5a"
+        },
+        "json_byte_identical_to_previous_evidence": true
+      },
+      "python-consumer-side0": {
+        "artifact": {
+          "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection/python-consumer-side0.log",
+          "sha256": "6a0f6d813fa1ed78a2de32180afaed6d6dea3ce9ef564fb9f80ac6bfb25eea49"
+        },
+        "json_byte_identical_to_previous_evidence": true
+      },
+      "python-consumer-side1": {
+        "artifact": {
+          "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection/python-consumer-side1.log",
+          "sha256": "44b0485abb74182020f4ea6e2291824242b5f0598bb04bb7111a66239f6b2b58"
+        },
+        "json_byte_identical_to_previous_evidence": true
+      },
+      "python-helper": {
+        "artifact": {
+          "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection/python-helper.log",
+          "sha256": "dc0a34cf8134b3600932d1b09e83daa541f30f9e929ba09e36ea9b8305418e04"
+        },
+        "json_byte_identical_to_previous_evidence": true
+      },
+      "python-setup-side0": {
+        "artifact": {
+          "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection/python-setup-side0.log",
+          "sha256": "52dc8b83d19b4619aa8d7bbb17d635de93a7e3f6e7b83967bdc654fbc5427d44"
+        },
+        "json_byte_identical_to_previous_evidence": true
+      },
+      "python-setup-side1": {
+        "artifact": {
+          "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection/python-setup-side1.log",
+          "sha256": "8c8ccc48340ee7cabe3405be3180b170a041d35f5a29fe4a8ebaf94016cc8b5a"
+        },
+        "json_byte_identical_to_previous_evidence": true
+      }
+    },
+    "driver_repair": {
+      "corrected_script": {
+        "path": "/tmp/botbowl-issue20-ci-cost/validate_collection.py",
+        "sha256": "8e8af98ba990b978fcabe416aab40c9c32bfada52bd7a548725c73b72af091ec"
+      },
+      "disposition": "GNU time prepended an expected-exit-1 diagnostic message to its RSS output; corrected numeric parsing and resumed already successful runs without source changes",
+      "log": {
+        "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection/initial-driver-failure.log",
+        "sha256": "b253205639d127dc07dbb7d069c2148a102363a3146418e78e1f9914fac565c5"
+      },
+      "original_script": {
+        "path": "/tmp/botbowl-issue20-ci-cost/validate_collection_initial.py",
+        "sha256": "6b94be764138928628183582018f31dd0ae6582b9d51c6e59cc55b446e124236"
+      }
+    },
+    "execution_source": {
+      "manifest": {
+        "path": "/tmp/botbowl-issue20-ci-cost/collection-execution-source-manifest.json",
+        "sha256": "0a6829676c580b1187a5a62287f2d6a90d3593c32ef90ac0f518aed4be21bb9c"
+      },
+      "matching_paths_per_archive": 1248
+    },
+    "failed_exact_head_ci": {
+      "annotations": {
+        "path": "/tmp/botbowl-issue20-ci-cost/evidence/ci-annotations-101753202508.json",
+        "sha256": "2eeaba889db975f0026f64c8e5723a3698531725891e047be559de6b075f2aa4"
+      },
+      "disposition": "Published encoder-only correction still exceeded unchanged ten-minute hosted limit; failure preserved",
+      "log": {
+        "path": "/tmp/botbowl-issue20-ci-cost/evidence/ci-job-101753202508.log",
+        "sha256": "6922a76cef9fcc71fa12b2a28ad642ceef46c0fa4d20bd5c1bc0b5bce3aa9c74"
+      },
+      "run": {
+        "path": "/tmp/botbowl-issue20-ci-cost/evidence/ci-run-34125530010.json",
+        "sha256": "e2f46bee8a0379e108e58bdc79076d5aa439658302981336dc3610e04593e688"
+      }
+    },
+    "final_profile": {
+      "artifact": {
+        "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection/final-profile-summary.txt",
+        "sha256": "04fcad7fb57156f48021d6fdee5058f91a261ad8ed23e00edf7b0240e63a6af5"
+      },
+      "raw": {
+        "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection/final-one.prof",
+        "sha256": "ddea2aa150026a4793211d4edf2b33f342542c8b0bc1671227e498daa5be7d81"
+      },
+      "summary": {
+        "functions": {
+          "consistency": {
+            "calls": 1926,
+            "cumulative_seconds": 11.586734017000001
+          },
+          "mutable_graph": {
+            "calls": 296,
+            "cumulative_seconds": 2.144705993
+          },
+          "round_trip": {
+            "calls": 47,
+            "cumulative_seconds": 14.401113879
+          },
+          "run": {
+            "calls": 1,
+            "cumulative_seconds": 15.960446673000002
+          },
+          "semantic": {
+            "calls": 1983,
+            "cumulative_seconds": 11.844323912
+          }
+        },
+        "total_calls": 64581180,
+        "total_seconds": 16.620307918999952
+      }
+    },
+    "historical_scope": "Earlier report records and both FAIL packets remain unchanged and retain their exact source attribution. Original Quick Snap crash remains unreproduced/unresolved. Setup undo, comparison-helper KeyError and hash aliases remain separate; hash alias does not prove historical cache misselection.",
+    "matrices": {
+      "native": {
+        "all_24_files_byte_identical_to_previous_correction_and_final_default_order_run": true,
+        "checked_game_transitions": 10208,
+        "configurations": 24,
+        "event_counts": {
+          "advance-0": 774,
+          "advance-1": 774,
+          "advance-2": 774,
+          "attempt-advance": 3026,
+          "commit": 176,
+          "fixture": 24,
+          "forward-0": 774,
+          "forward-1": 774,
+          "forward-2": 774,
+          "query": 240,
+          "restore-0": 774,
+          "restore-1": 774,
+          "restore-2": 774,
+          "revert-0": 774,
+          "revert-1": 774,
+          "revert-2": 774,
+          "sequence-forward": 72,
+          "sequence-replay-0": 176,
+          "sequence-replay-1": 176,
+          "sequence-replay-2": 176,
+          "sequence-restore": 72,
+          "sequence-revert": 72
+        },
+        "sha256": {
+          "size1-side0-pfFalse-seed0.json": "d99d0b586da353a991e7073c6e41208c5cdc0dbe311ec6bac9a72b8ed855e623",
+          "size1-side0-pfFalse-seed17.json": "c1cb4d5b0d0e594f8d2a717feeec191d42626ca81143445a44aaca0daff54705",
+          "size1-side0-pfFalse-seed3.json": "eee03e3af0fa2f031600a37ead0b6c729461c76b8393f3e320c4c366b9b8514c",
+          "size1-side0-pfTrue-seed0.json": "a401dfb0b84f6d84d6c5728098c9d8becbadc1da271145c69173916d492ca8af",
+          "size1-side0-pfTrue-seed17.json": "89821f5de7888c23f7407a8e89818399c3a0f0b2cc70f21c7dd16df20e402e8a",
+          "size1-side0-pfTrue-seed3.json": "2fc63f56dcd33d0fad60bbce6baa18b336b8a19f0d7f374cfd13ff1980fc7960",
+          "size1-side1-pfFalse-seed0.json": "ae99f9202ab12a78421c07dd17f3d4acf1f88a03207d45a67048e2f67b1d627b",
+          "size1-side1-pfFalse-seed17.json": "88ecacf3b313d33817a59f60cae387d9818e572a1f37ee4c1610b248a48c3714",
+          "size1-side1-pfFalse-seed3.json": "8eb8b2d79d35c90d8dde5ada7541c5b20f734c39a0f830c3c2fbb83925c75ac3",
+          "size1-side1-pfTrue-seed0.json": "931e15dcdc929f8ec1cc61b631a2e9e80e3f1052868d15c7795442826c284ec7",
+          "size1-side1-pfTrue-seed17.json": "43ff2b9f1c08ac1fd1e8456df6896c3a8620ef5eda64cfd88bf5028185afd63c",
+          "size1-side1-pfTrue-seed3.json": "3005ce21c6fbdf874d864cbed056939d41f264005aba7efa61b527f5af696cc4",
+          "size3-side0-pfFalse-seed0.json": "19968287107ba5e44256443e6f770b5f10968f0d2fdc63c008307b1f7062b18c",
+          "size3-side0-pfFalse-seed17.json": "1e8230160a2595a4dc2c068b60db28a03f7b31ade0a4a8ffd597a0ea9e636b7e",
+          "size3-side0-pfFalse-seed3.json": "0c1926c042937c9334d18a4b38d6d0313465acd4d3938bb05f58fbff22893356",
+          "size3-side0-pfTrue-seed0.json": "560eaadefed6a153e40e281417bdbe67e557b84196e5fa590eb41f43b1d8c078",
+          "size3-side0-pfTrue-seed17.json": "d86420ec81537e9452dc549c9f6af50784cef4d387642edd5c08f3ac061d5cde",
+          "size3-side0-pfTrue-seed3.json": "1d4037bc4b7a91ec16ab63689643b9b79b34ee7d66d929678dcd259f14729048",
+          "size3-side1-pfFalse-seed0.json": "70256882f8c8aeb345b9136b5252ca0a36c694f0f8c22337d447f17e173a38c9",
+          "size3-side1-pfFalse-seed17.json": "777674502b186e584aa64697f4f327507fdb67eec62f850e3aa16a5627f46fda",
+          "size3-side1-pfFalse-seed3.json": "352ec283024f293307db81a3ca9c7988083fbebe779e9418392daa3197b9215a",
+          "size3-side1-pfTrue-seed0.json": "6d5bcf31d50289d7d21ec6fd113a56d56c7481dfdf7d6ba88cbe3b1c115b08e3",
+          "size3-side1-pfTrue-seed17.json": "d1a5329d4585fda6e8da017a4dec52a8cbbc04bf012332162d8346852c8cbce2",
+          "size3-side1-pfTrue-seed3.json": "9bfdd3f691f1897a1eea044bc5e8ebbefcc1fb23b1a2efef8b28d60a84bc65c1"
+        }
+      },
+      "python": {
+        "all_24_files_byte_identical_to_previous_correction_and_final_default_order_run": true,
+        "checked_game_transitions": 10208,
+        "configurations": 24,
+        "event_counts": {
+          "advance-0": 774,
+          "advance-1": 774,
+          "advance-2": 774,
+          "attempt-advance": 3026,
+          "commit": 176,
+          "fixture": 24,
+          "forward-0": 774,
+          "forward-1": 774,
+          "forward-2": 774,
+          "query": 240,
+          "restore-0": 774,
+          "restore-1": 774,
+          "restore-2": 774,
+          "revert-0": 774,
+          "revert-1": 774,
+          "revert-2": 774,
+          "sequence-forward": 72,
+          "sequence-replay-0": 176,
+          "sequence-replay-1": 176,
+          "sequence-replay-2": 176,
+          "sequence-restore": 72,
+          "sequence-revert": 72
+        },
+        "sha256": {
+          "size1-side0-pfFalse-seed0.json": "d99d0b586da353a991e7073c6e41208c5cdc0dbe311ec6bac9a72b8ed855e623",
+          "size1-side0-pfFalse-seed17.json": "c1cb4d5b0d0e594f8d2a717feeec191d42626ca81143445a44aaca0daff54705",
+          "size1-side0-pfFalse-seed3.json": "eee03e3af0fa2f031600a37ead0b6c729461c76b8393f3e320c4c366b9b8514c",
+          "size1-side0-pfTrue-seed0.json": "a401dfb0b84f6d84d6c5728098c9d8becbadc1da271145c69173916d492ca8af",
+          "size1-side0-pfTrue-seed17.json": "89821f5de7888c23f7407a8e89818399c3a0f0b2cc70f21c7dd16df20e402e8a",
+          "size1-side0-pfTrue-seed3.json": "2fc63f56dcd33d0fad60bbce6baa18b336b8a19f0d7f374cfd13ff1980fc7960",
+          "size1-side1-pfFalse-seed0.json": "ae99f9202ab12a78421c07dd17f3d4acf1f88a03207d45a67048e2f67b1d627b",
+          "size1-side1-pfFalse-seed17.json": "88ecacf3b313d33817a59f60cae387d9818e572a1f37ee4c1610b248a48c3714",
+          "size1-side1-pfFalse-seed3.json": "8eb8b2d79d35c90d8dde5ada7541c5b20f734c39a0f830c3c2fbb83925c75ac3",
+          "size1-side1-pfTrue-seed0.json": "5ffc161f81864e2d11f917a59f3cfc5609e7d8da884a0aac4a8566a2824fb3ea",
+          "size1-side1-pfTrue-seed17.json": "311d4b921aefbbaf452862c04b383ed36aa113fbd99e0017822e6f98f2a6c6fd",
+          "size1-side1-pfTrue-seed3.json": "1265a9d7641c8385c527aac067d5ab0d83843bd928418086a6b0fee57164f8cf",
+          "size3-side0-pfFalse-seed0.json": "19968287107ba5e44256443e6f770b5f10968f0d2fdc63c008307b1f7062b18c",
+          "size3-side0-pfFalse-seed17.json": "1e8230160a2595a4dc2c068b60db28a03f7b31ade0a4a8ffd597a0ea9e636b7e",
+          "size3-side0-pfFalse-seed3.json": "0c1926c042937c9334d18a4b38d6d0313465acd4d3938bb05f58fbff22893356",
+          "size3-side0-pfTrue-seed0.json": "2c9925a74ac78f3788f3dbb85f7ea6b1d9bf40224bfeaace082e007addbfb03e",
+          "size3-side0-pfTrue-seed17.json": "252e85a74ca53d69e8aa93cbf85b29c0e25b42c9fd2b6eaff5e3fc5b7e2ea9ce",
+          "size3-side0-pfTrue-seed3.json": "1d4037bc4b7a91ec16ab63689643b9b79b34ee7d66d929678dcd259f14729048",
+          "size3-side1-pfFalse-seed0.json": "70256882f8c8aeb345b9136b5252ca0a36c694f0f8c22337d447f17e173a38c9",
+          "size3-side1-pfFalse-seed17.json": "777674502b186e584aa64697f4f327507fdb67eec62f850e3aa16a5627f46fda",
+          "size3-side1-pfFalse-seed3.json": "352ec283024f293307db81a3ca9c7988083fbebe779e9418392daa3197b9215a",
+          "size3-side1-pfTrue-seed0.json": "e2b6baeecae245f8ea53824ab02c60a70189d1ec807bba4ff74ee768b9fbd8bd",
+          "size3-side1-pfTrue-seed17.json": "77c9c9df5312589e690f339672ff61c25cf2f30c44c18305a20ad44d3b8c67f0",
+          "size3-side1-pfTrue-seed3.json": "3639c32fd9930cea9932ee7dba61180e377daca09fbe2e6ad87792e9da19fa31"
+        }
+      }
+    },
+    "previous_head": "b1443cc09a4b2477813599942e8d7061857fc466",
+    "prior_fail_packets": {
+      "manifest": {
+        "path": "/tmp/botbowl-issue20-ci-cost/evidence/prior-fail-packets-sha256.json",
+        "sha256": "5bb5810b965795f2aea7595c6f7349e24dfcc223360dd136a5f249e517311750"
+      },
+      "unchanged_files": 18844
+    },
+    "scope": "Investigation instrumentation and test execution only; cyclic garbage collection is deferred only within each bounded matrix case and caller policy is restored on every exit; all nested mutable values are observed afresh; no production, inherited tests, workflow, timeout, matrix, skip policy or DAG change",
+    "source_sha256": "dea8a1fea27dee8cefd2e808ce1a0386a0143f2a004dba640ed57def36516e42",
+    "validation": {
+      "native": {
+        "peak_rss_kib": {
+          "focused": 265320,
+          "full": 923500
+        },
+        "prefix": {
+          "artifact": {
+            "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection/native-prefix-observation.json",
+            "sha256": "fa9d27f4156c08b84ce16a3c8ac17364467dd94a50ce1d105a050b423ba52dc2"
+          },
+          "preceding_passing_calls": 568,
+          "rules_counts": {
+            "improvements": 6,
+            "inducements": 8,
+            "races": 24,
+            "spp_actions": 5,
+            "spp_levels": 7,
+            "star_players": 71
+          },
+          "semantic_seconds": 0.0018913525993411895
+        },
+        "result": "1136 passed, 1 xfailed",
+        "suites": {
+          "focused": {
+            "counts": {
+              "errors": "0",
+              "failures": "0",
+              "hostname": "skynet",
+              "name": "pytest",
+              "skipped": "0",
+              "tests": "41",
+              "time": "93.427",
+              "timestamp": "2026-09-07T15:35:07.941900+02:00"
+            },
+            "junit": {
+              "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection/native-focused.xml",
+              "sha256": "8710b2cdf5f52dc5e37a182d19da1e65f4e78a1175973f628d0511e36b779672"
+            },
+            "log": {
+              "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection/native-focused.log",
+              "sha256": "8962bdeb8d6a181bac345b0bb938b770f75a0a19558bd097806e022fb57ebc6c"
+            }
+          },
+          "full": {
+            "counts": {
+              "errors": "0",
+              "failures": "0",
+              "hostname": "skynet",
+              "name": "pytest",
+              "skipped": "1",
+              "tests": "1137",
+              "time": "428.739",
+              "timestamp": "2026-09-07T15:40:57.725260+02:00"
+            },
+            "junit": {
+              "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection/native-full.xml",
+              "sha256": "4f2fa804aac0e6592c626e8d908f3787c15d55f326221410d857a4c452099567"
+            },
+            "log": {
+              "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection/native-full.log",
+              "sha256": "40277b8f41498100e265bd9cf00bc6d8c4fca8ecdf9053bf4737808bc3df327a"
+            }
+          }
+        }
+      },
+      "python": {
+        "peak_rss_kib": {
+          "focused": 263336,
+          "full": 533112
+        },
+        "prefix": {
+          "artifact": {
+            "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection/python-prefix-observation.json",
+            "sha256": "96f00a902f505ba5c5b9d4f087bb36e1a8fb35b550315f3a3a43697347ca6335"
+          },
+          "preceding_passing_calls": 289,
+          "rules_counts": {
+            "improvements": 6,
+            "inducements": 8,
+            "races": 24,
+            "spp_actions": 5,
+            "spp_levels": 7,
+            "star_players": 71
+          },
+          "semantic_seconds": 0.0019302599997899962
+        },
+        "result": "857 passed, 279 skipped, 1 xfailed",
+        "suites": {
+          "focused": {
+            "counts": {
+              "errors": "0",
+              "failures": "0",
+              "hostname": "skynet",
+              "name": "pytest",
+              "skipped": "0",
+              "tests": "41",
+              "time": "94.916",
+              "timestamp": "2026-09-07T15:28:55.013706+02:00"
+            },
+            "junit": {
+              "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection/python-focused.xml",
+              "sha256": "5a4415cf554476e054ae46f2e32ee21d164ef26638e93b7674b04fdf076ebefa"
+            },
+            "log": {
+              "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection/python-focused.log",
+              "sha256": "6247ffcf54998eebaafff9474607d0c0d683272eec8ae2f9b942a862f6f72fd6"
+            }
+          },
+          "full": {
+            "counts": {
+              "errors": "0",
+              "failures": "0",
+              "hostname": "skynet",
+              "name": "pytest",
+              "skipped": "280",
+              "tests": "1137",
+              "time": "248.411",
+              "timestamp": "2026-09-07T15:36:46.349041+02:00"
+            },
+            "junit": {
+              "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection/python-full.xml",
+              "sha256": "a01578316c8253424707b41dd98efdff4490fbd3ce95bdc284092e235fce32d5"
+            },
+            "log": {
+              "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection/python-full.log",
+              "sha256": "d69e8b53b4c15941ab09f3cfbff7c369a171caf9827e8d10afd54d121fe60290"
+            }
+          }
+        }
+      }
+    },
+    "validation_commands": {
+      "path": "/tmp/botbowl-issue20-ci-cost/evidence/collection/validation-commands.json",
+      "sha256": "e07f24fa1d96072ab7044ae43cf1a6577d80822bbc97b7e4acca363e07c30959"
+    }
+  },
+  "ci_cost_correction": {
+    "additional_cost_probe": {
+      "artifact": {
+        "path": "/tmp/botbowl-issue20-ci-cost/evidence/gc-probe.json",
+        "sha256": "df7fdb9721c74a7a9cca6eeff490adcafe3f90ea82affae3bb7a7d2dc3dd94a4"
+      },
+      "disposition": "Releasing the recursive encoder closure after observation improved this bounded loader-history probe by less than 1 percent; candidate not adopted",
+      "script": {
+        "path": "/tmp/botbowl-issue20-ci-cost/gc_probe.py",
+        "sha256": "dca4628994fe0106a8d353d29e35d2b1afd2b78037991ba0e3f59a87f14b9260"
+      }
+    },
+    "benchmark": {
+      "artifact": {
+        "path": "/tmp/botbowl-issue20-ci-cost/evidence/final-source-observer-benchmark.json",
+        "sha256": "7b000ce097c5509b0b4c17d759c8ef9682997611d2dcf09ccbc07b716c09db61"
+      },
+      "comparison": {
+        "snapshot_sha256": "d2a9e018e65ad724d0c55ef7870666af389fc89109d05a0f1ec1f0df76ef9368",
+        "timings": {
+          "after": {
+            "median": 0.00257366769995618,
+            "seconds_per_observation": [
+              0.00257366769995618,
+              0.0025128740999207366,
+              0.002494377566714926,
+              0.002597133366604491,
+              0.0025869559666413505
+            ]
+          },
+          "before": {
+            "median": 0.0059318097000262545,
+            "seconds_per_observation": [
+              0.005743440166649331,
+              0.00583934613338594,
+              0.00600957433343865,
+              0.0059318097000262545,
+              0.006087647100018027
+            ]
+          }
+        }
+      }
+    },
+    "challenges": {
+      "native": {
+        "artifact": {
+          "path": "/tmp/botbowl-issue20-ci-cost/evidence/native-challenges.log",
+          "sha256": "febc19a5ac1da9a709f59692c8639d081a687e9fc89d947e82afa56aa23914d2"
+        },
+        "attribution": "Executor replay of unchanged prior independent reviewer challenge; not a fresh independent review",
+        "backend": "botbowl.core.pathfinding.cython_pathfinding",
+        "counts": {
+          "alias_controls_detected": 12,
+          "configurations": 8,
+          "first_game_unchanged_checks": 45,
+          "independent_graph_pairs": 244,
+          "maximum_graph_size": 1542,
+          "nested_semantic_faults_detected": 13
+        },
+        "order": "loaders-first",
+        "script": {
+          "path": "/tmp/botbowl-issue20-ci-cost/challenge.py",
+          "sha256": "635ba0a3a44e9ed97d8f4c530352ad410dc3c5980a5ea278094d611d659d9d2b"
+        }
+      },
+      "python": {
+        "artifact": {
+          "path": "/tmp/botbowl-issue20-ci-cost/evidence/python-challenges.log",
+          "sha256": "dbf70fa2fe4b04d29f2fddcd8f672944dfe2208e30fbdf52009f3e32a8bc36c4"
+        },
+        "attribution": "Executor replay of unchanged prior independent reviewer challenge; not a fresh independent review",
+        "backend": "botbowl.core.pathfinding.python_pathfinding",
+        "counts": {
+          "alias_controls_detected": 12,
+          "configurations": 8,
+          "first_game_unchanged_checks": 45,
+          "independent_graph_pairs": 244,
+          "maximum_graph_size": 1542,
+          "nested_semantic_faults_detected": 13
+        },
+        "order": "loaders-first",
+        "script": {
+          "path": "/tmp/botbowl-issue20-ci-cost/challenge.py",
+          "sha256": "635ba0a3a44e9ed97d8f4c530352ad410dc3c5980a5ea278094d611d659d9d2b"
+        }
+      }
+    },
+    "controls": {
+      "native-consumer-side0": {
+        "artifact": {
+          "path": "/tmp/botbowl-issue20-ci-cost/evidence/native-consumer-side0.log",
+          "sha256": "6a0f6d813fa1ed78a2de32180afaed6d6dea3ce9ef564fb9f80ac6bfb25eea49"
+        },
+        "json_byte_identical_to_previous_evidence": true
+      },
+      "native-consumer-side1": {
+        "artifact": {
+          "path": "/tmp/botbowl-issue20-ci-cost/evidence/native-consumer-side1.log",
+          "sha256": "44b0485abb74182020f4ea6e2291824242b5f0598bb04bb7111a66239f6b2b58"
+        },
+        "json_byte_identical_to_previous_evidence": true
+      },
+      "native-helper": {
+        "artifact": {
+          "path": "/tmp/botbowl-issue20-ci-cost/evidence/native-helper.log",
+          "sha256": "dc0a34cf8134b3600932d1b09e83daa541f30f9e929ba09e36ea9b8305418e04"
+        },
+        "json_byte_identical_to_previous_evidence": true
+      },
+      "native-setup-side0": {
+        "artifact": {
+          "path": "/tmp/botbowl-issue20-ci-cost/evidence/native-setup-side0.log",
+          "sha256": "52dc8b83d19b4619aa8d7bbb17d635de93a7e3f6e7b83967bdc654fbc5427d44"
+        },
+        "json_byte_identical_to_previous_evidence": true
+      },
+      "native-setup-side1": {
+        "artifact": {
+          "path": "/tmp/botbowl-issue20-ci-cost/evidence/native-setup-side1.log",
+          "sha256": "8c8ccc48340ee7cabe3405be3180b170a041d35f5a29fe4a8ebaf94016cc8b5a"
+        },
+        "json_byte_identical_to_previous_evidence": true
+      },
+      "python-consumer-side0": {
+        "artifact": {
+          "path": "/tmp/botbowl-issue20-ci-cost/evidence/python-consumer-side0.log",
+          "sha256": "6a0f6d813fa1ed78a2de32180afaed6d6dea3ce9ef564fb9f80ac6bfb25eea49"
+        },
+        "json_byte_identical_to_previous_evidence": true
+      },
+      "python-consumer-side1": {
+        "artifact": {
+          "path": "/tmp/botbowl-issue20-ci-cost/evidence/python-consumer-side1.log",
+          "sha256": "44b0485abb74182020f4ea6e2291824242b5f0598bb04bb7111a66239f6b2b58"
+        },
+        "json_byte_identical_to_previous_evidence": true
+      },
+      "python-helper": {
+        "artifact": {
+          "path": "/tmp/botbowl-issue20-ci-cost/evidence/python-helper.log",
+          "sha256": "dc0a34cf8134b3600932d1b09e83daa541f30f9e929ba09e36ea9b8305418e04"
+        },
+        "json_byte_identical_to_previous_evidence": true
+      },
+      "python-setup-side0": {
+        "artifact": {
+          "path": "/tmp/botbowl-issue20-ci-cost/evidence/python-setup-side0.log",
+          "sha256": "52dc8b83d19b4619aa8d7bbb17d635de93a7e3f6e7b83967bdc654fbc5427d44"
+        },
+        "json_byte_identical_to_previous_evidence": true
+      },
+      "python-setup-side1": {
+        "artifact": {
+          "path": "/tmp/botbowl-issue20-ci-cost/evidence/python-setup-side1.log",
+          "sha256": "8c8ccc48340ee7cabe3405be3180b170a041d35f5a29fe4a8ebaf94016cc8b5a"
+        },
+        "json_byte_identical_to_previous_evidence": true
+      }
+    },
+    "differential_probe_setup_failures": {
+      "native": {
+        "artifact": {
+          "path": "/tmp/botbowl-issue20-ci-cost/evidence/native-observer-differential-setup-failure.err",
+          "sha256": "d2e5fbb3d4dbd95e97a280496d567636934b4915bdf50bd0d559301f6a64a8d6"
+        },
+        "disposition": "Probe used ordinary reversible assignment to replace an injected numpy array and failed before observation; corrected probe injects hostile values with object.__setattr__; no repository source change"
+      },
+      "python": {
+        "artifact": {
+          "path": "/tmp/botbowl-issue20-ci-cost/evidence/python-observer-differential-setup-failure.err",
+          "sha256": "2d3d2df82564e1a1b56d701cb67fbbc5fb32719f4116aa74ce6910e132500f9b"
+        },
+        "disposition": "Probe used ordinary reversible assignment to replace an injected numpy array and failed before observation; corrected probe injects hostile values with object.__setattr__; no repository source change"
+      }
+    },
+    "execution_source": {
+      "manifest": {
+        "path": "/tmp/botbowl-issue20-ci-cost/execution-source-manifest.json",
+        "sha256": "b22d39f3da5c3dd18e416a2b1f0c07f4e34beb1d65b330392bbea08b36c78bea"
+      },
+      "matching_paths_per_archive": 1248
+    },
+    "historical_scope": "Earlier report records and both FAIL packets remain unchanged and retain their exact source attribution. Original Quick Snap crash remains unreproduced/unresolved. Setup undo, comparison-helper KeyError and hash aliases remain separate; hash alias does not prove historical cache misselection.",
+    "matrices": {
+      "native": {
+        "all_24_files_byte_identical_to_previous_correction_and_final_default_order_run": true,
+        "checked_game_transitions": 10208,
+        "configurations": 24,
+        "event_counts": {
+          "advance-0": 774,
+          "advance-1": 774,
+          "advance-2": 774,
+          "attempt-advance": 3026,
+          "commit": 176,
+          "fixture": 24,
+          "forward-0": 774,
+          "forward-1": 774,
+          "forward-2": 774,
+          "query": 240,
+          "restore-0": 774,
+          "restore-1": 774,
+          "restore-2": 774,
+          "revert-0": 774,
+          "revert-1": 774,
+          "revert-2": 774,
+          "sequence-forward": 72,
+          "sequence-replay-0": 176,
+          "sequence-replay-1": 176,
+          "sequence-replay-2": 176,
+          "sequence-restore": 72,
+          "sequence-revert": 72
+        },
+        "sha256": {
+          "size1-side0-pfFalse-seed0.json": "d99d0b586da353a991e7073c6e41208c5cdc0dbe311ec6bac9a72b8ed855e623",
+          "size1-side0-pfFalse-seed17.json": "c1cb4d5b0d0e594f8d2a717feeec191d42626ca81143445a44aaca0daff54705",
+          "size1-side0-pfFalse-seed3.json": "eee03e3af0fa2f031600a37ead0b6c729461c76b8393f3e320c4c366b9b8514c",
+          "size1-side0-pfTrue-seed0.json": "a401dfb0b84f6d84d6c5728098c9d8becbadc1da271145c69173916d492ca8af",
+          "size1-side0-pfTrue-seed17.json": "89821f5de7888c23f7407a8e89818399c3a0f0b2cc70f21c7dd16df20e402e8a",
+          "size1-side0-pfTrue-seed3.json": "2fc63f56dcd33d0fad60bbce6baa18b336b8a19f0d7f374cfd13ff1980fc7960",
+          "size1-side1-pfFalse-seed0.json": "ae99f9202ab12a78421c07dd17f3d4acf1f88a03207d45a67048e2f67b1d627b",
+          "size1-side1-pfFalse-seed17.json": "88ecacf3b313d33817a59f60cae387d9818e572a1f37ee4c1610b248a48c3714",
+          "size1-side1-pfFalse-seed3.json": "8eb8b2d79d35c90d8dde5ada7541c5b20f734c39a0f830c3c2fbb83925c75ac3",
+          "size1-side1-pfTrue-seed0.json": "931e15dcdc929f8ec1cc61b631a2e9e80e3f1052868d15c7795442826c284ec7",
+          "size1-side1-pfTrue-seed17.json": "43ff2b9f1c08ac1fd1e8456df6896c3a8620ef5eda64cfd88bf5028185afd63c",
+          "size1-side1-pfTrue-seed3.json": "3005ce21c6fbdf874d864cbed056939d41f264005aba7efa61b527f5af696cc4",
+          "size3-side0-pfFalse-seed0.json": "19968287107ba5e44256443e6f770b5f10968f0d2fdc63c008307b1f7062b18c",
+          "size3-side0-pfFalse-seed17.json": "1e8230160a2595a4dc2c068b60db28a03f7b31ade0a4a8ffd597a0ea9e636b7e",
+          "size3-side0-pfFalse-seed3.json": "0c1926c042937c9334d18a4b38d6d0313465acd4d3938bb05f58fbff22893356",
+          "size3-side0-pfTrue-seed0.json": "560eaadefed6a153e40e281417bdbe67e557b84196e5fa590eb41f43b1d8c078",
+          "size3-side0-pfTrue-seed17.json": "d86420ec81537e9452dc549c9f6af50784cef4d387642edd5c08f3ac061d5cde",
+          "size3-side0-pfTrue-seed3.json": "1d4037bc4b7a91ec16ab63689643b9b79b34ee7d66d929678dcd259f14729048",
+          "size3-side1-pfFalse-seed0.json": "70256882f8c8aeb345b9136b5252ca0a36c694f0f8c22337d447f17e173a38c9",
+          "size3-side1-pfFalse-seed17.json": "777674502b186e584aa64697f4f327507fdb67eec62f850e3aa16a5627f46fda",
+          "size3-side1-pfFalse-seed3.json": "352ec283024f293307db81a3ca9c7988083fbebe779e9418392daa3197b9215a",
+          "size3-side1-pfTrue-seed0.json": "6d5bcf31d50289d7d21ec6fd113a56d56c7481dfdf7d6ba88cbe3b1c115b08e3",
+          "size3-side1-pfTrue-seed17.json": "d1a5329d4585fda6e8da017a4dec52a8cbbc04bf012332162d8346852c8cbce2",
+          "size3-side1-pfTrue-seed3.json": "9bfdd3f691f1897a1eea044bc5e8ebbefcc1fb23b1a2efef8b28d60a84bc65c1"
+        }
+      },
+      "python": {
+        "all_24_files_byte_identical_to_previous_correction_and_final_default_order_run": true,
+        "checked_game_transitions": 10208,
+        "configurations": 24,
+        "event_counts": {
+          "advance-0": 774,
+          "advance-1": 774,
+          "advance-2": 774,
+          "attempt-advance": 3026,
+          "commit": 176,
+          "fixture": 24,
+          "forward-0": 774,
+          "forward-1": 774,
+          "forward-2": 774,
+          "query": 240,
+          "restore-0": 774,
+          "restore-1": 774,
+          "restore-2": 774,
+          "revert-0": 774,
+          "revert-1": 774,
+          "revert-2": 774,
+          "sequence-forward": 72,
+          "sequence-replay-0": 176,
+          "sequence-replay-1": 176,
+          "sequence-replay-2": 176,
+          "sequence-restore": 72,
+          "sequence-revert": 72
+        },
+        "sha256": {
+          "size1-side0-pfFalse-seed0.json": "d99d0b586da353a991e7073c6e41208c5cdc0dbe311ec6bac9a72b8ed855e623",
+          "size1-side0-pfFalse-seed17.json": "c1cb4d5b0d0e594f8d2a717feeec191d42626ca81143445a44aaca0daff54705",
+          "size1-side0-pfFalse-seed3.json": "eee03e3af0fa2f031600a37ead0b6c729461c76b8393f3e320c4c366b9b8514c",
+          "size1-side0-pfTrue-seed0.json": "a401dfb0b84f6d84d6c5728098c9d8becbadc1da271145c69173916d492ca8af",
+          "size1-side0-pfTrue-seed17.json": "89821f5de7888c23f7407a8e89818399c3a0f0b2cc70f21c7dd16df20e402e8a",
+          "size1-side0-pfTrue-seed3.json": "2fc63f56dcd33d0fad60bbce6baa18b336b8a19f0d7f374cfd13ff1980fc7960",
+          "size1-side1-pfFalse-seed0.json": "ae99f9202ab12a78421c07dd17f3d4acf1f88a03207d45a67048e2f67b1d627b",
+          "size1-side1-pfFalse-seed17.json": "88ecacf3b313d33817a59f60cae387d9818e572a1f37ee4c1610b248a48c3714",
+          "size1-side1-pfFalse-seed3.json": "8eb8b2d79d35c90d8dde5ada7541c5b20f734c39a0f830c3c2fbb83925c75ac3",
+          "size1-side1-pfTrue-seed0.json": "5ffc161f81864e2d11f917a59f3cfc5609e7d8da884a0aac4a8566a2824fb3ea",
+          "size1-side1-pfTrue-seed17.json": "311d4b921aefbbaf452862c04b383ed36aa113fbd99e0017822e6f98f2a6c6fd",
+          "size1-side1-pfTrue-seed3.json": "1265a9d7641c8385c527aac067d5ab0d83843bd928418086a6b0fee57164f8cf",
+          "size3-side0-pfFalse-seed0.json": "19968287107ba5e44256443e6f770b5f10968f0d2fdc63c008307b1f7062b18c",
+          "size3-side0-pfFalse-seed17.json": "1e8230160a2595a4dc2c068b60db28a03f7b31ade0a4a8ffd597a0ea9e636b7e",
+          "size3-side0-pfFalse-seed3.json": "0c1926c042937c9334d18a4b38d6d0313465acd4d3938bb05f58fbff22893356",
+          "size3-side0-pfTrue-seed0.json": "2c9925a74ac78f3788f3dbb85f7ea6b1d9bf40224bfeaace082e007addbfb03e",
+          "size3-side0-pfTrue-seed17.json": "252e85a74ca53d69e8aa93cbf85b29c0e25b42c9fd2b6eaff5e3fc5b7e2ea9ce",
+          "size3-side0-pfTrue-seed3.json": "1d4037bc4b7a91ec16ab63689643b9b79b34ee7d66d929678dcd259f14729048",
+          "size3-side1-pfFalse-seed0.json": "70256882f8c8aeb345b9136b5252ca0a36c694f0f8c22337d447f17e173a38c9",
+          "size3-side1-pfFalse-seed17.json": "777674502b186e584aa64697f4f327507fdb67eec62f850e3aa16a5627f46fda",
+          "size3-side1-pfFalse-seed3.json": "352ec283024f293307db81a3ca9c7988083fbebe779e9418392daa3197b9215a",
+          "size3-side1-pfTrue-seed0.json": "e2b6baeecae245f8ea53824ab02c60a70189d1ec807bba4ff74ee768b9fbd8bd",
+          "size3-side1-pfTrue-seed17.json": "77c9c9df5312589e690f339672ff61c25cf2f30c44c18305a20ad44d3b8c67f0",
+          "size3-side1-pfTrue-seed3.json": "3639c32fd9930cea9932ee7dba61180e377daca09fbe2e6ad87792e9da19fa31"
+        }
+      }
+    },
+    "observer_differential": {
+      "native": {
+        "artifact": {
+          "path": "/tmp/botbowl-issue20-ci-cost/evidence/native-observer-differential.json",
+          "sha256": "36f303133ddc02c38915971949dde4f6679f4b66b626dd4850f6d8be4e772c9d"
+        },
+        "result": {
+          "backend": "botbowl.core.pathfinding.cython_pathfinding",
+          "exact_snapshot_and_digest_comparisons": 15
+        }
+      },
+      "python": {
+        "artifact": {
+          "path": "/tmp/botbowl-issue20-ci-cost/evidence/python-observer-differential.json",
+          "sha256": "8ac93224f55b8c1eacbefd6be81f57f09cae5628c439f0e95e69b53460589b6b"
+        },
+        "result": {
+          "backend": "botbowl.core.pathfinding.python_pathfinding",
+          "exact_snapshot_and_digest_comparisons": 15
+        }
+      }
+    },
+    "previous_head": "577337b05559cee9f027330a8c550387b310646b",
+    "prior_fail_packets": {
+      "manifest": {
+        "path": "/tmp/botbowl-issue20-ci-cost/evidence/prior-fail-packets-sha256.json",
+        "sha256": "5bb5810b965795f2aea7595c6f7349e24dfcc223360dd136a5f249e517311750"
+      },
+      "unchanged_files": 18844
+    },
+    "profile": {
+      "artifact": {
+        "path": "/tmp/botbowl-issue20-ci-cost/evidence/profile-comparison.json",
+        "sha256": "990368d53fa737cbde7e168bc7d1778bb2bf8f36ea89a8a791ebaeaa8d4aca09"
+      },
+      "comparison": {
+        "before": {
+          "functions": {
+            "consistency": {
+              "calls": 2067,
+              "cumulative_seconds": 33.776375252,
+              "internal_seconds": 0.057829133000000005,
+              "primitive_calls": 2067
+            },
+            "encode": {
+              "calls": 19406428,
+              "cumulative_seconds": 34.396170234,
+              "internal_seconds": 16.599387195000002,
+              "primitive_calls": 43432
+            },
+            "fields": {
+              "calls": 646659,
+              "cumulative_seconds": 9.204506377000001,
+              "internal_seconds": 4.5063475,
+              "primitive_calls": 646659
+            },
+            "mutable_graph": {
+              "calls": 296,
+              "cumulative_seconds": 2.0903271720000003,
+              "internal_seconds": 0.00027299100000000004,
+              "primitive_calls": 296
+            },
+            "round_trip": {
+              "calls": 47,
+              "cumulative_seconds": 35.691762046,
+              "internal_seconds": 0.10309692100000001,
+              "primitive_calls": 47
+            },
+            "run": {
+              "calls": 1,
+              "cumulative_seconds": 39.343274285,
+              "internal_seconds": 0.019401588,
+              "primitive_calls": 1
+            },
+            "semantic": {
+              "calls": 2171,
+              "cumulative_seconds": 35.438401283000005,
+              "internal_seconds": 0.008661605000000001,
+              "primitive_calls": 2171
+            }
+          },
+          "total_calls": 162930106,
+          "total_seconds": 39.92764431599987
+        },
+        "final": {
+          "functions": {
+            "consistency": {
+              "calls": 1926,
+              "cumulative_seconds": 14.666851182,
+              "internal_seconds": 0.077198578,
+              "primitive_calls": 1926
+            },
+            "encode": {
+              "calls": 11386922,
+              "cumulative_seconds": 14.310190447,
+              "internal_seconds": 2.5789351320000002,
+              "primitive_calls": 39636
+            },
+            "fields": {
+              "calls": 589591,
+              "cumulative_seconds": 4.316636096,
+              "internal_seconds": 0.714012753,
+              "primitive_calls": 589591
+            },
+            "mutable_graph": {
+              "calls": 296,
+              "cumulative_seconds": 2.340933321,
+              "internal_seconds": 0.000648621,
+              "primitive_calls": 296
+            },
+            "round_trip": {
+              "calls": 47,
+              "cumulative_seconds": 17.857018013,
+              "internal_seconds": 0.170644458,
+              "primitive_calls": 47
+            },
+            "run": {
+              "calls": 1,
+              "cumulative_seconds": 19.784074306,
+              "internal_seconds": 0.046553000000000004,
+              "primitive_calls": 1
+            },
+            "semantic": {
+              "calls": 1983,
+              "cumulative_seconds": 14.971357472000001,
+              "internal_seconds": 0.023438923,
+              "primitive_calls": 1983
+            }
+          },
+          "total_calls": 64381568,
+          "total_seconds": 20.368139250999963
+        }
+      }
+    },
+    "scope": "Investigation instrumentation and test execution only; all nested mutable values are observed afresh; no production, inherited tests, workflow, timeout, matrix, skip policy or DAG change",
+    "source_sha256": "8e9908f1cf618c614adbdfb36523bab1548946ee14dbeda2af87f89dbea9b1f2",
+    "validation": {
+      "native": {
+        "prefix": {
+          "artifact": {
+            "path": "/tmp/botbowl-issue20-ci-cost/evidence/native-prefix-observation.json",
+            "sha256": "5a008380776a542bf91aa39e67446e371281bcb49d9b253c29a1e19d464062bf"
+          },
+          "preceding_passing_calls": 568,
+          "rules_counts": {
+            "improvements": 6,
+            "inducements": 8,
+            "races": 24,
+            "spp_actions": 5,
+            "spp_levels": 7,
+            "star_players": 71
+          },
+          "semantic_seconds": 0.0021007462004490663
+        },
+        "result": "1134 passed, 1 xfailed",
+        "suites": {
+          "focused": {
+            "counts": {
+              "errors": "0",
+              "failures": "0",
+              "hostname": "skynet",
+              "name": "pytest",
+              "skipped": "0",
+              "tests": "39",
+              "time": "143.077",
+              "timestamp": "2026-09-07T14:42:39.543023+02:00"
+            },
+            "junit": {
+              "path": "/tmp/botbowl-issue20-ci-cost/evidence/native-focused.xml",
+              "sha256": "8ffc9846870dd83c1f3f525cee7d7974dd6d7e682cb80e9a352e764a02ba4119"
+            },
+            "log": {
+              "path": "/tmp/botbowl-issue20-ci-cost/evidence/native-focused.log",
+              "sha256": "c5f92cc84988bd1f1087efd7c16efdeb2ff9840c8e8fce2af533c98730c7d1d3"
+            }
+          },
+          "full": {
+            "counts": {
+              "errors": "0",
+              "failures": "0",
+              "hostname": "skynet",
+              "name": "pytest",
+              "skipped": "1",
+              "tests": "1135",
+              "time": "582.450",
+              "timestamp": "2026-09-07T14:52:59.024630+02:00"
+            },
+            "junit": {
+              "path": "/tmp/botbowl-issue20-ci-cost/evidence/native-full.xml",
+              "sha256": "76bbaaa677604dbb31af36e9088f80eea931dda13442cf3cfd041f5088e1eebe"
+            },
+            "log": {
+              "path": "/tmp/botbowl-issue20-ci-cost/evidence/native-full.log",
+              "sha256": "819e1195a9524861d32b35670563ac2965740a725c1d4837b98c707f47a2894a"
+            }
+          }
+        }
+      },
+      "python": {
+        "prefix": {
+          "artifact": {
+            "path": "/tmp/botbowl-issue20-ci-cost/evidence/python-prefix-observation.json",
+            "sha256": "7a8105e6cc10f1872543296a124cbd732fba2d3f3d53e298ff61c9f309fd20b0"
+          },
+          "preceding_passing_calls": 289,
+          "rules_counts": {
+            "improvements": 6,
+            "inducements": 8,
+            "races": 24,
+            "spp_actions": 5,
+            "spp_levels": 7,
+            "star_players": 71
+          },
+          "semantic_seconds": 0.002308651199564338
+        },
+        "result": "855 passed, 279 skipped, 1 xfailed",
+        "suites": {
+          "focused": {
+            "counts": {
+              "errors": "0",
+              "failures": "0",
+              "hostname": "skynet",
+              "name": "pytest",
+              "skipped": "0",
+              "tests": "39",
+              "time": "138.417",
+              "timestamp": "2026-09-07T14:40:14.985460+02:00"
+            },
+            "junit": {
+              "path": "/tmp/botbowl-issue20-ci-cost/evidence/python-focused.xml",
+              "sha256": "d40d877e3326ae1be91aaaf48354c16bd96afb94bd4d5a72cd611f1b7d5ee0fa"
+            },
+            "log": {
+              "path": "/tmp/botbowl-issue20-ci-cost/evidence/python-focused.log",
+              "sha256": "83dd4b50520bb6f8f35b6f220e417c37f8be478c595c48a69aea06c572425733"
+            }
+          },
+          "full": {
+            "counts": {
+              "errors": "0",
+              "failures": "0",
+              "hostname": "skynet",
+              "name": "pytest",
+              "skipped": "280",
+              "tests": "1135",
+              "time": "465.798",
+              "timestamp": "2026-09-07T14:45:09.035685+02:00"
+            },
+            "junit": {
+              "path": "/tmp/botbowl-issue20-ci-cost/evidence/python-full.xml",
+              "sha256": "c33eafe8906b08ca40c9b893035ce82cdf309b9cba36fa9e19da4f180bb607f1"
+            },
+            "log": {
+              "path": "/tmp/botbowl-issue20-ci-cost/evidence/python-full.log",
+              "sha256": "15e618cbfcb30c8b8ad03089edc8b48248f0c68757bfe95b3aad112f70c8d6ab"
+            }
+          }
+        }
+      }
+    },
+    "validation_commands": {
+      "path": "/tmp/botbowl-issue20-ci-cost/evidence/validation-commands.json",
+      "sha256": "242a631bd551b7a5c7b22509e9b2c98c70f8f0c0d3e378da1d81aa21edebe375"
+    }
+  },
+  "controls": {
+    "consumer-side0": {
+      "cached_move": [
+        "MOVE",
+        null,
+        [
+          8,
+          3
+        ]
+      ],
+      "correction_proposal": "separately scope example search identity/action-cache correction if adopted",
+      "criterion": "cached search decisions require equivalent full decision state, not this approximate hash alone",
+      "different_semantic_state": true,
+      "finding": "example MCTS hash aliases distinct active-player states",
+      "first_activation": [
+        "START_MOVE",
+        "0-1",
+        null
+      ],
+      "pending": "controlled consumer risk only; historical Quick Snap None-position crash not established",
+      "rejection": "invalid_target",
+      "same_example_hash": true,
+      "second_activation": [
+        "START_MOVE",
+        "0-3",
+        null
+      ],
+      "seed": 0,
+      "side": 0
+    },
+    "consumer-side1": {
+      "cached_move": [
+        "MOVE",
+        null,
+        [
+          7,
+          2
+        ]
+      ],
+      "correction_proposal": "separately scope example search identity/action-cache correction if adopted",
+      "criterion": "cached search decisions require equivalent full decision state, not this approximate hash alone",
+      "different_semantic_state": true,
+      "finding": "example MCTS hash aliases distinct active-player states",
+      "first_activation": [
+        "START_MOVE",
+        "1-1",
+        null
+      ],
+      "pending": "controlled consumer risk only; historical Quick Snap None-position crash not established",
+      "rejection": "invalid_target",
+      "same_example_hash": true,
+      "second_activation": [
+        "START_MOVE",
+        "1-3",
+        null
+      ],
+      "seed": 0,
+      "side": 1
+    },
+    "helper": {
+      "correction_proposal": "compare dictionary key sets before indexing",
+      "criterion": "return a nonempty difference list",
+      "exception": "KeyError(Square(1, 2, out=None))",
+      "finding": "comparison helper indexes a missing equal-length dictionary key",
+      "pending": "separate helper scope decision; no correction applied"
+    },
+    "original_setup": {
+      "accepted_and_baseline4_json_byte_identical": true,
+      "decisions": 335,
+      "failure_json_sha256": "77f369d0c7c7e2c2666f94e0db375be8e37aad79e780858a4ee1714ad28c6904",
+      "result": "expected exit 1, seed 3, step 167, Setup(reorganize=True), SETUP_FORMATION_ZONE",
+      "trace_sha256": "bad32f6ec2d7e12e6a5859814eed7edd6890155a3eb5098e2bf16d73c771562f"
+    },
+    "setup-side0": {
+      "after_restore": [
+        [
+          "0-1",
+          [
+            9,
+            4
+          ]
+        ],
+        [
+          "0-3",
+          [
+            9,
+            2
+          ]
+        ],
+        [
+          "0-5",
+          null
+        ],
+        [
+          "0-6",
+          [
+            7,
+            3
+          ]
+        ],
+        [
+          "1-1",
+          [
+            6,
+            2
+          ]
+        ],
+        [
+          "1-3",
+          [
+            3,
+            3
+          ]
+        ],
+        [
+          "1-5",
+          null
+        ],
+        [
+          "1-6",
+          [
+            6,
+            4
+          ]
+        ]
+      ],
+      "before": [
+        [
+          "0-1",
+          [
+            9,
+            2
+          ]
+        ],
+        [
+          "0-3",
+          [
+            9,
+            4
+          ]
+        ],
+        [
+          "0-5",
+          null
+        ],
+        [
+          "0-6",
+          [
+            7,
+            3
+          ]
+        ],
+        [
+          "1-1",
+          [
+            6,
+            2
+          ]
+        ],
+        [
+          "1-3",
+          [
+            3,
+            3
+          ]
+        ],
+        [
+          "1-5",
+          null
+        ],
+        [
+          "1-6",
+          [
+            6,
+            4
+          ]
+        ]
+      ],
+      "correction_proposal": "Log the player/player swap in Game.swap through reversible movement operations",
+      "criterion": "restore_checkpoint returns the original semantic state and original occupants",
+      "decision": [
+        "PLACE_PLAYER",
+        "0-1",
+        [
+          9,
+          4
+        ]
+      ],
+      "empty_square_control": "pass",
+      "finding": "legal occupied-square setup placement is not undone",
+      "fixture": "stock gym-3; legal formations; forced Perfect Defence (2+2)",
+      "movement_steps": 0,
+      "pending": "parent ownership decision and independent diagnostic review; no correction applied",
+      "reproduced": true,
+      "rng_control": "restored exactly",
+      "seed": 0,
+      "side": 0,
+      "trajectory_entries": 2
+    },
+    "setup-side1": {
+      "after_restore": [
+        [
+          "0-1",
+          [
+            7,
+            2
+          ]
+        ],
+        [
+          "0-3",
+          [
+            10,
+            3
+          ]
+        ],
+        [
+          "0-5",
+          null
+        ],
+        [
+          "0-6",
+          [
+            7,
+            4
+          ]
+        ],
+        [
+          "1-1",
+          [
+            4,
+            4
+          ]
+        ],
+        [
+          "1-3",
+          [
+            4,
+            2
+          ]
+        ],
+        [
+          "1-5",
+          null
+        ],
+        [
+          "1-6",
+          [
+            6,
+            3
+          ]
+        ]
+      ],
+      "before": [
+        [
+          "0-1",
+          [
+            7,
+            2
+          ]
+        ],
+        [
+          "0-3",
+          [
+            10,
+            3
+          ]
+        ],
+        [
+          "0-5",
+          null
+        ],
+        [
+          "0-6",
+          [
+            7,
+            4
+          ]
+        ],
+        [
+          "1-1",
+          [
+            4,
+            2
+          ]
+        ],
+        [
+          "1-3",
+          [
+            4,
+            4
+          ]
+        ],
+        [
+          "1-5",
+          null
+        ],
+        [
+          "1-6",
+          [
+            6,
+            3
+          ]
+        ]
+      ],
+      "correction_proposal": "Log the player/player swap in Game.swap through reversible movement operations",
+      "criterion": "restore_checkpoint returns the original semantic state and original occupants",
+      "decision": [
+        "PLACE_PLAYER",
+        "1-1",
+        [
+          4,
+          4
+        ]
+      ],
+      "empty_square_control": "pass",
+      "finding": "legal occupied-square setup placement is not undone",
+      "fixture": "stock gym-3; legal formations; forced Perfect Defence (2+2)",
+      "movement_steps": 0,
+      "pending": "parent ownership decision and independent diagnostic review; no correction applied",
+      "reproduced": true,
+      "rng_control": "restored exactly",
+      "seed": 0,
+      "side": 1,
+      "trajectory_entries": 2
+    }
+  },
+  "correction": {
+    "controls": {
+      "native-consumer-side0": {
+        "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/native-consumer-side0.log",
+        "matches_original_json": true,
+        "sha256": "6a0f6d813fa1ed78a2de32180afaed6d6dea3ce9ef564fb9f80ac6bfb25eea49"
+      },
+      "native-consumer-side1": {
+        "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/native-consumer-side1.log",
+        "matches_original_json": true,
+        "sha256": "44b0485abb74182020f4ea6e2291824242b5f0598bb04bb7111a66239f6b2b58"
+      },
+      "native-helper": {
+        "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/native-helper.log",
+        "matches_original_json": true,
+        "sha256": "dc0a34cf8134b3600932d1b09e83daa541f30f9e929ba09e36ea9b8305418e04"
+      },
+      "native-setup-side0": {
+        "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/native-setup-side0.log",
+        "matches_original_json": true,
+        "sha256": "52dc8b83d19b4619aa8d7bbb17d635de93a7e3f6e7b83967bdc654fbc5427d44"
+      },
+      "native-setup-side1": {
+        "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/native-setup-side1.log",
+        "matches_original_json": true,
+        "sha256": "8c8ccc48340ee7cabe3405be3180b170a041d35f5a29fe4a8ebaf94016cc8b5a"
+      },
+      "python-consumer-side0": {
+        "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/python-consumer-side0.log",
+        "matches_original_json": true,
+        "sha256": "6a0f6d813fa1ed78a2de32180afaed6d6dea3ce9ef564fb9f80ac6bfb25eea49"
+      },
+      "python-consumer-side1": {
+        "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/python-consumer-side1.log",
+        "matches_original_json": true,
+        "sha256": "44b0485abb74182020f4ea6e2291824242b5f0598bb04bb7111a66239f6b2b58"
+      },
+      "python-helper": {
+        "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/python-helper.log",
+        "matches_original_json": true,
+        "sha256": "dc0a34cf8134b3600932d1b09e83daa541f30f9e929ba09e36ea9b8305418e04"
+      },
+      "python-setup-side0": {
+        "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/python-setup-side0.log",
+        "matches_original_json": true,
+        "sha256": "52dc8b83d19b4619aa8d7bbb17d635de93a7e3f6e7b83967bdc654fbc5427d44"
+      },
+      "python-setup-side1": {
+        "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/python-setup-side1.log",
+        "matches_original_json": true,
+        "sha256": "8c8ccc48340ee7cabe3405be3180b170a041d35f5a29fe4a8ebaf94016cc8b5a"
+      }
+    },
+    "correction": "Deep-copy a detached fixed rules blueprint per fixture and pass it to Game explicitly; observe rules semantically and check instance/container graph disjointness before and after branches; six mutation-isolation regressions and one nested-alias observer control",
+    "criterion": "Repetir consultas y ramificaciones sin compartir objetos mutables",
+    "evidence_root": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence",
+    "finding": "Independent clean-control fixtures shared all six mutable RuleSet containers",
+    "historical_evidence_reuse": "Original investigation records remain at top level and refer to original_head. Existing-suite and native observer-precursor full-suite evidence is reused, not a corrected-source full-suite run. Historical baseline reproduction and 335-decision trace use unchanged source and are not rerun; original reviewer supplementary probes remain attributed to the failed head, pending fresh independent re-review.",
+    "matrix": {
+      "native": {
+        "advance_executions": 3026,
+        "checked_game_transitions": 10208,
+        "configuration_count": 24,
+        "environment": {
+          "backend": "botbowl.core.pathfinding.cython_pathfinding",
+          "backend_path": "/tmp/botbowl-issue20-correction-9kfhevsv/native-src/botbowl/core/pathfinding/cython_pathfinding.cpython-311-x86_64-linux-gnu.so",
+          "backend_sha256": "d85e3372bdfcd39dd7cb5be6c4300a39cf2dcaab0edda69d41fae564902c7d56",
+          "package": "/tmp/botbowl-issue20-correction-9kfhevsv/native-src/botbowl/__init__.py",
+          "platform": "Linux-6.8.0-139-generic-x86_64-with-glibc2.39",
+          "python": "3.11.16 (main, Sep  1 2026, 14:18:37) [Clang 22.1.3 ]",
+          "versions": {
+            "gym": "0.26.2",
+            "numpy": "1.26.4",
+            "pytest": "9.1.1",
+            "untangle": "1.2.1"
+          }
+        },
+        "evidence_sha256": {
+          "size1-side0-pfFalse-seed0.json": "d99d0b586da353a991e7073c6e41208c5cdc0dbe311ec6bac9a72b8ed855e623",
+          "size1-side0-pfFalse-seed17.json": "c1cb4d5b0d0e594f8d2a717feeec191d42626ca81143445a44aaca0daff54705",
+          "size1-side0-pfFalse-seed3.json": "eee03e3af0fa2f031600a37ead0b6c729461c76b8393f3e320c4c366b9b8514c",
+          "size1-side0-pfTrue-seed0.json": "a401dfb0b84f6d84d6c5728098c9d8becbadc1da271145c69173916d492ca8af",
+          "size1-side0-pfTrue-seed17.json": "89821f5de7888c23f7407a8e89818399c3a0f0b2cc70f21c7dd16df20e402e8a",
+          "size1-side0-pfTrue-seed3.json": "2fc63f56dcd33d0fad60bbce6baa18b336b8a19f0d7f374cfd13ff1980fc7960",
+          "size1-side1-pfFalse-seed0.json": "ae99f9202ab12a78421c07dd17f3d4acf1f88a03207d45a67048e2f67b1d627b",
+          "size1-side1-pfFalse-seed17.json": "88ecacf3b313d33817a59f60cae387d9818e572a1f37ee4c1610b248a48c3714",
+          "size1-side1-pfFalse-seed3.json": "8eb8b2d79d35c90d8dde5ada7541c5b20f734c39a0f830c3c2fbb83925c75ac3",
+          "size1-side1-pfTrue-seed0.json": "931e15dcdc929f8ec1cc61b631a2e9e80e3f1052868d15c7795442826c284ec7",
+          "size1-side1-pfTrue-seed17.json": "43ff2b9f1c08ac1fd1e8456df6896c3a8620ef5eda64cfd88bf5028185afd63c",
+          "size1-side1-pfTrue-seed3.json": "3005ce21c6fbdf874d864cbed056939d41f264005aba7efa61b527f5af696cc4",
+          "size3-side0-pfFalse-seed0.json": "19968287107ba5e44256443e6f770b5f10968f0d2fdc63c008307b1f7062b18c",
+          "size3-side0-pfFalse-seed17.json": "1e8230160a2595a4dc2c068b60db28a03f7b31ade0a4a8ffd597a0ea9e636b7e",
+          "size3-side0-pfFalse-seed3.json": "0c1926c042937c9334d18a4b38d6d0313465acd4d3938bb05f58fbff22893356",
+          "size3-side0-pfTrue-seed0.json": "560eaadefed6a153e40e281417bdbe67e557b84196e5fa590eb41f43b1d8c078",
+          "size3-side0-pfTrue-seed17.json": "d86420ec81537e9452dc549c9f6af50784cef4d387642edd5c08f3ac061d5cde",
+          "size3-side0-pfTrue-seed3.json": "1d4037bc4b7a91ec16ab63689643b9b79b34ee7d66d929678dcd259f14729048",
+          "size3-side1-pfFalse-seed0.json": "70256882f8c8aeb345b9136b5252ca0a36c694f0f8c22337d447f17e173a38c9",
+          "size3-side1-pfFalse-seed17.json": "777674502b186e584aa64697f4f327507fdb67eec62f850e3aa16a5627f46fda",
+          "size3-side1-pfFalse-seed3.json": "352ec283024f293307db81a3ca9c7988083fbebe779e9418392daa3197b9215a",
+          "size3-side1-pfTrue-seed0.json": "6d5bcf31d50289d7d21ec6fd113a56d56c7481dfdf7d6ba88cbe3b1c115b08e3",
+          "size3-side1-pfTrue-seed17.json": "d1a5329d4585fda6e8da017a4dec52a8cbbc04bf012332162d8346852c8cbce2",
+          "size3-side1-pfTrue-seed3.json": "9bfdd3f691f1897a1eea044bc5e8ebbefcc1fb23b1a2efef8b28d60a84bc65c1"
+        },
+        "failures": 0,
+        "initial_gameplay_and_decisions_match_original": true,
+        "repeated_query_checks": 240,
+        "round_trip_probes": 774,
+        "whole_sequence_round_trips": 72
+      },
+      "python": {
+        "advance_executions": 3026,
+        "checked_game_transitions": 10208,
+        "configuration_count": 24,
+        "environment": {
+          "backend": "botbowl.core.pathfinding.python_pathfinding",
+          "backend_path": "/tmp/botbowl-issue20-correction-9kfhevsv/python-src/botbowl/core/pathfinding/python_pathfinding.py",
+          "backend_sha256": "fa464899dad38a2bc215b799355f2b44c62c66f3d2e2a1190b6448a138a8e615",
+          "package": "/tmp/botbowl-issue20-correction-9kfhevsv/python-src/botbowl/__init__.py",
+          "platform": "Linux-6.8.0-139-generic-x86_64-with-glibc2.39",
+          "python": "3.11.16 (main, Sep  1 2026, 14:18:37) [Clang 22.1.3 ]",
+          "versions": {
+            "gym": "0.26.2",
+            "numpy": "1.26.4",
+            "pytest": "9.1.1",
+            "untangle": "1.2.1"
+          }
+        },
+        "evidence_sha256": {
+          "size1-side0-pfFalse-seed0.json": "d99d0b586da353a991e7073c6e41208c5cdc0dbe311ec6bac9a72b8ed855e623",
+          "size1-side0-pfFalse-seed17.json": "c1cb4d5b0d0e594f8d2a717feeec191d42626ca81143445a44aaca0daff54705",
+          "size1-side0-pfFalse-seed3.json": "eee03e3af0fa2f031600a37ead0b6c729461c76b8393f3e320c4c366b9b8514c",
+          "size1-side0-pfTrue-seed0.json": "a401dfb0b84f6d84d6c5728098c9d8becbadc1da271145c69173916d492ca8af",
+          "size1-side0-pfTrue-seed17.json": "89821f5de7888c23f7407a8e89818399c3a0f0b2cc70f21c7dd16df20e402e8a",
+          "size1-side0-pfTrue-seed3.json": "2fc63f56dcd33d0fad60bbce6baa18b336b8a19f0d7f374cfd13ff1980fc7960",
+          "size1-side1-pfFalse-seed0.json": "ae99f9202ab12a78421c07dd17f3d4acf1f88a03207d45a67048e2f67b1d627b",
+          "size1-side1-pfFalse-seed17.json": "88ecacf3b313d33817a59f60cae387d9818e572a1f37ee4c1610b248a48c3714",
+          "size1-side1-pfFalse-seed3.json": "8eb8b2d79d35c90d8dde5ada7541c5b20f734c39a0f830c3c2fbb83925c75ac3",
+          "size1-side1-pfTrue-seed0.json": "5ffc161f81864e2d11f917a59f3cfc5609e7d8da884a0aac4a8566a2824fb3ea",
+          "size1-side1-pfTrue-seed17.json": "311d4b921aefbbaf452862c04b383ed36aa113fbd99e0017822e6f98f2a6c6fd",
+          "size1-side1-pfTrue-seed3.json": "1265a9d7641c8385c527aac067d5ab0d83843bd928418086a6b0fee57164f8cf",
+          "size3-side0-pfFalse-seed0.json": "19968287107ba5e44256443e6f770b5f10968f0d2fdc63c008307b1f7062b18c",
+          "size3-side0-pfFalse-seed17.json": "1e8230160a2595a4dc2c068b60db28a03f7b31ade0a4a8ffd597a0ea9e636b7e",
+          "size3-side0-pfFalse-seed3.json": "0c1926c042937c9334d18a4b38d6d0313465acd4d3938bb05f58fbff22893356",
+          "size3-side0-pfTrue-seed0.json": "2c9925a74ac78f3788f3dbb85f7ea6b1d9bf40224bfeaace082e007addbfb03e",
+          "size3-side0-pfTrue-seed17.json": "252e85a74ca53d69e8aa93cbf85b29c0e25b42c9fd2b6eaff5e3fc5b7e2ea9ce",
+          "size3-side0-pfTrue-seed3.json": "1d4037bc4b7a91ec16ab63689643b9b79b34ee7d66d929678dcd259f14729048",
+          "size3-side1-pfFalse-seed0.json": "70256882f8c8aeb345b9136b5252ca0a36c694f0f8c22337d447f17e173a38c9",
+          "size3-side1-pfFalse-seed17.json": "777674502b186e584aa64697f4f327507fdb67eec62f850e3aa16a5627f46fda",
+          "size3-side1-pfFalse-seed3.json": "352ec283024f293307db81a3ca9c7988083fbebe779e9418392daa3197b9215a",
+          "size3-side1-pfTrue-seed0.json": "e2b6baeecae245f8ea53824ab02c60a70189d1ec807bba4ff74ee768b9fbd8bd",
+          "size3-side1-pfTrue-seed17.json": "77c9c9df5312589e690f339672ff61c25cf2f30c44c18305a20ad44d3b8c67f0",
+          "size3-side1-pfTrue-seed3.json": "3639c32fd9930cea9932ee7dba61180e377daca09fbe2e6ad87792e9da19fa31"
+        },
+        "failures": 0,
+        "initial_gameplay_and_decisions_match_original": true,
+        "repeated_query_checks": 240,
+        "round_trip_probes": 774,
+        "whole_sequence_round_trips": 72
+      }
+    },
+    "original_head": "47593b6af2afc8ae3a014faf79c8401a55443efc",
+    "original_reproduction": "/tmp/botbowl-review20-tvGvPV/shared_ruleset_repro.py",
+    "original_reproduction_sha256": "ac307e2f9d20a54db63a2aeac82396af2bc5cfcd73ce19338929bbfe4e66caa2",
+    "original_review": "/tmp/botbowl-review20-tvGvPV/review.md",
+    "production_source_changed": false,
+    "proof": {
+      "native": {
+        "environment": {
+          "backend": "botbowl.core.pathfinding.cython_pathfinding",
+          "backend_path": "/tmp/botbowl-issue20-correction-9kfhevsv/native-src/botbowl/core/pathfinding/cython_pathfinding.cpython-311-x86_64-linux-gnu.so",
+          "backend_sha256": "d85e3372bdfcd39dd7cb5be6c4300a39cf2dcaab0edda69d41fae564902c7d56",
+          "package": "/tmp/botbowl-issue20-correction-9kfhevsv/native-src/botbowl/__init__.py",
+          "platform": "Linux-6.8.0-139-generic-x86_64-with-glibc2.39",
+          "python": "3.11.16 (main, Sep  1 2026, 14:18:37) [Clang 22.1.3 ]",
+          "versions": {
+            "gym": "0.26.2",
+            "numpy": "1.26.4",
+            "pytest": "9.1.1",
+            "untangle": "1.2.1"
+          }
+        },
+        "first_ruleset_after": {
+          "improvements": 6,
+          "inducements": 8,
+          "races": 24,
+          "spp_actions": 5,
+          "spp_levels": 7,
+          "star_players": 71
+        },
+        "first_ruleset_before": {
+          "improvements": 6,
+          "inducements": 8,
+          "races": 24,
+          "spp_actions": 5,
+          "spp_levels": 7,
+          "star_players": 71
+        },
+        "first_unchanged_after_construction_and_mutation": true,
+        "shared": {
+          "improvements": false,
+          "inducements": false,
+          "races": false,
+          "spp_actions": false,
+          "spp_levels": false,
+          "star_players": false
+        },
+        "third_equivalent_and_disjoint": true
+      },
+      "python": {
+        "environment": {
+          "backend": "botbowl.core.pathfinding.python_pathfinding",
+          "backend_path": "/tmp/botbowl-issue20-correction-9kfhevsv/python-src/botbowl/core/pathfinding/python_pathfinding.py",
+          "backend_sha256": "fa464899dad38a2bc215b799355f2b44c62c66f3d2e2a1190b6448a138a8e615",
+          "package": "/tmp/botbowl-issue20-correction-9kfhevsv/python-src/botbowl/__init__.py",
+          "platform": "Linux-6.8.0-139-generic-x86_64-with-glibc2.39",
+          "python": "3.11.16 (main, Sep  1 2026, 14:18:37) [Clang 22.1.3 ]",
+          "versions": {
+            "gym": "0.26.2",
+            "numpy": "1.26.4",
+            "pytest": "9.1.1",
+            "untangle": "1.2.1"
+          }
+        },
+        "first_ruleset_after": {
+          "improvements": 6,
+          "inducements": 8,
+          "races": 24,
+          "spp_actions": 5,
+          "spp_levels": 7,
+          "star_players": 71
+        },
+        "first_ruleset_before": {
+          "improvements": 6,
+          "inducements": 8,
+          "races": 24,
+          "spp_actions": 5,
+          "spp_levels": 7,
+          "star_players": 71
+        },
+        "first_unchanged_after_construction_and_mutation": true,
+        "shared": {
+          "improvements": false,
+          "inducements": false,
+          "races": false,
+          "spp_actions": false,
+          "spp_levels": false,
+          "star_players": false
+        },
+        "third_equivalent_and_disjoint": true
+      }
+    },
+    "regression_before_source_sha256": "35f19bb79e04be2119dee883b1b14e08210b9f327ffc80287ec1c6e10233d448",
+    "runtime_source_audit": {
+      "matched_paths_per_backend": 1333,
+      "native_extension_reused_from": "/tmp/botbowl-issue20-native-src/botbowl/core/pathfinding/cython_pathfinding.cpython-311-x86_64-linux-gnu.so",
+      "native_extension_sha256": "d85e3372bdfcd39dd7cb5be6c4300a39cf2dcaab0edda69d41fae564902c7d56",
+      "report_only_paths_not_required_for_execution": [
+        "docs/reports/quick-snap-issue-20.md",
+        "docs/reports/quick-snap-issue-20.json"
+      ],
+      "tracked_paths_sha256": "b864555d0dcd7417794b7910391212593c7b84fea93ec9f6103a7489f82121ea"
+    },
+    "source_sha256": {
+      "botbowl/core/forward_model.py": "8b9a688c5cda7ab7582feb9f0775b90f886b988b94bd1d1c8e33d4864b2ec585",
+      "botbowl/core/game.py": "254d9840c833fb61209bc8121f406580d0ba30464a5dc5f4dfecc671a9eccd33",
+      "botbowl/core/load.py": "179313ec4df3ae0429a8968376bb1507af6ad3ed224f60519e67cf9dc71436e3",
+      "botbowl/core/model.py": "2193f32fbceed70df8e934a45693a7a1cf10e1b235388f90a8f4453e4b0e40fa",
+      "botbowl/core/pathfinding/cython_pathfinding.pyx": "319271103f09c13434598362d315cca5028f701d2acaccdc65e652bef95787c8",
+      "botbowl/core/pathfinding/python_pathfinding.py": "fa464899dad38a2bc215b799355f2b44c62c66f3d2e2a1190b6448a138a8e615",
+      "botbowl/core/procedure.py": "4c142b4fc35b3aafa8098cd25d4da776fe2fdccb7d450974151285ae380a40f5",
+      "botbowl/core/util.py": "3210d61aa823bfbb8e97789748533463131c25e890b8314521b1a2c43c6e3fbd",
+      "botbowl/data/config/gym-1.json": "8f50fc7f8870e5b2ee8e6b29c25f6a54964d36bea6b96345d4b3f0474110aa6e",
+      "botbowl/data/config/gym-3.json": "845fece1c2e8ff95d37f299bdcb80973979a2cad3233ebbb06259e8679401c9d",
+      "botbowl/data/rules/BB2016.xml": "c1de2e6b6ba60289b28927ee30b424c7cc22d08b5866e8ae000570b95be2df8a",
+      "docs/reports/packaging-forward-model-reproduction.py": "fc2fd8ffee724d160f66ad31f0a935cb924ef188f856c6db313a856443466c5b",
+      "docs/reports/quick-snap-diagnosis.py": "f235971ac9f140ada7ce37b40b587d05af948e041e55d287e844d53bb65f2708",
+      "examples/hash_example.py": "4c7a3c74779a189491593e499700cbfda616eb9de7e5aefa5224d437332dd560",
+      "examples/mcts_example.py": "77116f44159735ee0eb719c5a1f5d72286f11c4a0cf3fd0109557f8a607077c6",
+      "tests/conftest.py": "ed67b2a8e34538f5aee5ea11a6203491d1bb03760aa6a5b47d74c058c72f5db4",
+      "tests/framework/test_forward_model.py": "691dd45bd6d643ffc91c24ef460af30cd068efcbe1633f42967fb1a67a66a4ce",
+      "tests/framework/test_quick_snap_forward_model.py": "c121118e3e8a1094054dfdf61d264a80a3b81d1c15dc19466f29f16de0f8678a"
+    },
+    "validation": {
+      "native": {
+        "commands": [
+          {
+            "command": [
+              "/tmp/botbowl-issue20-correction-9kfhevsv/native-env/bin/python",
+              "-m",
+              "pytest",
+              "tests/framework/test_quick_snap_forward_model.py",
+              "-q",
+              "--require-pathfinding",
+              "native"
+            ],
+            "cwd": "/tmp/botbowl-issue20-correction-9kfhevsv/native-src",
+            "environment": {
+              "BOTBOWL_ISSUE20_EVIDENCE": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/native-matrix",
+              "PYTHONDONTWRITEBYTECODE": "1",
+              "PYTHONPATH": "/tmp/botbowl-issue20-correction-9kfhevsv/native-src"
+            },
+            "exit": 0,
+            "expected_exit": 0,
+            "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/native-focused.log",
+            "sha256": "47971767aa5e27167c52fbdb812ee9c072511c1b462d6e45117f271e33609766"
+          },
+          {
+            "command": [
+              "/tmp/botbowl-issue20-correction-9kfhevsv/native-env/bin/python",
+              "-m",
+              "pytest",
+              "tests/framework/test_forward_model.py",
+              "-q",
+              "--require-pathfinding",
+              "native"
+            ],
+            "cwd": "/tmp/botbowl-issue20-correction-9kfhevsv/native-src",
+            "environment": {
+              "BOTBOWL_ISSUE20_EVIDENCE": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/native-matrix",
+              "PYTHONDONTWRITEBYTECODE": "1",
+              "PYTHONPATH": "/tmp/botbowl-issue20-correction-9kfhevsv/native-src"
+            },
+            "exit": 0,
+            "expected_exit": 0,
+            "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/native-forward-model.log",
+            "sha256": "b40f33c2b2c9d43981a634ef1a4c63d99b448b5e1154328f3fb5d8180f27dcbb"
+          },
+          {
+            "command": [
+              "/tmp/botbowl-issue20-correction-9kfhevsv/native-env/bin/python",
+              "docs/reports/quick-snap-diagnosis.py",
+              "setup",
+              "--side",
+              "0"
+            ],
+            "cwd": "/tmp/botbowl-issue20-correction-9kfhevsv/native-src",
+            "environment": {
+              "BOTBOWL_ISSUE20_EVIDENCE": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/native-matrix",
+              "PYTHONDONTWRITEBYTECODE": "1",
+              "PYTHONPATH": "/tmp/botbowl-issue20-correction-9kfhevsv/native-src"
+            },
+            "exit": 1,
+            "expected_exit": 1,
+            "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/native-setup-side0.log",
+            "sha256": "52dc8b83d19b4619aa8d7bbb17d635de93a7e3f6e7b83967bdc654fbc5427d44"
+          },
+          {
+            "command": [
+              "/tmp/botbowl-issue20-correction-9kfhevsv/native-env/bin/python",
+              "docs/reports/quick-snap-diagnosis.py",
+              "consumer",
+              "--side",
+              "0"
+            ],
+            "cwd": "/tmp/botbowl-issue20-correction-9kfhevsv/native-src",
+            "environment": {
+              "BOTBOWL_ISSUE20_EVIDENCE": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/native-matrix",
+              "PYTHONDONTWRITEBYTECODE": "1",
+              "PYTHONPATH": "/tmp/botbowl-issue20-correction-9kfhevsv/native-src"
+            },
+            "exit": 0,
+            "expected_exit": 0,
+            "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/native-consumer-side0.log",
+            "sha256": "6a0f6d813fa1ed78a2de32180afaed6d6dea3ce9ef564fb9f80ac6bfb25eea49"
+          },
+          {
+            "command": [
+              "/tmp/botbowl-issue20-correction-9kfhevsv/native-env/bin/python",
+              "docs/reports/quick-snap-diagnosis.py",
+              "setup",
+              "--side",
+              "1"
+            ],
+            "cwd": "/tmp/botbowl-issue20-correction-9kfhevsv/native-src",
+            "environment": {
+              "BOTBOWL_ISSUE20_EVIDENCE": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/native-matrix",
+              "PYTHONDONTWRITEBYTECODE": "1",
+              "PYTHONPATH": "/tmp/botbowl-issue20-correction-9kfhevsv/native-src"
+            },
+            "exit": 1,
+            "expected_exit": 1,
+            "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/native-setup-side1.log",
+            "sha256": "8c8ccc48340ee7cabe3405be3180b170a041d35f5a29fe4a8ebaf94016cc8b5a"
+          },
+          {
+            "command": [
+              "/tmp/botbowl-issue20-correction-9kfhevsv/native-env/bin/python",
+              "docs/reports/quick-snap-diagnosis.py",
+              "consumer",
+              "--side",
+              "1"
+            ],
+            "cwd": "/tmp/botbowl-issue20-correction-9kfhevsv/native-src",
+            "environment": {
+              "BOTBOWL_ISSUE20_EVIDENCE": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/native-matrix",
+              "PYTHONDONTWRITEBYTECODE": "1",
+              "PYTHONPATH": "/tmp/botbowl-issue20-correction-9kfhevsv/native-src"
+            },
+            "exit": 0,
+            "expected_exit": 0,
+            "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/native-consumer-side1.log",
+            "sha256": "44b0485abb74182020f4ea6e2291824242b5f0598bb04bb7111a66239f6b2b58"
+          },
+          {
+            "command": [
+              "/tmp/botbowl-issue20-correction-9kfhevsv/native-env/bin/python",
+              "docs/reports/quick-snap-diagnosis.py",
+              "helper"
+            ],
+            "cwd": "/tmp/botbowl-issue20-correction-9kfhevsv/native-src",
+            "environment": {
+              "BOTBOWL_ISSUE20_EVIDENCE": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/native-matrix",
+              "PYTHONDONTWRITEBYTECODE": "1",
+              "PYTHONPATH": "/tmp/botbowl-issue20-correction-9kfhevsv/native-src"
+            },
+            "exit": 1,
+            "expected_exit": 1,
+            "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/native-helper.log",
+            "sha256": "dc0a34cf8134b3600932d1b09e83daa541f30f9e929ba09e36ea9b8305418e04"
+          }
+        ],
+        "focused_result": "36 passed",
+        "forward_model_result": "6 passed",
+        "original_reproduction": {
+          "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/native-original-sharing.json",
+          "result": "original reviewer reproduction passes at original head; confirms all six shared containers and 48/142/16 to 96/284/32 growth",
+          "sha256": "332691be3bde4104ef8a8a251bb29c04fae03d26ec8ddf5ecbc1bd93e2f7454e"
+        },
+        "regression_after": {
+          "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/native-regression-after.log",
+          "result": "7 passed, 29 deselected",
+          "sha256": "1f8b8a1fddc8986718133ab2357127ee0b725537201bb50f12246db0753faab8"
+        },
+        "regression_before": {
+          "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/native-regression-before.log",
+          "result": "6 failed, 30 deselected; all fail on construction of a second fixture",
+          "sha256": "80bc213c361fc9d0997dc525d1037ebae4834a24b77bcb1827effe86d2573f5f"
+        }
+      },
+      "python": {
+        "commands": [
+          {
+            "command": [
+              "/tmp/botbowl-issue20-correction-9kfhevsv/python-env/bin/python",
+              "-m",
+              "pytest",
+              "tests/framework/test_quick_snap_forward_model.py",
+              "-q",
+              "--require-pathfinding",
+              "python"
+            ],
+            "cwd": "/tmp/botbowl-issue20-correction-9kfhevsv/python-src",
+            "environment": {
+              "BOTBOWL_ISSUE20_EVIDENCE": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/python-matrix",
+              "PYTHONDONTWRITEBYTECODE": "1",
+              "PYTHONPATH": "/tmp/botbowl-issue20-correction-9kfhevsv/python-src"
+            },
+            "exit": 0,
+            "expected_exit": 0,
+            "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/python-focused.log",
+            "sha256": "3bdf4b293cd35394fc7671e0897567ec45c32fcd9a179d7e98f2b16b31c462cb"
+          },
+          {
+            "command": [
+              "/tmp/botbowl-issue20-correction-9kfhevsv/python-env/bin/python",
+              "-m",
+              "pytest",
+              "tests/framework/test_forward_model.py",
+              "-q",
+              "--require-pathfinding",
+              "python"
+            ],
+            "cwd": "/tmp/botbowl-issue20-correction-9kfhevsv/python-src",
+            "environment": {
+              "BOTBOWL_ISSUE20_EVIDENCE": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/python-matrix",
+              "PYTHONDONTWRITEBYTECODE": "1",
+              "PYTHONPATH": "/tmp/botbowl-issue20-correction-9kfhevsv/python-src"
+            },
+            "exit": 0,
+            "expected_exit": 0,
+            "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/python-forward-model.log",
+            "sha256": "9e17aa7a8cb027c90c6068d4ec4c6ad11edcb1b2f01429db11ee7ea5dcde2590"
+          },
+          {
+            "command": [
+              "/tmp/botbowl-issue20-correction-9kfhevsv/python-env/bin/python",
+              "docs/reports/quick-snap-diagnosis.py",
+              "setup",
+              "--side",
+              "0"
+            ],
+            "cwd": "/tmp/botbowl-issue20-correction-9kfhevsv/python-src",
+            "environment": {
+              "BOTBOWL_ISSUE20_EVIDENCE": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/python-matrix",
+              "PYTHONDONTWRITEBYTECODE": "1",
+              "PYTHONPATH": "/tmp/botbowl-issue20-correction-9kfhevsv/python-src"
+            },
+            "exit": 1,
+            "expected_exit": 1,
+            "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/python-setup-side0.log",
+            "sha256": "52dc8b83d19b4619aa8d7bbb17d635de93a7e3f6e7b83967bdc654fbc5427d44"
+          },
+          {
+            "command": [
+              "/tmp/botbowl-issue20-correction-9kfhevsv/python-env/bin/python",
+              "docs/reports/quick-snap-diagnosis.py",
+              "consumer",
+              "--side",
+              "0"
+            ],
+            "cwd": "/tmp/botbowl-issue20-correction-9kfhevsv/python-src",
+            "environment": {
+              "BOTBOWL_ISSUE20_EVIDENCE": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/python-matrix",
+              "PYTHONDONTWRITEBYTECODE": "1",
+              "PYTHONPATH": "/tmp/botbowl-issue20-correction-9kfhevsv/python-src"
+            },
+            "exit": 0,
+            "expected_exit": 0,
+            "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/python-consumer-side0.log",
+            "sha256": "6a0f6d813fa1ed78a2de32180afaed6d6dea3ce9ef564fb9f80ac6bfb25eea49"
+          },
+          {
+            "command": [
+              "/tmp/botbowl-issue20-correction-9kfhevsv/python-env/bin/python",
+              "docs/reports/quick-snap-diagnosis.py",
+              "setup",
+              "--side",
+              "1"
+            ],
+            "cwd": "/tmp/botbowl-issue20-correction-9kfhevsv/python-src",
+            "environment": {
+              "BOTBOWL_ISSUE20_EVIDENCE": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/python-matrix",
+              "PYTHONDONTWRITEBYTECODE": "1",
+              "PYTHONPATH": "/tmp/botbowl-issue20-correction-9kfhevsv/python-src"
+            },
+            "exit": 1,
+            "expected_exit": 1,
+            "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/python-setup-side1.log",
+            "sha256": "8c8ccc48340ee7cabe3405be3180b170a041d35f5a29fe4a8ebaf94016cc8b5a"
+          },
+          {
+            "command": [
+              "/tmp/botbowl-issue20-correction-9kfhevsv/python-env/bin/python",
+              "docs/reports/quick-snap-diagnosis.py",
+              "consumer",
+              "--side",
+              "1"
+            ],
+            "cwd": "/tmp/botbowl-issue20-correction-9kfhevsv/python-src",
+            "environment": {
+              "BOTBOWL_ISSUE20_EVIDENCE": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/python-matrix",
+              "PYTHONDONTWRITEBYTECODE": "1",
+              "PYTHONPATH": "/tmp/botbowl-issue20-correction-9kfhevsv/python-src"
+            },
+            "exit": 0,
+            "expected_exit": 0,
+            "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/python-consumer-side1.log",
+            "sha256": "44b0485abb74182020f4ea6e2291824242b5f0598bb04bb7111a66239f6b2b58"
+          },
+          {
+            "command": [
+              "/tmp/botbowl-issue20-correction-9kfhevsv/python-env/bin/python",
+              "docs/reports/quick-snap-diagnosis.py",
+              "helper"
+            ],
+            "cwd": "/tmp/botbowl-issue20-correction-9kfhevsv/python-src",
+            "environment": {
+              "BOTBOWL_ISSUE20_EVIDENCE": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/python-matrix",
+              "PYTHONDONTWRITEBYTECODE": "1",
+              "PYTHONPATH": "/tmp/botbowl-issue20-correction-9kfhevsv/python-src"
+            },
+            "exit": 1,
+            "expected_exit": 1,
+            "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/python-helper.log",
+            "sha256": "dc0a34cf8134b3600932d1b09e83daa541f30f9e929ba09e36ea9b8305418e04"
+          }
+        ],
+        "focused_result": "36 passed",
+        "forward_model_result": "6 passed",
+        "original_reproduction": {
+          "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/python-original-sharing.json",
+          "result": "original reviewer reproduction passes at original head; confirms all six shared containers and 48/142/16 to 96/284/32 growth",
+          "sha256": "3cd82140bd38961215da8c87e5d779ec43f58689704852a030d4d2457747bbdd"
+        },
+        "regression_after": {
+          "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/python-regression-after.log",
+          "result": "7 passed, 29 deselected",
+          "sha256": "07cde73e7e3dc31f8894cbc87139027483d9658fb8af369c6adda514fc4265e0"
+        },
+        "regression_before": {
+          "log": "/tmp/botbowl-issue20-correction-9kfhevsv/evidence/python-regression-before.log",
+          "result": "6 failed, 30 deselected; all fail on construction of a second fixture",
+          "sha256": "5c871358272ec273c449b876db9c53d816e2b2d2faa5d3d6c0f97ebba05d6423"
+        }
+      }
+    }
+  },
+  "evidence_scope": "Original investigation before fixture-isolation correction. These original matrix, source and validation records are retained unchanged; current corrected-source evidence is under correction.",
+  "historical_control_base": "26989d87ac95c8354c68dc08e2d39aad4d995e9e",
+  "matrix": {
+    "native": {
+      "advance_executions": 3026,
+      "checked_game_transitions": 10208,
+      "configuration_count": 24,
+      "configurations": [
+        {
+          "checked_game_transitions": 233,
+          "committed_decision_count": 5,
+          "configuration": {
+            "pathfinding": false,
+            "receiving": 0,
+            "seed": 0,
+            "size": 1
+          },
+          "event_log_sha256": "ff9a328dfb0809386a47396438278eeebcfa6550286cdb7b4e6ca7ec610fba34"
+        },
+        {
+          "checked_game_transitions": 233,
+          "committed_decision_count": 5,
+          "configuration": {
+            "pathfinding": false,
+            "receiving": 0,
+            "seed": 17,
+            "size": 1
+          },
+          "event_log_sha256": "7980043dec7c1e5152c0cb370f751ddabfe87decf434c6dad03ecbece1cc05e0"
+        },
+        {
+          "checked_game_transitions": 233,
+          "committed_decision_count": 5,
+          "configuration": {
+            "pathfinding": false,
+            "receiving": 0,
+            "seed": 3,
+            "size": 1
+          },
+          "event_log_sha256": "e0b16e57c17287bd5aa7a9af929be416924e7c64be91d2a8e61a5ae7f712833e"
+        },
+        {
+          "checked_game_transitions": 233,
+          "committed_decision_count": 5,
+          "configuration": {
+            "pathfinding": true,
+            "receiving": 0,
+            "seed": 0,
+            "size": 1
+          },
+          "event_log_sha256": "156813c2f4a67d55c3ffd50b7e3244d5903c6d127820308d27a38243be4e0499"
+        },
+        {
+          "checked_game_transitions": 233,
+          "committed_decision_count": 5,
+          "configuration": {
+            "pathfinding": true,
+            "receiving": 0,
+            "seed": 17,
+            "size": 1
+          },
+          "event_log_sha256": "5f0d2e2bc6db9e00eab9fe86a1f46099dad961fb96372f87c3c71d5f46bdf8bf"
+        },
+        {
+          "checked_game_transitions": 233,
+          "committed_decision_count": 5,
+          "configuration": {
+            "pathfinding": true,
+            "receiving": 0,
+            "seed": 3,
+            "size": 1
+          },
+          "event_log_sha256": "b74b86b04a484b5db3a29df2f7351e6c7221e47654c54a539cde05c46bc93f18"
+        },
+        {
+          "checked_game_transitions": 249,
+          "committed_decision_count": 6,
+          "configuration": {
+            "pathfinding": false,
+            "receiving": 1,
+            "seed": 0,
+            "size": 1
+          },
+          "event_log_sha256": "f570b06cf8860b5b70e7e6311e0a6fbabc0fde81b37f9fcf9a41c3e349e56e0f"
+        },
+        {
+          "checked_game_transitions": 233,
+          "committed_decision_count": 5,
+          "configuration": {
+            "pathfinding": false,
+            "receiving": 1,
+            "seed": 17,
+            "size": 1
+          },
+          "event_log_sha256": "91da5cc1c86bea43effbe57ea623c784e27d080c4b6198a8564210211650ddf5"
+        },
+        {
+          "checked_game_transitions": 249,
+          "committed_decision_count": 6,
+          "configuration": {
+            "pathfinding": false,
+            "receiving": 1,
+            "seed": 3,
+            "size": 1
+          },
+          "event_log_sha256": "4e0456130e5f89b81f447ff8ee7b526ab168ca0752593cc1af6b610ef0e781e0"
+        },
+        {
+          "checked_game_transitions": 249,
+          "committed_decision_count": 6,
+          "configuration": {
+            "pathfinding": true,
+            "receiving": 1,
+            "seed": 0,
+            "size": 1
+          },
+          "event_log_sha256": "04e94fcbf533e16fcb2da56fbc3fce398842803a95ed93368187309ac7782f09"
+        },
+        {
+          "checked_game_transitions": 233,
+          "committed_decision_count": 5,
+          "configuration": {
+            "pathfinding": true,
+            "receiving": 1,
+            "seed": 17,
+            "size": 1
+          },
+          "event_log_sha256": "5f44f37fc1a22945b22b5f16d9d03c9f9ccb24c3f87bf35485ee6ea33ba03fe4"
+        },
+        {
+          "checked_game_transitions": 249,
+          "committed_decision_count": 6,
+          "configuration": {
+            "pathfinding": true,
+            "receiving": 1,
+            "seed": 3,
+            "size": 1
+          },
+          "event_log_sha256": "5a154c45c022c4a72cd6b1cd3f429b5480665ed43d5c71fe1ae4b38de378fd77"
+        },
+        {
+          "checked_game_transitions": 613,
+          "committed_decision_count": 10,
+          "configuration": {
+            "pathfinding": false,
+            "receiving": 0,
+            "seed": 0,
+            "size": 3
+          },
+          "event_log_sha256": "c7c8392a189b948a213d9320ec15c02822d45a1b89ebcae2b1c27c45b5678a06"
+        },
+        {
+          "checked_game_transitions": 609,
+          "committed_decision_count": 9,
+          "configuration": {
+            "pathfinding": false,
+            "receiving": 0,
+            "seed": 17,
+            "size": 3
+          },
+          "event_log_sha256": "ca818d9db41b1e1301093972d53d6dc7432e110a8a003065f133516e0193fa8f"
+        },
+        {
+          "checked_game_transitions": 625,
+          "committed_decision_count": 10,
+          "configuration": {
+            "pathfinding": false,
+            "receiving": 0,
+            "seed": 3,
+            "size": 3
+          },
+          "event_log_sha256": "7417515e3fca404fba8a46bd4e49c1fabfd4b848bd62e9da27258e715c54d36c"
+        },
+        {
+          "checked_game_transitions": 613,
+          "committed_decision_count": 10,
+          "configuration": {
+            "pathfinding": true,
+            "receiving": 0,
+            "seed": 0,
+            "size": 3
+          },
+          "event_log_sha256": "ca20283255a02322055341355347f91818c1359dbe6d527267ed947920dd8c09"
+        },
+        {
+          "checked_game_transitions": 609,
+          "committed_decision_count": 9,
+          "configuration": {
+            "pathfinding": true,
+            "receiving": 0,
+            "seed": 17,
+            "size": 3
+          },
+          "event_log_sha256": "b16cdda01c1565e5a1cce955879b5c150565e24028e0860e067f8f1ac0666885"
+        },
+        {
+          "checked_game_transitions": 625,
+          "committed_decision_count": 10,
+          "configuration": {
+            "pathfinding": true,
+            "receiving": 0,
+            "seed": 3,
+            "size": 3
+          },
+          "event_log_sha256": "eb68b48d738e5d176ade350ab095517ff39734a9d217405b204daf0664e917cc"
+        },
+        {
+          "checked_game_transitions": 609,
+          "committed_decision_count": 9,
+          "configuration": {
+            "pathfinding": false,
+            "receiving": 1,
+            "seed": 0,
+            "size": 3
+          },
+          "event_log_sha256": "f928008c397fe4eb9847b781cbaffc131ce9133c295b959990bc9c3382ff3266"
+        },
+        {
+          "checked_game_transitions": 609,
+          "committed_decision_count": 9,
+          "configuration": {
+            "pathfinding": false,
+            "receiving": 1,
+            "seed": 17,
+            "size": 3
+          },
+          "event_log_sha256": "22a5b02187dd3ce2a7929c3be7c8505defb44fbf056702a854a3cb009071f150"
+        },
+        {
+          "checked_game_transitions": 609,
+          "committed_decision_count": 9,
+          "configuration": {
+            "pathfinding": false,
+            "receiving": 1,
+            "seed": 3,
+            "size": 3
+          },
+          "event_log_sha256": "4a5eb69db20889fbf7a6d8f3e3b910bf0d633b341c28ba796b2172255c4acd63"
+        },
+        {
+          "checked_game_transitions": 609,
+          "committed_decision_count": 9,
+          "configuration": {
+            "pathfinding": true,
+            "receiving": 1,
+            "seed": 0,
+            "size": 3
+          },
+          "event_log_sha256": "1c162900bef53dcd83786edf3a41406540d4d442694668278ec440e384512618"
+        },
+        {
+          "checked_game_transitions": 609,
+          "committed_decision_count": 9,
+          "configuration": {
+            "pathfinding": true,
+            "receiving": 1,
+            "seed": 17,
+            "size": 3
+          },
+          "event_log_sha256": "c46962e07f911374e045c300a07cbc52e8f9619c92702ce0d49b0b7367e3f779"
+        },
+        {
+          "checked_game_transitions": 609,
+          "committed_decision_count": 9,
+          "configuration": {
+            "pathfinding": true,
+            "receiving": 1,
+            "seed": 3,
+            "size": 3
+          },
+          "event_log_sha256": "bf0ffa530ba0032faaaf6682fc6cde712d707663fcc934403972410c9b84e49e"
+        }
+      ],
+      "environment": {
+        "backend": "botbowl.core.pathfinding.cython_pathfinding",
+        "extension": "/tmp/botbowl-issue20-native-src/botbowl/core/pathfinding/cython_pathfinding.cpython-311-x86_64-linux-gnu.so",
+        "extension_sha256": "d85e3372bdfcd39dd7cb5be6c4300a39cf2dcaab0edda69d41fae564902c7d56",
+        "package": "/tmp/botbowl-issue20-native-src/botbowl/__init__.py",
+        "platform": "Linux-6.8.0-139-generic-x86_64-with-glibc2.39",
+        "python": "3.11.16 (main, Sep  1 2026, 14:18:37) [Clang 22.1.3 ]",
+        "versions": {
+          "gym": "0.26.2",
+          "numpy": "1.26.4",
+          "pytest": "9.1.1",
+          "untangle": "1.2.1"
+        }
+      },
+      "failures": 0,
+      "repeated_query_checks": 240,
+      "round_trip_probes": 774,
+      "whole_sequence_round_trips": 72
+    },
+    "python": {
+      "advance_executions": 3026,
+      "checked_game_transitions": 10208,
+      "configuration_count": 24,
+      "configurations": [
+        {
+          "checked_game_transitions": 233,
+          "committed_decision_count": 5,
+          "configuration": {
+            "pathfinding": false,
+            "receiving": 0,
+            "seed": 0,
+            "size": 1
+          },
+          "event_log_sha256": "ff9a328dfb0809386a47396438278eeebcfa6550286cdb7b4e6ca7ec610fba34"
+        },
+        {
+          "checked_game_transitions": 233,
+          "committed_decision_count": 5,
+          "configuration": {
+            "pathfinding": false,
+            "receiving": 0,
+            "seed": 17,
+            "size": 1
+          },
+          "event_log_sha256": "7980043dec7c1e5152c0cb370f751ddabfe87decf434c6dad03ecbece1cc05e0"
+        },
+        {
+          "checked_game_transitions": 233,
+          "committed_decision_count": 5,
+          "configuration": {
+            "pathfinding": false,
+            "receiving": 0,
+            "seed": 3,
+            "size": 1
+          },
+          "event_log_sha256": "e0b16e57c17287bd5aa7a9af929be416924e7c64be91d2a8e61a5ae7f712833e"
+        },
+        {
+          "checked_game_transitions": 233,
+          "committed_decision_count": 5,
+          "configuration": {
+            "pathfinding": true,
+            "receiving": 0,
+            "seed": 0,
+            "size": 1
+          },
+          "event_log_sha256": "156813c2f4a67d55c3ffd50b7e3244d5903c6d127820308d27a38243be4e0499"
+        },
+        {
+          "checked_game_transitions": 233,
+          "committed_decision_count": 5,
+          "configuration": {
+            "pathfinding": true,
+            "receiving": 0,
+            "seed": 17,
+            "size": 1
+          },
+          "event_log_sha256": "5f0d2e2bc6db9e00eab9fe86a1f46099dad961fb96372f87c3c71d5f46bdf8bf"
+        },
+        {
+          "checked_game_transitions": 233,
+          "committed_decision_count": 5,
+          "configuration": {
+            "pathfinding": true,
+            "receiving": 0,
+            "seed": 3,
+            "size": 1
+          },
+          "event_log_sha256": "b74b86b04a484b5db3a29df2f7351e6c7221e47654c54a539cde05c46bc93f18"
+        },
+        {
+          "checked_game_transitions": 249,
+          "committed_decision_count": 6,
+          "configuration": {
+            "pathfinding": false,
+            "receiving": 1,
+            "seed": 0,
+            "size": 1
+          },
+          "event_log_sha256": "f570b06cf8860b5b70e7e6311e0a6fbabc0fde81b37f9fcf9a41c3e349e56e0f"
+        },
+        {
+          "checked_game_transitions": 233,
+          "committed_decision_count": 5,
+          "configuration": {
+            "pathfinding": false,
+            "receiving": 1,
+            "seed": 17,
+            "size": 1
+          },
+          "event_log_sha256": "91da5cc1c86bea43effbe57ea623c784e27d080c4b6198a8564210211650ddf5"
+        },
+        {
+          "checked_game_transitions": 249,
+          "committed_decision_count": 6,
+          "configuration": {
+            "pathfinding": false,
+            "receiving": 1,
+            "seed": 3,
+            "size": 1
+          },
+          "event_log_sha256": "4e0456130e5f89b81f447ff8ee7b526ab168ca0752593cc1af6b610ef0e781e0"
+        },
+        {
+          "checked_game_transitions": 249,
+          "committed_decision_count": 6,
+          "configuration": {
+            "pathfinding": true,
+            "receiving": 1,
+            "seed": 0,
+            "size": 1
+          },
+          "event_log_sha256": "920e6b2e63d203ea3633e7e277d800241423a5b16e46f0401149e9ab8a3aa538"
+        },
+        {
+          "checked_game_transitions": 233,
+          "committed_decision_count": 5,
+          "configuration": {
+            "pathfinding": true,
+            "receiving": 1,
+            "seed": 17,
+            "size": 1
+          },
+          "event_log_sha256": "5f80c3337c0c5b06c498fbbb88151de845f8e6be672a7db27909fa858f11dfd1"
+        },
+        {
+          "checked_game_transitions": 249,
+          "committed_decision_count": 6,
+          "configuration": {
+            "pathfinding": true,
+            "receiving": 1,
+            "seed": 3,
+            "size": 1
+          },
+          "event_log_sha256": "36c79d0e2f16b77bd45acd5053cc882cf624a3799148a0636b65d28622297ab4"
+        },
+        {
+          "checked_game_transitions": 613,
+          "committed_decision_count": 10,
+          "configuration": {
+            "pathfinding": false,
+            "receiving": 0,
+            "seed": 0,
+            "size": 3
+          },
+          "event_log_sha256": "c7c8392a189b948a213d9320ec15c02822d45a1b89ebcae2b1c27c45b5678a06"
+        },
+        {
+          "checked_game_transitions": 609,
+          "committed_decision_count": 9,
+          "configuration": {
+            "pathfinding": false,
+            "receiving": 0,
+            "seed": 17,
+            "size": 3
+          },
+          "event_log_sha256": "ca818d9db41b1e1301093972d53d6dc7432e110a8a003065f133516e0193fa8f"
+        },
+        {
+          "checked_game_transitions": 625,
+          "committed_decision_count": 10,
+          "configuration": {
+            "pathfinding": false,
+            "receiving": 0,
+            "seed": 3,
+            "size": 3
+          },
+          "event_log_sha256": "7417515e3fca404fba8a46bd4e49c1fabfd4b848bd62e9da27258e715c54d36c"
+        },
+        {
+          "checked_game_transitions": 613,
+          "committed_decision_count": 10,
+          "configuration": {
+            "pathfinding": true,
+            "receiving": 0,
+            "seed": 0,
+            "size": 3
+          },
+          "event_log_sha256": "efaaef07de9600af1b11d32024421e3fc60443af3e897ebacbaf489ccbf7d053"
+        },
+        {
+          "checked_game_transitions": 609,
+          "committed_decision_count": 9,
+          "configuration": {
+            "pathfinding": true,
+            "receiving": 0,
+            "seed": 17,
+            "size": 3
+          },
+          "event_log_sha256": "8c467de29fdbbbdeffd7fe4ca93f055354b39fb78ac2f2dd243c5c8293f5b6b7"
+        },
+        {
+          "checked_game_transitions": 625,
+          "committed_decision_count": 10,
+          "configuration": {
+            "pathfinding": true,
+            "receiving": 0,
+            "seed": 3,
+            "size": 3
+          },
+          "event_log_sha256": "eb68b48d738e5d176ade350ab095517ff39734a9d217405b204daf0664e917cc"
+        },
+        {
+          "checked_game_transitions": 609,
+          "committed_decision_count": 9,
+          "configuration": {
+            "pathfinding": false,
+            "receiving": 1,
+            "seed": 0,
+            "size": 3
+          },
+          "event_log_sha256": "f928008c397fe4eb9847b781cbaffc131ce9133c295b959990bc9c3382ff3266"
+        },
+        {
+          "checked_game_transitions": 609,
+          "committed_decision_count": 9,
+          "configuration": {
+            "pathfinding": false,
+            "receiving": 1,
+            "seed": 17,
+            "size": 3
+          },
+          "event_log_sha256": "22a5b02187dd3ce2a7929c3be7c8505defb44fbf056702a854a3cb009071f150"
+        },
+        {
+          "checked_game_transitions": 609,
+          "committed_decision_count": 9,
+          "configuration": {
+            "pathfinding": false,
+            "receiving": 1,
+            "seed": 3,
+            "size": 3
+          },
+          "event_log_sha256": "4a5eb69db20889fbf7a6d8f3e3b910bf0d633b341c28ba796b2172255c4acd63"
+        },
+        {
+          "checked_game_transitions": 609,
+          "committed_decision_count": 9,
+          "configuration": {
+            "pathfinding": true,
+            "receiving": 1,
+            "seed": 0,
+            "size": 3
+          },
+          "event_log_sha256": "fa838704f03f19ea269161cc02f6e96cec20b2b87cf4e11a8be143db79399495"
+        },
+        {
+          "checked_game_transitions": 609,
+          "committed_decision_count": 9,
+          "configuration": {
+            "pathfinding": true,
+            "receiving": 1,
+            "seed": 17,
+            "size": 3
+          },
+          "event_log_sha256": "90313bbc5ecec4cd3408a0fffed7e3d2e47adfae897a735fb2af1eaae4e878ad"
+        },
+        {
+          "checked_game_transitions": 609,
+          "committed_decision_count": 9,
+          "configuration": {
+            "pathfinding": true,
+            "receiving": 1,
+            "seed": 3,
+            "size": 3
+          },
+          "event_log_sha256": "f580539b38a69e4faa7fa0adc3449d0d675398e868fcdf96ad4ba2047987e33b"
+        }
+      ],
+      "environment": {
+        "backend": "botbowl.core.pathfinding.python_pathfinding",
+        "package": "/usr/local/src/botbowl-worktrees/issue-20/botbowl/__init__.py",
+        "platform": "Linux-6.8.0-139-generic-x86_64-with-glibc2.39",
+        "python": "3.11.16 (main, Sep  1 2026, 14:18:37) [Clang 22.1.3 ]",
+        "versions": {
+          "gym": "0.26.2",
+          "numpy": "1.26.4",
+          "pytest": "9.1.1",
+          "untangle": "1.2.1"
+        }
+      },
+      "failures": 0,
+      "repeated_query_checks": 240,
+      "round_trip_probes": 774,
+      "whole_sequence_round_trips": 72
+    }
+  },
+  "order_correction": {
+    "challenges": {
+      "native": {
+        "artifact": {
+          "path": "/tmp/botbowl-issue20-order-correction/evidence/final-native-challenges.json",
+          "sha256": "febc19a5ac1da9a709f59692c8639d081a687e9fc89d947e82afa56aa23914d2"
+        },
+        "attribution": "Executor replay of the unchanged prior reviewer challenge script; not independent re-review",
+        "backend": "botbowl.core.pathfinding.cython_pathfinding",
+        "counts": {
+          "alias_controls_detected": 12,
+          "configurations": 8,
+          "first_game_unchanged_checks": 45,
+          "independent_graph_pairs": 244,
+          "maximum_graph_size": 1542,
+          "nested_semantic_faults_detected": 13
+        },
+        "order": "loaders-first",
+        "script": {
+          "path": "/tmp/botbowl-issue20-order-correction/challenge.py",
+          "sha256": "635ba0a3a44e9ed97d8f4c530352ad410dc3c5980a5ea278094d611d659d9d2b"
+        }
+      },
+      "python": {
+        "artifact": {
+          "path": "/tmp/botbowl-issue20-order-correction/evidence/final-python-challenges.json",
+          "sha256": "dbf70fa2fe4b04d29f2fddcd8f672944dfe2208e30fbdf52009f3e32a8bc36c4"
+        },
+        "attribution": "Executor replay of the unchanged prior reviewer challenge script; not independent re-review",
+        "backend": "botbowl.core.pathfinding.python_pathfinding",
+        "counts": {
+          "alias_controls_detected": 12,
+          "configurations": 8,
+          "first_game_unchanged_checks": 45,
+          "independent_graph_pairs": 244,
+          "maximum_graph_size": 1542,
+          "nested_semantic_faults_detected": 13
+        },
+        "order": "loaders-first",
+        "script": {
+          "path": "/tmp/botbowl-issue20-order-correction/challenge.py",
+          "sha256": "635ba0a3a44e9ed97d8f4c530352ad410dc3c5980a5ea278094d611d659d9d2b"
+        }
+      }
+    },
+    "controls": {
+      "native-consumer-side0": {
+        "matches_original_json": true,
+        "path": "/tmp/botbowl-issue20-order-correction/evidence/final-native-consumer-side0.log",
+        "sha256": "6a0f6d813fa1ed78a2de32180afaed6d6dea3ce9ef564fb9f80ac6bfb25eea49"
+      },
+      "native-consumer-side1": {
+        "matches_original_json": true,
+        "path": "/tmp/botbowl-issue20-order-correction/evidence/final-native-consumer-side1.log",
+        "sha256": "44b0485abb74182020f4ea6e2291824242b5f0598bb04bb7111a66239f6b2b58"
+      },
+      "native-helper": {
+        "matches_original_json": true,
+        "path": "/tmp/botbowl-issue20-order-correction/evidence/final-native-helper.log",
+        "sha256": "dc0a34cf8134b3600932d1b09e83daa541f30f9e929ba09e36ea9b8305418e04"
+      },
+      "native-setup-side0": {
+        "matches_original_json": true,
+        "path": "/tmp/botbowl-issue20-order-correction/evidence/final-native-setup-side0.log",
+        "sha256": "52dc8b83d19b4619aa8d7bbb17d635de93a7e3f6e7b83967bdc654fbc5427d44"
+      },
+      "native-setup-side1": {
+        "matches_original_json": true,
+        "path": "/tmp/botbowl-issue20-order-correction/evidence/final-native-setup-side1.log",
+        "sha256": "8c8ccc48340ee7cabe3405be3180b170a041d35f5a29fe4a8ebaf94016cc8b5a"
+      },
+      "python-consumer-side0": {
+        "matches_original_json": true,
+        "path": "/tmp/botbowl-issue20-order-correction/evidence/final-python-consumer-side0.log",
+        "sha256": "6a0f6d813fa1ed78a2de32180afaed6d6dea3ce9ef564fb9f80ac6bfb25eea49"
+      },
+      "python-consumer-side1": {
+        "matches_original_json": true,
+        "path": "/tmp/botbowl-issue20-order-correction/evidence/final-python-consumer-side1.log",
+        "sha256": "44b0485abb74182020f4ea6e2291824242b5f0598bb04bb7111a66239f6b2b58"
+      },
+      "python-helper": {
+        "matches_original_json": true,
+        "path": "/tmp/botbowl-issue20-order-correction/evidence/final-python-helper.log",
+        "sha256": "dc0a34cf8134b3600932d1b09e83daa541f30f9e929ba09e36ea9b8305418e04"
+      },
+      "python-setup-side0": {
+        "matches_original_json": true,
+        "path": "/tmp/botbowl-issue20-order-correction/evidence/final-python-setup-side0.log",
+        "sha256": "52dc8b83d19b4619aa8d7bbb17d635de93a7e3f6e7b83967bdc654fbc5427d44"
+      },
+      "python-setup-side1": {
+        "matches_original_json": true,
+        "path": "/tmp/botbowl-issue20-order-correction/evidence/final-python-setup-side1.log",
+        "sha256": "8c8ccc48340ee7cabe3405be3180b170a041d35f5a29fe4a8ebaf94016cc8b5a"
+      }
+    },
+    "correction": "Run the existing XML loader in a private namespace with explicit empty RuleSet containers; detach nested defaults and copy per game; reuse complete consistency observations only within the same transition",
+    "environment": {
+      "python": "3.11.16 (main, Sep  1 2026, 14:18:37) [Clang 22.1.3 ]",
+      "versions": {
+        "Cython": "3.3.0",
+        "Flask": "3.1.3",
+        "docker": "6.1.1",
+        "gym": "0.26.2",
+        "numpy": "1.26.4",
+        "pytest": "9.1.1",
+        "requests": "2.31.0",
+        "setuptools": "84.0.0",
+        "tabulate": "0.9.0",
+        "untangle": "1.2.1"
+      }
+    },
+    "environment_failures": {
+      "disposition": "Initial missing requests collection errors and missing competition dependencies are preserved. The incomplete-environment runs were interrupted after diagnosis; successful full suites restarted unchanged in normal order after installing dependencies only into the isolated runtime.",
+      "native-full-missing-requests.log": {
+        "path": "/tmp/botbowl-issue20-order-correction/evidence/native-full-missing-requests.log",
+        "sha256": "bbd2711acbd772e5771adcb47841f7510b6da9206653f164ef345ef98064e6be"
+      },
+      "native-incomplete-environment-full.log": {
+        "path": "/tmp/botbowl-issue20-order-correction/evidence/native-incomplete-environment-full.log",
+        "sha256": "2d1379f1aaae2475b805fdc22f916624eb9d992c77a333149eb3f95822ddfc27"
+      },
+      "python-full-missing-requests.log": {
+        "path": "/tmp/botbowl-issue20-order-correction/evidence/python-full-missing-requests.log",
+        "sha256": "0d62e103f4a25e3ee1742fb908032c310c6d719af0877cc4b3f80ad9b8884423"
+      },
+      "python-incomplete-environment-full.log": {
+        "path": "/tmp/botbowl-issue20-order-correction/evidence/python-incomplete-environment-full.log",
+        "sha256": "ecc7e615e442516c6a1c6c6618c5c7e8c2836cb94d4c9417dd6371b2975d4c08"
+      }
+    },
+    "evidence_root": "/tmp/botbowl-issue20-order-correction",
+    "finding": "Ordinary preceding loader calls inflated the detached rules blueprint and repeated observation cost",
+    "fresh_observation": {
+      "construction_seconds": 0.06709077900086413,
+      "fixture_semantics_sha256": "fda7a80a2b1cdc79b5a9a5fddcb8573d71f72ebc6e814bc2fc9a90c0e3415236",
+      "rules_counts": {
+        "improvements": 6,
+        "inducements": 8,
+        "races": 24,
+        "spp_actions": 5,
+        "spp_levels": 7,
+        "star_players": 71
+      },
+      "semantic_seconds": 0.0061541542003396895
+    },
+    "full_suite_observer": {
+      "path": "/tmp/botbowl-issue20-order-correction/order_observation.py",
+      "sha256": "cb144a2682494d41ae5afbc9fe2ae643e4c5c2051137a6dc2cce0a82629e6bc8"
+    },
+    "matrix": {
+      "native": {
+        "advance_executions": 3026,
+        "all_files_byte_identical_to_prior_correction_and_normal_order_full_run": true,
+        "checked_game_transitions": 10208,
+        "configuration_count": 24,
+        "evidence_sha256": {
+          "size1-side0-pfFalse-seed0.json": "d99d0b586da353a991e7073c6e41208c5cdc0dbe311ec6bac9a72b8ed855e623",
+          "size1-side0-pfFalse-seed17.json": "c1cb4d5b0d0e594f8d2a717feeec191d42626ca81143445a44aaca0daff54705",
+          "size1-side0-pfFalse-seed3.json": "eee03e3af0fa2f031600a37ead0b6c729461c76b8393f3e320c4c366b9b8514c",
+          "size1-side0-pfTrue-seed0.json": "a401dfb0b84f6d84d6c5728098c9d8becbadc1da271145c69173916d492ca8af",
+          "size1-side0-pfTrue-seed17.json": "89821f5de7888c23f7407a8e89818399c3a0f0b2cc70f21c7dd16df20e402e8a",
+          "size1-side0-pfTrue-seed3.json": "2fc63f56dcd33d0fad60bbce6baa18b336b8a19f0d7f374cfd13ff1980fc7960",
+          "size1-side1-pfFalse-seed0.json": "ae99f9202ab12a78421c07dd17f3d4acf1f88a03207d45a67048e2f67b1d627b",
+          "size1-side1-pfFalse-seed17.json": "88ecacf3b313d33817a59f60cae387d9818e572a1f37ee4c1610b248a48c3714",
+          "size1-side1-pfFalse-seed3.json": "8eb8b2d79d35c90d8dde5ada7541c5b20f734c39a0f830c3c2fbb83925c75ac3",
+          "size1-side1-pfTrue-seed0.json": "931e15dcdc929f8ec1cc61b631a2e9e80e3f1052868d15c7795442826c284ec7",
+          "size1-side1-pfTrue-seed17.json": "43ff2b9f1c08ac1fd1e8456df6896c3a8620ef5eda64cfd88bf5028185afd63c",
+          "size1-side1-pfTrue-seed3.json": "3005ce21c6fbdf874d864cbed056939d41f264005aba7efa61b527f5af696cc4",
+          "size3-side0-pfFalse-seed0.json": "19968287107ba5e44256443e6f770b5f10968f0d2fdc63c008307b1f7062b18c",
+          "size3-side0-pfFalse-seed17.json": "1e8230160a2595a4dc2c068b60db28a03f7b31ade0a4a8ffd597a0ea9e636b7e",
+          "size3-side0-pfFalse-seed3.json": "0c1926c042937c9334d18a4b38d6d0313465acd4d3938bb05f58fbff22893356",
+          "size3-side0-pfTrue-seed0.json": "560eaadefed6a153e40e281417bdbe67e557b84196e5fa590eb41f43b1d8c078",
+          "size3-side0-pfTrue-seed17.json": "d86420ec81537e9452dc549c9f6af50784cef4d387642edd5c08f3ac061d5cde",
+          "size3-side0-pfTrue-seed3.json": "1d4037bc4b7a91ec16ab63689643b9b79b34ee7d66d929678dcd259f14729048",
+          "size3-side1-pfFalse-seed0.json": "70256882f8c8aeb345b9136b5252ca0a36c694f0f8c22337d447f17e173a38c9",
+          "size3-side1-pfFalse-seed17.json": "777674502b186e584aa64697f4f327507fdb67eec62f850e3aa16a5627f46fda",
+          "size3-side1-pfFalse-seed3.json": "352ec283024f293307db81a3ca9c7988083fbebe779e9418392daa3197b9215a",
+          "size3-side1-pfTrue-seed0.json": "6d5bcf31d50289d7d21ec6fd113a56d56c7481dfdf7d6ba88cbe3b1c115b08e3",
+          "size3-side1-pfTrue-seed17.json": "d1a5329d4585fda6e8da017a4dec52a8cbbc04bf012332162d8346852c8cbce2",
+          "size3-side1-pfTrue-seed3.json": "9bfdd3f691f1897a1eea044bc5e8ebbefcc1fb23b1a2efef8b28d60a84bc65c1"
+        },
+        "failures": 0,
+        "one_action_round_trip_probes": 774,
+        "repeated_queries": 240,
+        "whole_sequence_round_trips": 72
+      },
+      "python": {
+        "advance_executions": 3026,
+        "all_files_byte_identical_to_prior_correction_and_normal_order_full_run": true,
+        "checked_game_transitions": 10208,
+        "configuration_count": 24,
+        "evidence_sha256": {
+          "size1-side0-pfFalse-seed0.json": "d99d0b586da353a991e7073c6e41208c5cdc0dbe311ec6bac9a72b8ed855e623",
+          "size1-side0-pfFalse-seed17.json": "c1cb4d5b0d0e594f8d2a717feeec191d42626ca81143445a44aaca0daff54705",
+          "size1-side0-pfFalse-seed3.json": "eee03e3af0fa2f031600a37ead0b6c729461c76b8393f3e320c4c366b9b8514c",
+          "size1-side0-pfTrue-seed0.json": "a401dfb0b84f6d84d6c5728098c9d8becbadc1da271145c69173916d492ca8af",
+          "size1-side0-pfTrue-seed17.json": "89821f5de7888c23f7407a8e89818399c3a0f0b2cc70f21c7dd16df20e402e8a",
+          "size1-side0-pfTrue-seed3.json": "2fc63f56dcd33d0fad60bbce6baa18b336b8a19f0d7f374cfd13ff1980fc7960",
+          "size1-side1-pfFalse-seed0.json": "ae99f9202ab12a78421c07dd17f3d4acf1f88a03207d45a67048e2f67b1d627b",
+          "size1-side1-pfFalse-seed17.json": "88ecacf3b313d33817a59f60cae387d9818e572a1f37ee4c1610b248a48c3714",
+          "size1-side1-pfFalse-seed3.json": "8eb8b2d79d35c90d8dde5ada7541c5b20f734c39a0f830c3c2fbb83925c75ac3",
+          "size1-side1-pfTrue-seed0.json": "5ffc161f81864e2d11f917a59f3cfc5609e7d8da884a0aac4a8566a2824fb3ea",
+          "size1-side1-pfTrue-seed17.json": "311d4b921aefbbaf452862c04b383ed36aa113fbd99e0017822e6f98f2a6c6fd",
+          "size1-side1-pfTrue-seed3.json": "1265a9d7641c8385c527aac067d5ab0d83843bd928418086a6b0fee57164f8cf",
+          "size3-side0-pfFalse-seed0.json": "19968287107ba5e44256443e6f770b5f10968f0d2fdc63c008307b1f7062b18c",
+          "size3-side0-pfFalse-seed17.json": "1e8230160a2595a4dc2c068b60db28a03f7b31ade0a4a8ffd597a0ea9e636b7e",
+          "size3-side0-pfFalse-seed3.json": "0c1926c042937c9334d18a4b38d6d0313465acd4d3938bb05f58fbff22893356",
+          "size3-side0-pfTrue-seed0.json": "2c9925a74ac78f3788f3dbb85f7ea6b1d9bf40224bfeaace082e007addbfb03e",
+          "size3-side0-pfTrue-seed17.json": "252e85a74ca53d69e8aa93cbf85b29c0e25b42c9fd2b6eaff5e3fc5b7e2ea9ce",
+          "size3-side0-pfTrue-seed3.json": "1d4037bc4b7a91ec16ab63689643b9b79b34ee7d66d929678dcd259f14729048",
+          "size3-side1-pfFalse-seed0.json": "70256882f8c8aeb345b9136b5252ca0a36c694f0f8c22337d447f17e173a38c9",
+          "size3-side1-pfFalse-seed17.json": "777674502b186e584aa64697f4f327507fdb67eec62f850e3aa16a5627f46fda",
+          "size3-side1-pfFalse-seed3.json": "352ec283024f293307db81a3ca9c7988083fbebe779e9418392daa3197b9215a",
+          "size3-side1-pfTrue-seed0.json": "e2b6baeecae245f8ea53824ab02c60a70189d1ec807bba4ff74ee768b9fbd8bd",
+          "size3-side1-pfTrue-seed17.json": "77c9c9df5312589e690f339672ff61c25cf2f30c44c18305a20ad44d3b8c67f0",
+          "size3-side1-pfTrue-seed3.json": "3639c32fd9930cea9932ee7dba61180e377daca09fbe2e6ad87792e9da19fa31"
+        },
+        "failures": 0,
+        "one_action_round_trip_probes": 774,
+        "repeated_queries": 240,
+        "whole_sequence_round_trips": 72
+      }
+    },
+    "native_build": {
+      "path": "/tmp/botbowl-issue20-order-correction/evidence/native-build.log",
+      "sha256": "861ce0e3283a255768b996bbb0e1cdc56ae9ad6d8b93b164436bf59fd3c9f6fb"
+    },
+    "observer_optimization": {
+      "comparison": {
+        "path": "/tmp/botbowl-issue20-order-correction/evidence/observer-speed-comparison.json",
+        "sha256": "0100f5ef748e76a115d3309d34927674077ddd936e778a418d6e5e2b4d7586f5"
+      },
+      "controls": {
+        "path": "/tmp/botbowl-issue20-order-correction/evidence/optimized-observer-controls.log",
+        "sha256": "0994c58315c4bfc17fbf3ec27b74ca773044ef3afe21478465164bba75318e80"
+      },
+      "description": "Encode all dictionary entries, order by encoded key representation plus delimiter, and retain full entry ordering for normalized-key ties; exact scalar fast path retains NumPy conversion"
+    },
+    "prefix": {
+      "native": {
+        "artifact": {
+          "path": "/tmp/botbowl-issue20-order-correction/evidence/final-native-prefix-observation.json",
+          "sha256": "3f65796ee38d971b93ff80fe7d343a65ad4cd5405fc5d729a404e6192958ce1a"
+        },
+        "construction_seconds": 0.1205935350008076,
+        "disposition": "Observation at first matrix item; normal-order full suite continues unchanged",
+        "fixture_semantics_sha256": "fda7a80a2b1cdc79b5a9a5fddcb8573d71f72ebc6e814bc2fc9a90c0e3415236",
+        "next_nodeid": "tests/framework/test_quick_snap_forward_model.py::test_quick_snap_advance_revert_forward_clean_equivalence[0-False-0-1]",
+        "preceding_passing_calls": 568,
+        "prefix_seconds": 384.7052911889987,
+        "rules_counts": {
+          "improvements": 6,
+          "inducements": 8,
+          "races": 24,
+          "spp_actions": 5,
+          "spp_levels": 7,
+          "star_players": 71
+        },
+        "semantic_seconds": 0.0060820644001069015
+      },
+      "python": {
+        "artifact": {
+          "path": "/tmp/botbowl-issue20-order-correction/evidence/final-python-prefix-observation.json",
+          "sha256": "98ad2ca4a8ce5b8a4c25da85a9ff71f9fd0d710a6eb424ddb3f85c166029777f"
+        },
+        "construction_seconds": 0.2456481410008564,
+        "disposition": "Observation at first matrix item; normal-order full suite continues unchanged",
+        "fixture_semantics_sha256": "fda7a80a2b1cdc79b5a9a5fddcb8573d71f72ebc6e814bc2fc9a90c0e3415236",
+        "next_nodeid": "tests/framework/test_quick_snap_forward_model.py::test_quick_snap_advance_revert_forward_clean_equivalence[0-False-0-1]",
+        "preceding_passing_calls": 289,
+        "prefix_seconds": 176.6792853989973,
+        "rules_counts": {
+          "improvements": 6,
+          "inducements": 8,
+          "races": 24,
+          "spp_actions": 5,
+          "spp_levels": 7,
+          "star_players": 71
+        },
+        "semantic_seconds": 0.005477941600111081
+      }
+    },
+    "preoptimization_full_suites": {
+      "native": {
+        "path": "/tmp/botbowl-issue20-order-correction/evidence/native-full.log",
+        "sha256": "d8c46c7a72608d8e4f8cca5d95d134d8d78b2537274b98312dd4197ca4062920"
+      },
+      "python": {
+        "path": "/tmp/botbowl-issue20-order-correction/evidence/python-full.log",
+        "sha256": "97796467b5c4d825259b3dab4cc798a21990a15cc75052becbdd82019247d9b1"
+      }
+    },
+    "preoptimization_source": {
+      "path": "/tmp/botbowl-issue20-order-correction/evidence/test-before-observer-optimization.py",
+      "sha256": "b00dd4eb0f83d8be652d4cd92d697f3e2d999dbb3e81bb83b0af7707b270fd26"
+    },
+    "previous_head": "cd248094aae55f0ebbaf2c5083f4da29c0e4e565",
+    "prior_evidence_scope": "Original records and the correction section are retained unchanged and keep their original source attribution. The original Quick Snap crash remains unreproduced and unresolved; setup undo, helper KeyError and example hash alias remain distinct findings. Hash alias does not demonstrate historical cache misselection.",
+    "prior_order_probe": {
+      "path": "/tmp/botbowl-review20-corrected-9cg3_tep/order_probe.py",
+      "sha256": "9376e5b5ea60642e9e4b23d22786bc9f8b5bd0e69969f1d59c80a4d840db0c92"
+    },
+    "prior_prefix": {
+      "path": "/tmp/botbowl-review20-corrected-9cg3_tep/evidence/python-prefix-observation.json",
+      "sha256": "220cc2c3bac9f968b70d160231dd485b63fcbd25b60436f7d3a4ca994d38176b"
+    },
+    "prior_review": {
+      "path": "/tmp/botbowl-review20-corrected-9cg3_tep/review.md",
+      "sha256": "400080b7473df5d8b7036f7a98b8a962fba5ae38a9ffb476c1f7d17d92a35451"
+    },
+    "production_or_inherited_tests_or_ci_changed": false,
+    "regression_after": {
+      "path": "/tmp/botbowl-issue20-order-correction/evidence/regression-after.log",
+      "sha256": "5dc3941a6657ffd1531ac8064e459b716330c877ed0f2762aa0535e292375220"
+    },
+    "regression_before": {
+      "native": {
+        "path": "/tmp/botbowl-issue20-order-correction/evidence/native-regression-before.log",
+        "sha256": "7039660aaf3fbce7a864d249889b425756fcfd65ed710896b99e7125a8d6e735"
+      },
+      "python": {
+        "path": "/tmp/botbowl-issue20-order-correction/evidence/regression-before.log",
+        "sha256": "2a2f849153678794167ced67e3a1788160b412ae503f1e736e0fba26f83e7e67"
+      }
+    },
+    "regression_before_source": {
+      "path": "/tmp/botbowl-issue20-order-correction/evidence/test-regression-before.py",
+      "sha256": "0cabcc672e9f04863779bf00ec509a6b4c5ff6d28ccff48c73604ce402de6799"
+    },
+    "source_manifest": {
+      "path": "/tmp/botbowl-issue20-order-correction/source-manifest.json",
+      "sha256": "a8dd699413b005ae68b4c03523de71470fa097aa25ad1761407822d8a88a7ef0"
+    },
+    "source_sha256": {
+      "botbowl/core/forward_model.py": "8b9a688c5cda7ab7582feb9f0775b90f886b988b94bd1d1c8e33d4864b2ec585",
+      "botbowl/core/game.py": "254d9840c833fb61209bc8121f406580d0ba30464a5dc5f4dfecc671a9eccd33",
+      "botbowl/core/model.py": "2193f32fbceed70df8e934a45693a7a1cf10e1b235388f90a8f4453e4b0e40fa",
+      "botbowl/core/procedure.py": "4c142b4fc35b3aafa8098cd25d4da776fe2fdccb7d450974151285ae380a40f5",
+      "botbowl/core/util.py": "3210d61aa823bfbb8e97789748533463131c25e890b8314521b1a2c43c6e3fbd",
+      "docs/reports/packaging-forward-model-reproduction.py": "fc2fd8ffee724d160f66ad31f0a935cb924ef188f856c6db313a856443466c5b",
+      "docs/reports/quick-snap-diagnosis.py": "f235971ac9f140ada7ce37b40b587d05af948e041e55d287e844d53bb65f2708",
+      "examples/hash_example.py": "4c7a3c74779a189491593e499700cbfda616eb9de7e5aefa5224d437332dd560",
+      "examples/mcts_example.py": "77116f44159735ee0eb719c5a1f5d72286f11c4a0cf3fd0109557f8a607077c6",
+      "tests/framework/test_forward_model.py": "691dd45bd6d643ffc91c24ef460af30cd068efcbe1633f42967fb1a67a66a4ce",
+      "tests/framework/test_quick_snap_forward_model.py": "1538400cb8dcaf4b0e427d66125697b695aa1d403833ab3bf4f5b1e6d160a7d9"
+    },
+    "validation": {
+      "native": {
+        "focused": {
+          "command": [
+            "/tmp/botbowl-issue20-order-correction/env/bin/python",
+            "-m",
+            "pytest",
+            "tests/framework/test_quick_snap_forward_model.py",
+            "tests/framework/test_forward_model.py",
+            "-q",
+            "--require-pathfinding",
+            "native"
+          ],
+          "cwd": "/tmp/botbowl-issue20-order-correction/final-native-src",
+          "log": {
+            "path": "/tmp/botbowl-issue20-order-correction/evidence/final-native-focused-forward.log",
+            "sha256": "b1246f1a31f978f6e295744cdd19fab84317709f690bd489a4a30f9163428a61"
+          },
+          "result": "38 investigation + 6 existing forward-model tests passed"
+        },
+        "full": {
+          "command": [
+            "/tmp/botbowl-issue20-order-correction/env/bin/python",
+            "-m",
+            "pytest",
+            "-p",
+            "order_observation",
+            "-q",
+            "--require-pathfinding",
+            "native",
+            "--junitxml=/tmp/botbowl-issue20-order-correction/evidence/final-native-full.xml"
+          ],
+          "cwd": "/tmp/botbowl-issue20-order-correction/final-native-src",
+          "environment": {
+            "BOTBOWL_ISSUE20_EVIDENCE": "/tmp/botbowl-issue20-order-correction/evidence/final-native-full-matrix",
+            "ORDER_OBSERVATION": "/tmp/botbowl-issue20-order-correction/evidence/final-native-prefix-observation.json",
+            "PYTHONPATH": "..:."
+          },
+          "junit": {
+            "path": "/tmp/botbowl-issue20-order-correction/evidence/final-native-full.xml",
+            "sha256": "42578481bb3e86f2860f5237b5f15231b3e7be2417785b310b0578a9136b34b7"
+          },
+          "junit_counts": {
+            "errors": "0",
+            "failures": "0",
+            "hostname": "skynet",
+            "name": "pytest",
+            "skipped": "1",
+            "tests": "1134",
+            "time": "808.751",
+            "timestamp": "2026-09-07T13:49:45.105780+02:00"
+          },
+          "log": {
+            "path": "/tmp/botbowl-issue20-order-correction/evidence/final-native-full.log",
+            "sha256": "1dc00b071aa591122e84f519e40ce5974c5a9c8bd133685757114ea215bd3294"
+          },
+          "result": "1133 passed, 1 xfailed"
+        },
+        "original_sharing": {
+          "reproducer": {
+            "path": "/tmp/botbowl-issue20-order-correction/shared_ruleset_repro.py",
+            "sha256": "ac307e2f9d20a54db63a2aeac82396af2bc5cfcd73ce19338929bbfe4e66caa2"
+          },
+          "result": {
+            "path": "/tmp/botbowl-issue20-order-correction/evidence/native-original-sharing.json",
+            "sha256": "332691be3bde4104ef8a8a251bb29c04fae03d26ec8ddf5ecbc1bd93e2f7454e"
+          }
+        }
+      },
+      "python": {
+        "focused": {
+          "command": [
+            "/tmp/botbowl-issue20-order-correction/env/bin/python",
+            "-m",
+            "pytest",
+            "tests/framework/test_quick_snap_forward_model.py",
+            "tests/framework/test_forward_model.py",
+            "-q",
+            "--require-pathfinding",
+            "python"
+          ],
+          "cwd": "/tmp/botbowl-issue20-order-correction/final-python-src",
+          "log": {
+            "path": "/tmp/botbowl-issue20-order-correction/evidence/final-python-focused-forward.log",
+            "sha256": "dd148d7e94e4adf2c7c28b335c655d6ecf014e65321c0e7e58cbe73c878f9478"
+          },
+          "result": "38 investigation + 6 existing forward-model tests passed"
+        },
+        "full": {
+          "command": [
+            "/tmp/botbowl-issue20-order-correction/env/bin/python",
+            "-m",
+            "pytest",
+            "-p",
+            "order_observation",
+            "-q",
+            "--require-pathfinding",
+            "python",
+            "--junitxml=/tmp/botbowl-issue20-order-correction/evidence/final-python-full.xml"
+          ],
+          "cwd": "/tmp/botbowl-issue20-order-correction/final-python-src",
+          "environment": {
+            "BOTBOWL_ISSUE20_EVIDENCE": "/tmp/botbowl-issue20-order-correction/evidence/final-python-full-matrix",
+            "ORDER_OBSERVATION": "/tmp/botbowl-issue20-order-correction/evidence/final-python-prefix-observation.json",
+            "PYTHONPATH": "..:."
+          },
+          "junit": {
+            "path": "/tmp/botbowl-issue20-order-correction/evidence/final-python-full.xml",
+            "sha256": "ae7d65259b2a740e36297d511246161c675153c897d61dc1a864e7353b00f155"
+          },
+          "junit_counts": {
+            "errors": "0",
+            "failures": "0",
+            "hostname": "skynet",
+            "name": "pytest",
+            "skipped": "280",
+            "tests": "1134",
+            "time": "618.982",
+            "timestamp": "2026-09-07T13:49:45.105257+02:00"
+          },
+          "log": {
+            "path": "/tmp/botbowl-issue20-order-correction/evidence/final-python-full.log",
+            "sha256": "7a3cc93b1333d8f9b2bb3492e0cca9951a66780e31490ffa5cbc11fe1f64fa35"
+          },
+          "result": "854 passed, 279 skipped, 1 xfailed"
+        },
+        "original_sharing": {
+          "reproducer": {
+            "path": "/tmp/botbowl-issue20-order-correction/shared_ruleset_repro.py",
+            "sha256": "ac307e2f9d20a54db63a2aeac82396af2bc5cfcd73ce19338929bbfe4e66caa2"
+          },
+          "result": {
+            "path": "/tmp/botbowl-issue20-order-correction/evidence/python-original-sharing.json",
+            "sha256": "3cd82140bd38961215da8c87e5d779ec43f58689704852a030d4d2457747bbdd"
+          }
+        }
+      }
+    }
+  },
+  "original_quick_snap_crash": "not reproduced; risk unresolved",
+  "recorded_head": "47593b6af2afc8ae3a014faf79c8401a55443efc",
+  "source_sha256": {
+    "botbowl/core/forward_model.py": "8b9a688c5cda7ab7582feb9f0775b90f886b988b94bd1d1c8e33d4864b2ec585",
+    "botbowl/core/game.py": "254d9840c833fb61209bc8121f406580d0ba30464a5dc5f4dfecc671a9eccd33",
+    "botbowl/core/model.py": "2193f32fbceed70df8e934a45693a7a1cf10e1b235388f90a8f4453e4b0e40fa",
+    "botbowl/core/procedure.py": "4c142b4fc35b3aafa8098cd25d4da776fe2fdccb7d450974151285ae380a40f5",
+    "botbowl/core/util.py": "3210d61aa823bfbb8e97789748533463131c25e890b8314521b1a2c43c6e3fbd",
+    "docs/reports/packaging-forward-model-reproduction.py": "fc2fd8ffee724d160f66ad31f0a935cb924ef188f856c6db313a856443466c5b",
+    "docs/reports/quick-snap-diagnosis.py": "f235971ac9f140ada7ce37b40b587d05af948e041e55d287e844d53bb65f2708",
+    "examples/hash_example.py": "4c7a3c74779a189491593e499700cbfda616eb9de7e5aefa5224d437332dd560",
+    "examples/mcts_example.py": "77116f44159735ee0eb719c5a1f5d72286f11c4a0cf3fd0109557f8a607077c6",
+    "tests/framework/test_forward_model.py": "691dd45bd6d643ffc91c24ef460af30cd068efcbe1633f42967fb1a67a66a4ce",
+    "tests/framework/test_quick_snap_forward_model.py": "6434ca546d2bfb04d62e359f797b3ce82f65e66ac7ab8e6228f72a45cf78b925"
+  },
+  "validation": {
+    "native_focused": {
+      "command": "python -m pytest /usr/local/src/botbowl-worktrees/issue-20/tests/framework/test_quick_snap_forward_model.py --import-mode=importlib -q --require-pathfinding native",
+      "cwd": "/tmp/botbowl-issue20-native-src",
+      "log": "quick-snap-native-publish.log",
+      "result": "29 passed",
+      "sha256": "ec383501bf3306e821c92567bbe4a2e308971bac2896cbf816da3c51d8f8edbd"
+    },
+    "native_full_suite": {
+      "command": "python -m pytest -q --require-pathfinding native",
+      "cwd": "/tmp/botbowl-issue20-native-src",
+      "existing_source_and_tests_match_accepted_base": true,
+      "focused_harness_sha256": "9c6faccc51f900360bef910be355340b10f9b9a3976ee8fbbb4968837eee86b5",
+      "log": "full-native.log",
+      "note": "Full run includes 29-test observer precursor. Final observer adds ball/branch-state identity assertions and richer failure records; its exact source separately passes all 29 tests on both backends. Existing 1095 tests and engine match accepted base.",
+      "result": "1124 passed, 1 inherited timestamp xfailed",
+      "sha256": "291166e174c16c83992e72d407f10017c7d0cd474fc952cffed0dd7588566ae4"
+    },
+    "python_existing_suite": {
+      "command": "python -m pytest -q --require-pathfinding python --ignore=tests/framework/test_quick_snap_forward_model.py",
+      "log": "full-python-existing.log",
+      "result": "816 passed, 279 skipped, 1 inherited timestamp xfailed",
+      "sha256": "b6e3b177f0383320cb7f5d66a3c8dc759690fe0f49480564b8cffbf3fc5e8975"
+    },
+    "python_focused": {
+      "command": "python -m pytest tests/framework/test_quick_snap_forward_model.py -q --require-pathfinding python",
+      "log": "quick-snap-python-publish.log",
+      "result": "29 passed",
+      "sha256": "d64edef1deab1267d59c35535c35418e0e4064e5ac8bde080031509aa3f9751e"
+    }
+  }
+}

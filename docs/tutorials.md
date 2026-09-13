@@ -4,7 +4,10 @@ Welcome to our tutorials on how to use botbowl. These resources are sufficient t
 
 ## Getting Started
 1. [**Installation**](installation.md)
-2. [**Running the Web Server**](server.md)
+2. [**Minimal Headless Core**](quickstart-core.md)
+3. [**Registered Bots**](quickstart-bots.md)
+4. [**Gymnasium v5**](quickstart-gymnasium.md)
+5. [**Optional Web UI**](quickstart-web.md)
 
 ## Scripted Bots
 1. [**Scripted Bots I: Getting Started**](bots.md)
@@ -26,5 +29,5 @@ Welcome to our tutorials on how to use botbowl. These resources are sufficient t
 ## Submit
 1. [**Submit to Bot Bowl**](submit.md)
 
-If you find any problems or have questions as you go through the tutorials, please report an issue on [https://github.com/njustesen/botbowl/](github).
-You are also welcome to join the discussions on our [https://discord.gg/MTXMuae](Discord server).
+If you find a fork problem, report it in the [maintained issue tracker](https://github.com/murillo128/botbowl/issues). Upstream history remains at [njustesen/botbowl](https://github.com/njustesen/botbowl).
+You are also welcome to join the discussions on our [Discord server](https://discord.gg/MTXMuae).

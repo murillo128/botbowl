@@ -54,8 +54,6 @@ class ProcBot(Agent):
             action = self.turn(game)
         elif isinstance(proc, MoveAction):
             action = self.player_action(game)
-        elif isinstance(proc, MoveAction):
-            action = self.player_action(game)
         elif isinstance(proc, BlockAction):
             action = self.player_action(game)
         elif isinstance(proc, PassAction):
@@ -82,6 +80,8 @@ class ProcBot(Agent):
                 action = self.push(game)
         elif isinstance(proc, FollowUp):
             action = self.follow_up(game)
+        elif isinstance(proc, Shadowing):
+            action = self.use_shadowing(game)
         elif isinstance(proc, Apothecary):
             action = self.apothecary(game)
         elif isinstance(proc, Interception):
@@ -91,7 +91,7 @@ class ProcBot(Agent):
         elif isinstance(proc, EatThrall):
             action = self.eat_thrall(game)
         else:
-            raise Exception("Unknown procedure")
+            raise Exception(f"Unknown procedure: {type(proc).__name__}")
 
         if action is None:
             assert action is not None
@@ -116,6 +116,16 @@ class ProcBot(Agent):
 
     def use_stand_firm(self, game):
         raise NotImplementedError("This method must be overridden by non-human subclasses")
+
+    def use_shadowing(self, game):
+        """Decline Shadowing by default; subclasses can choose to use it."""
+        for choice in game.get_available_actions():
+            if choice.action_type == ActionType.DONT_USE_SKILL and not choice.disabled:
+                action = Action(ActionType.DONT_USE_SKILL,
+                                player=choice.players[0] if choice.players else None)
+                if game._is_action_allowed(action):
+                    return action
+        raise NotImplementedError("Override use_shadowing when no legal decline is available")
 
     def coin_toss_flip(self, game):
         raise NotImplementedError("This method must be overridden by non-human subclasses")

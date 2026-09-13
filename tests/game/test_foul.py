@@ -17,8 +17,8 @@ def test_foul_fail():
     # Armor
     target = defender.get_av() + 1
     d = 3
-    D6.fix(d)
-    D6.fix(defender.get_av() - d)
+    game.dice.fix(D6, d)
+    game.dice.fix(D6, defender.get_av() - d)
 
     game.step(Action(ActionType.START_FOUL, player=fouler))
     assert game.has_report_of_type(OutcomeType.FOUL_ACTION_STARTED)
@@ -42,12 +42,12 @@ def test_foul_success_stunned():
     # Armor
     target = defender.get_av() + 1
     d = 6
-    D6.fix(d)
-    D6.fix(target - d)
+    game.dice.fix(D6, d)
+    game.dice.fix(D6, target - d)
 
     # Injury
-    D6.fix(1)
-    D6.fix(2)
+    game.dice.fix(D6, 1)
+    game.dice.fix(D6, 2)
 
     game.step(Action(ActionType.START_FOUL, player=fouler))
     assert game.has_report_of_type(OutcomeType.FOUL_ACTION_STARTED)
@@ -72,12 +72,12 @@ def test_foul_success_ko():
     # Armor
     target = defender.get_av() + 1
     d = 6
-    D6.fix(d)
-    D6.fix(target - d)
+    game.dice.fix(D6, d)
+    game.dice.fix(D6, target - d)
 
     # Injury
-    D6.fix(4)
-    D6.fix(5)
+    game.dice.fix(D6, 4)
+    game.dice.fix(D6, 5)
 
     game.step(Action(ActionType.START_FOUL, player=fouler))
     assert game.has_report_of_type(OutcomeType.FOUL_ACTION_STARTED)
@@ -102,12 +102,12 @@ def test_foul_success_cas():
     # Armor
     target = defender.get_av() + 1
     d = 6
-    D6.fix(d)
-    D6.fix(target - d)
+    game.dice.fix(D6, d)
+    game.dice.fix(D6, target - d)
 
     # Injury
-    D6.fix(5)
-    D6.fix(6)
+    game.dice.fix(D6, 5)
+    game.dice.fix(D6, 6)
 
     game.step(Action(ActionType.START_FOUL, player=fouler))
     assert game.has_report_of_type(OutcomeType.FOUL_ACTION_STARTED)
@@ -135,12 +135,12 @@ def test_foul_success_assist():
     # Armor
     target = defender.get_av() + 1
     d = 6
-    D6.fix(d)
-    D6.fix(defender.get_av() - d)
+    game.dice.fix(D6, d)
+    game.dice.fix(D6, defender.get_av() - d)
 
     # Injury
-    D6.fix(1)
-    D6.fix(2)
+    game.dice.fix(D6, 1)
+    game.dice.fix(D6, 2)
 
     game.step(Action(ActionType.START_FOUL, player=fouler))
     assert game.has_report_of_type(OutcomeType.FOUL_ACTION_STARTED)
@@ -163,8 +163,8 @@ def test_foul_fail_ejected():
 
     # Armor
     target = defender.get_av() + 1
-    D6.fix(1)
-    D6.fix(1)
+    game.dice.fix(D6, 1)
+    game.dice.fix(D6, 1)
 
     game.step(Action(ActionType.START_FOUL, player=fouler))
     assert game.has_report_of_type(OutcomeType.FOUL_ACTION_STARTED)
@@ -189,12 +189,12 @@ def test_foul_success_stunned_ejected_armor():
 
     # Armor
     target = defender.get_av() + 1
-    D6.fix(6)
-    D6.fix(6)
+    game.dice.fix(D6, 6)
+    game.dice.fix(D6, 6)
 
     # Injury
-    D6.fix(1)
-    D6.fix(2)
+    game.dice.fix(D6, 1)
+    game.dice.fix(D6, 2)
 
     game.step(Action(ActionType.START_FOUL, player=fouler))
     assert game.has_report_of_type(OutcomeType.FOUL_ACTION_STARTED)
@@ -220,12 +220,12 @@ def test_foul_success_stunned_ejected_injury():
 
     # Armor
     target = defender.get_av() + 1
-    D6.fix(5)
-    D6.fix(6)
+    game.dice.fix(D6, 5)
+    game.dice.fix(D6, 6)
 
     # Injury
-    D6.fix(2)
-    D6.fix(2)
+    game.dice.fix(D6, 2)
+    game.dice.fix(D6, 2)
 
     game.step(Action(ActionType.START_FOUL, player=fouler))
     assert game.has_report_of_type(OutcomeType.FOUL_ACTION_STARTED)
@@ -252,15 +252,15 @@ def test_foul_success_stunned_ejected_armor_bribe_success():
 
     # Armor
     target = defender.get_av() + 1
-    D6.fix(6)
-    D6.fix(6)
+    game.dice.fix(D6, 6)
+    game.dice.fix(D6, 6)
 
     # Injury
-    D6.fix(1)
-    D6.fix(2)
+    game.dice.fix(D6, 1)
+    game.dice.fix(D6, 2)
 
     # Bribe
-    D6.fix(2)
+    game.dice.fix(D6, 2)
 
     game.step(Action(ActionType.START_FOUL, player=fouler))
     assert game.has_report_of_type(OutcomeType.FOUL_ACTION_STARTED)
@@ -289,16 +289,16 @@ def test_foul_success_stunned_ejected_armor_bribe_fail_success():
 
     # Armor
     target = defender.get_av() + 1
-    D6.fix(6)
-    D6.fix(6)
+    game.dice.fix(D6, 6)
+    game.dice.fix(D6, 6)
 
     # Injury
-    D6.fix(1)
-    D6.fix(2)
+    game.dice.fix(D6, 1)
+    game.dice.fix(D6, 2)
 
     # Bribes
-    D6.fix(1)
-    D6.fix(2)
+    game.dice.fix(D6, 1)
+    game.dice.fix(D6, 2)
 
     game.step(Action(ActionType.START_FOUL, player=fouler))
     assert game.has_report_of_type(OutcomeType.FOUL_ACTION_STARTED)
@@ -329,15 +329,15 @@ def test_foul_success_stunned_ejected_armor_bribe_fail_dont_bribe():
 
     # Armor
     target = defender.get_av() + 1
-    D6.fix(6)
-    D6.fix(6)
+    game.dice.fix(D6, 6)
+    game.dice.fix(D6, 6)
 
     # Injury
-    D6.fix(1)
-    D6.fix(2)
+    game.dice.fix(D6, 1)
+    game.dice.fix(D6, 2)
 
     # Bribe
-    D6.fix(1)
+    game.dice.fix(D6, 1)
 
     game.step(Action(ActionType.START_FOUL, player=fouler))
     assert game.has_report_of_type(OutcomeType.FOUL_ACTION_STARTED)
@@ -367,15 +367,15 @@ def test_foul_success_stunned_ejected_armor_bribe_fail():
 
     # Armor
     target = defender.get_av() + 1
-    D6.fix(6)
-    D6.fix(6)
+    game.dice.fix(D6, 6)
+    game.dice.fix(D6, 6)
 
     # Injury
-    D6.fix(1)
-    D6.fix(2)
+    game.dice.fix(D6, 1)
+    game.dice.fix(D6, 2)
 
     # Bribe
-    D6.fix(1)
+    game.dice.fix(D6, 1)
 
     game.step(Action(ActionType.START_FOUL, player=fouler))
     assert game.has_report_of_type(OutcomeType.FOUL_ACTION_STARTED)
@@ -404,15 +404,15 @@ def test_foul_success_stunned_ejected_armor_dont_bribe():
 
     # Armor
     target = defender.get_av() + 1
-    D6.fix(6)
-    D6.fix(6)
+    game.dice.fix(D6, 6)
+    game.dice.fix(D6, 6)
 
     # Injury
-    D6.fix(1)
-    D6.fix(2)
+    game.dice.fix(D6, 1)
+    game.dice.fix(D6, 2)
 
     # Bribe
-    D6.fix(1)
+    game.dice.fix(D6, 1)
 
     game.step(Action(ActionType.START_FOUL, player=fouler))
     assert game.has_report_of_type(OutcomeType.FOUL_ACTION_STARTED)
@@ -442,10 +442,10 @@ def test_foul_fail_ejected_ball_carrier():
 
     # Armor
     target = defender.get_av() + 1
-    D6.fix(6)
-    D6.fix(6)
-    D6.fix(5)
-    D6.fix(6)
+    game.dice.fix(D6, 6)
+    game.dice.fix(D6, 6)
+    game.dice.fix(D6, 5)
+    game.dice.fix(D6, 6)
     
 
     game.step(Action(ActionType.START_FOUL, player=fouler))
